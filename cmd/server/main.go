@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -79,6 +80,18 @@ func initLogger() (*zap.Logger, error) {
 		zapConfig.Level = zap.NewAtomicLevelAt(zap.WarnLevel)
 	case "error":
 		zapConfig.Level = zap.NewAtomicLevelAt(zap.ErrorLevel)
+	}
+
+	if cfg.FilePath != "" {
+		if err := ensureDir(filepath.Dir(cfg.FilePath)); err != nil {
+			return nil, fmt.Errorf("create log dir failed: %w", err)
+		}
+		zapConfig.OutputPaths = []string{"stdout", cfg.FilePath}
+		zapConfig.ErrorOutputPaths = []string{"stderr", cfg.FilePath}
+		if cfg.Format == "console" {
+			zapConfig.Encoding = "console"
+			zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		}
 	}
 
 	return zapConfig.Build()

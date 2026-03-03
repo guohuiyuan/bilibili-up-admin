@@ -1,10 +1,12 @@
+data_dir: data
+
 server:
   port: 8080
   mode: debug
 
 database:
   driver: sqlite
-  path: data/bilibili-up-admin.db
+  path: bilibili-up-admin.db
 
 redis:
   addr: "localhost:6379"
@@ -59,3 +61,4 @@ task:
 log:
   level: debug
   format: console
+  file_path: logs/bilibili-up-admin.log
