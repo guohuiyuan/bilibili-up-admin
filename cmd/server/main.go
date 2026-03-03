@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"bilibili-up-admin/config"
 	"bilibili-up-admin/internal/handler"
@@ -18,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -81,6 +84,18 @@ func initLogger() (*zap.Logger, error) {
 		zapConfig.Level = zap.NewAtomicLevelAt(zap.ErrorLevel)
 	}
 
+	if cfg.FilePath != "" {
+		if err := ensureDir(filepath.Dir(cfg.FilePath)); err != nil {
+			return nil, fmt.Errorf("create log dir failed: %w", err)
+		}
+		zapConfig.OutputPaths = []string{"stdout", cfg.FilePath}
+		zapConfig.ErrorOutputPaths = []string{"stderr", cfg.FilePath}
+		if cfg.Format == "console" {
+			zapConfig.Encoding = "console"
+			zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		}
+	}
+
 	return zapConfig.Build()
 }
 
@@ -128,6 +143,28 @@ func ensureDir(dir string) error {
 		return nil
 	}
 	return os.MkdirAll(dir, 0o755)
+}
+
+func loadHTMLTemplates(root string) (*template.Template, error) {
+	var files []string
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || filepath.Ext(path) != ".html" {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no html templates found under %s", root)
+	}
+	slices.Sort(files)
+	return template.ParseFiles(files...)
 }
 
 func initBilibiliClient() (*bilibili.Client, error) {
@@ -256,7 +293,12 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 	gin.SetMode(mode)
 	router := gin.Default()
 
-	router.LoadHTMLGlob("web/templates/**/*")
+	if err := router.SetTrustedProxies(config.GlobalConfig.Server.TrustedProxies); err != nil {
+		panic(fmt.Errorf("set trusted proxies failed: %w", err))
+	}
+
+	tmpl := template.Must(loadHTMLTemplates("web/templates"))
+	router.SetHTMLTemplate(tmpl)
 	router.Static("/static", "web/static")
 	router.Use(corsMiddleware())
 

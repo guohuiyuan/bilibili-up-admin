@@ -16,11 +16,13 @@ type Config struct {
 	LLMProviders map[string]LLMConfig `mapstructure:"llm_providers"`
 	Task         TaskConfig           `mapstructure:"task"`
 	Log          LogConfig            `mapstructure:"log"`
+	DataDir      string               `mapstructure:"data_dir"`
 }
 
 type ServerConfig struct {
-	Port int    `mapstructure:"port"`
-	Mode string `mapstructure:"mode"`
+	Port           int      `mapstructure:"port"`
+	Mode           string   `mapstructure:"mode"`
+	TrustedProxies []string `mapstructure:"trusted_proxies"`
 }
 
 type DatabaseConfig struct {
@@ -37,7 +39,7 @@ type DatabaseConfig struct {
 func (c *DatabaseConfig) DSN() string {
 	if c.Driver == "sqlite" || c.Driver == "" {
 		if c.Path == "" {
-			return "data/bilibili-up-admin.db"
+			return "bilibili-up-admin.db"
 		}
 		return c.Path
 	}
@@ -73,8 +75,9 @@ type TaskConfig struct {
 }
 
 type LogConfig struct {
-	Level  string `mapstructure:"level"`
-	Format string `mapstructure:"format"`
+	Level    string `mapstructure:"level"`
+	Format   string `mapstructure:"format"`
+	FilePath string `mapstructure:"file_path"`
 }
 
 var GlobalConfig *Config
@@ -97,14 +100,17 @@ func Load(configPath string) error {
 	}
 
 	GlobalConfig = &cfg
+	normalizePaths(GlobalConfig)
 	return nil
 }
 
 func setDefaults() {
 	viper.SetDefault("server.port", 8080)
 	viper.SetDefault("server.mode", "debug")
+	viper.SetDefault("server.trusted_proxies", []string{"127.0.0.1", "::1"})
+	viper.SetDefault("data_dir", "data")
 	viper.SetDefault("database.driver", "sqlite")
-	viper.SetDefault("database.path", "data/bilibili-up-admin.db")
+	viper.SetDefault("database.path", "bilibili-up-admin.db")
 	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 3306)
 	viper.SetDefault("database.charset", "utf8mb4")
@@ -116,6 +122,7 @@ func setDefaults() {
 	viper.SetDefault("task.queue_size", 100)
 	viper.SetDefault("log.level", "debug")
 	viper.SetDefault("log.format", "console")
+	viper.SetDefault("log.file_path", "logs/bilibili-up-admin.log")
 }
 
 func GetLLMConfig(provider string) *LLMConfig {
@@ -133,4 +140,36 @@ func GetLLMConfig(provider string) *LLMConfig {
 		cfg.Provider = provider
 	}
 	return &cfg
+}
+
+func normalizePaths(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+
+	if cfg.DataDir == "" {
+		cfg.DataDir = "data"
+	}
+
+	if cfg.Database.Driver == "" || cfg.Database.Driver == "sqlite" {
+		cfg.Database.Path = ensureUnderDataDir(cfg.Database.Path, cfg.DataDir)
+	}
+	cfg.Log.FilePath = ensureUnderDataDir(cfg.Log.FilePath, cfg.DataDir)
+}
+
+func ensureUnderDataDir(path, dataDir string) string {
+	if path == "" {
+		return ""
+	}
+	if isAbs(path) || strings.HasPrefix(path, dataDir+"/") || strings.HasPrefix(path, dataDir+"\\") {
+		return path
+	}
+	return dataDir + "/" + path
+}
+
+func isAbs(path string) bool {
+	if len(path) > 1 && path[1] == ':' {
+		return true
+	}
+	return strings.HasPrefix(path, "/") || strings.HasPrefix(path, "\\")
 }
