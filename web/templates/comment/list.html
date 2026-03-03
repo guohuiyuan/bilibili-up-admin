@@ -1,0 +1,270 @@
+{{ define "head" }}
+<style>
+.comment-card {
+    transition: all 0.2s ease;
+}
+.comment-card:hover {
+    background-color: #f9fafb;
+}
+</style>
+{{ end }}
+
+{{ define "content" }}
+<div class="mb-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">评论管理</h2>
+            <p class="text-gray-500 mt-1">管理和回复视频评论</p>
+        </div>
+        <div class="flex space-x-3">
+            <button onclick="syncComments()" class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition">
+                <i class="ri-refresh-line"></i>
+                <span>同步评论</span>
+            </button>
+            <button onclick="batchAIReply()" class="flex items-center space-x-2 px-4 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition">
+                <i class="ri-robot-line"></i>
+                <span>批量AI回复</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 筛选器 -->
+<div class="bg-white rounded-2xl p-6 shadow-sm mb-6">
+    <div class="flex flex-wrap gap-4">
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-sm text-gray-500 mb-2">视频BV号</label>
+            <input type="text" id="filter-bvid" placeholder="输入BV号筛选" 
+                   class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="w-48">
+            <label class="block text-sm text-gray-500 mb-2">回复状态</label>
+            <select id="filter-status" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option value="-1">全部</option>
+                <option value="0">未回复</option>
+                <option value="1">已回复</option>
+                <option value="2">已忽略</option>
+            </select>
+        </div>
+        <div class="flex items-end">
+            <button onclick="loadComments()" class="px-6 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition">
+                搜索
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 评论列表 -->
+<div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-gray-100">
+        <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-gray-800">评论列表</h3>
+            <span id="total-count" class="text-sm text-gray-500">共 0 条评论</span>
+        </div>
+    </div>
+    
+    <div id="comment-list" class="divide-y divide-gray-100">
+        <!-- 评论项将通过JS动态加载 -->
+        <div class="p-8 text-center text-gray-400">
+            <i class="ri-chat-off-line text-4xl"></i>
+            <p class="mt-2">暂无评论数据</p>
+        </div>
+    </div>
+    
+    <!-- 分页 -->
+    <div class="p-4 border-t border-gray-100 flex justify-center">
+        <div id="pagination" class="flex space-x-2">
+        </div>
+    </div>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script>
+let currentPage = 1;
+const pageSize = 20;
+
+async function loadComments() {
+    const bvid = document.getElementById('filter-bvid').value;
+    const status = document.getElementById('filter-status').value;
+    
+    try {
+        const response = await fetch(`/api/comments?video_bvid=${bvid}&reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
+        const data = await response.json();
+        
+        renderComments(data.comments || []);
+        document.getElementById('total-count').textContent = `共 ${data.total || 0} 条评论`;
+        renderPagination(data.total || 0);
+    } catch (error) {
+        showToast('加载失败: ' + error.message, 'error');
+    }
+}
+
+function renderComments(comments) {
+    const container = document.getElementById('comment-list');
+    
+    if (comments.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center text-gray-400">
+                <i class="ri-chat-off-line text-4xl"></i>
+                <p class="mt-2">暂无评论数据</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = comments.map(c => `
+        <div class="comment-card p-6">
+            <div class="flex items-start space-x-4">
+                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <i class="ri-user-line text-amber-600"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="font-medium text-gray-800">${c.author_name || '用户'}</span>
+                            <span class="text-xs px-2 py-1 rounded-full ${
+                                c.reply_status === 1 ? 'bg-green-100 text-green-600' : 
+                                c.reply_status === 2 ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-600'
+                            }">
+                                ${c.reply_status === 1 ? '已回复' : c.reply_status === 2 ? '已忽略' : '待回复'}
+                            </span>
+                            ${c.is_ai_reply ? '<span class="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-600">AI回复</span>' : ''}
+                        </div>
+                        <span class="text-xs text-gray-400">${formatTime(c.comment_time)}</span>
+                    </div>
+                    <p class="text-gray-600 mt-2">${c.content}</p>
+                    ${c.reply_content ? `
+                        <div class="mt-3 p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm text-gray-500">回复: ${c.reply_content}</p>
+                        </div>
+                    ` : ''}
+                    <div class="flex items-center space-x-4 mt-4">
+                        ${c.reply_status === 0 ? `
+                            <button onclick="aiReply(${c.comment_id})" class="text-amber-500 hover:text-amber-600 text-sm flex items-center space-x-1">
+                                <i class="ri-robot-line"></i>
+                                <span>AI回复</span>
+                            </button>
+                            <button onclick="manualReply(${c.comment_id})" class="text-gray-500 hover:text-gray-600 text-sm flex items-center space-x-1">
+                                <i class="ri-edit-line"></i>
+                                <span>手动回复</span>
+                            </button>
+                            <button onclick="ignore(${c.comment_id})" class="text-gray-400 hover:text-gray-500 text-sm flex items-center space-x-1">
+                                <i class="ri-close-line"></i>
+                                <span>忽略</span>
+                            </button>
+                        ` : ''}
+                        <span class="text-xs text-gray-400">视频: ${c.video_bvid}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const container = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    for (let i = 1; i <= totalPages && i <= 5; i++) {
+        html += `<button onclick="goToPage(${i})" class="px-3 py-1 rounded ${
+            i === currentPage ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }">${i}</button>`;
+    }
+    container.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadComments();
+}
+
+async function syncComments() {
+    const bvid = document.getElementById('filter-bvid').value || prompt('请输入视频BV号:');
+    if (!bvid) return;
+    
+    showToast('正在同步评论...', 'info');
+    try {
+        const response = await fetch('/api/comments/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ video_bvid: bvid, page: 1, page_size: 50 })
+        });
+        const data = await response.json();
+        showToast(`同步完成，新增 ${data.count} 条评论`, 'success');
+        loadComments();
+    } catch (error) {
+        showToast('同步失败: ' + error.message, 'error');
+    }
+}
+
+async function aiReply(commentId) {
+    showToast('正在生成AI回复...', 'info');
+    try {
+        const response = await fetch(`/api/comments/${commentId}/ai-reply`, { method: 'POST' });
+        const data = await response.json();
+        showToast('回复成功', 'success');
+        loadComments();
+    } catch (error) {
+        showToast('回复失败: ' + error.message, 'error');
+    }
+}
+
+function manualReply(commentId) {
+    const content = prompt('请输入回复内容:');
+    if (!content) return;
+    
+    fetch(`/api/comments/${commentId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+    }).then(() => {
+        showToast('回复成功', 'success');
+        loadComments();
+    }).catch(err => {
+        showToast('回复失败: ' + err.message, 'error');
+    });
+}
+
+async function ignore(commentId) {
+    if (!confirm('确定忽略此评论?')) return;
+    
+    try {
+        await fetch(`/api/comments/${commentId}/ignore`, { method: 'POST' });
+        showToast('已忽略', 'success');
+        loadComments();
+    } catch (error) {
+        showToast('操作失败: ' + error.message, 'error');
+    }
+}
+
+async function batchAIReply() {
+    if (!confirm('确定批量AI回复未处理的评论?')) return;
+    
+    showToast('正在批量AI回复...', 'info');
+    try {
+        const response = await fetch('/api/comments/batch-ai-reply?limit=10', { method: 'POST' });
+        const data = await response.json();
+        showToast(`批量回复完成，处理 ${data.count} 条`, 'success');
+        loadComments();
+    } catch (error) {
+        showToast('批量回复失败: ' + error.message, 'error');
+    }
+}
+
+function formatTime(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString('zh-CN');
+}
+
+// 初始加载
+loadComments();
+</script>
+{{ end }}

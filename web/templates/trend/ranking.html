@@ -1,0 +1,257 @@
+{{ define "head" }}
+<style>
+.tag-item {
+    transition: all 0.2s ease;
+}
+.tag-item:hover {
+    background-color: #fef3c7;
+}
+</style>
+{{ end }}
+
+{{ define "content" }}
+<div class="mb-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">热度分析</h2>
+            <p class="text-gray-500 mt-1">查看B站热门标签和视频排行</p>
+        </div>
+        <button onclick="syncTrends()" class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition">
+            <i class="ri-refresh-line"></i>
+            <span>同步数据</span>
+        </button>
+    </div>
+</div>
+
+<!-- 搜索 -->
+<div class="bg-white rounded-2xl p-6 shadow-sm mb-6">
+    <div class="flex space-x-4">
+        <div class="flex-1">
+            <input type="text" id="search-keyword" placeholder="搜索标签..." 
+                   class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <button onclick="searchTag()" class="px-6 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition">
+            搜索
+        </button>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- 热门标签 -->
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+            <h3 class="font-semibold text-gray-800 flex items-center">
+                <i class="ri-fire-line text-amber-500 mr-2"></i>
+                热门标签
+            </h3>
+        </div>
+        <div id="tag-list" class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+            <div class="p-8 text-center text-gray-400">
+                <i class="ri-loader-4-line animate-spin text-4xl"></i>
+                <p class="mt-2">加载中...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 视频排行 -->
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+            <div class="flex items-center justify-between">
+                <h3 class="font-semibold text-gray-800 flex items-center">
+                    <i class="ri-trophy-line text-amber-500 mr-2"></i>
+                    视频排行
+                </h3>
+                <select id="category-select" onchange="loadVideoRanking()" class="px-3 py-1 border border-gray-200 rounded-lg text-sm">
+                    <option value="">全站</option>
+                    <option value="游戏">游戏</option>
+                    <option value="生活">生活</option>
+                    <option value="音乐">音乐</option>
+                    <option value="动画">动画</option>
+                    <option value="知识">知识</option>
+                    <option value="科技">科技</option>
+                    <option value="美食">美食</option>
+                </select>
+            </div>
+        </div>
+        <div id="video-list" class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+            <div class="p-8 text-center text-gray-400">
+                <i class="ri-loader-4-line animate-spin text-4xl"></i>
+                <p class="mt-2">加载中...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 标签详情 -->
+<div id="tag-detail" class="bg-white rounded-2xl p-6 shadow-sm hidden">
+    <div class="flex items-center justify-between mb-4">
+        <h3 id="tag-name" class="font-semibold text-gray-800 text-lg"></h3>
+        <button onclick="closeTagDetail()" class="text-gray-400 hover:text-gray-600">
+            <i class="ri-close-line text-xl"></i>
+        </button>
+    </div>
+    <div id="tag-videos" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    </div>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script>
+async function loadTrendingTags() {
+    try {
+        const response = await fetch('/api/trends/tags?limit=50');
+        const data = await response.json();
+        renderTags(data.tags || []);
+    } catch (error) {
+        showToast('加载失败: ' + error.message, 'error');
+    }
+}
+
+async function loadVideoRanking() {
+    const category = document.getElementById('category-select').value;
+    try {
+        const response = await fetch(`/api/trends/videos?category=${category}&limit=50`);
+        const data = await response.json();
+        renderVideos(data.videos || []);
+    } catch (error) {
+        showToast('加载失败: ' + error.message, 'error');
+    }
+}
+
+function renderTags(tags) {
+    const container = document.getElementById('tag-list');
+    
+    if (tags.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center text-gray-400">
+                <i class="ri-tag-line text-4xl"></i>
+                <p class="mt-2">暂无数据</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = tags.map((tag, index) => `
+        <div class="tag-item flex items-center justify-between p-4 cursor-pointer" onclick="showTagDetail('${tag.name}')">
+            <div class="flex items-center space-x-3">
+                <span class="w-8 h-8 rounded-lg ${
+                    index < 3 ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-600'
+                } flex items-center justify-center font-bold text-sm">
+                    ${index + 1}
+                </span>
+                <span class="text-gray-800">${tag.name}</span>
+            </div>
+            <div class="text-right">
+                <span class="text-sm text-gray-500">${formatNumber(tag.hot_value)}</span>
+                <span class="text-xs text-gray-400 ml-2">热度</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderVideos(videos) {
+    const container = document.getElementById('video-list');
+    
+    if (videos.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center text-gray-400">
+                <i class="ri-video-line text-4xl"></i>
+                <p class="mt-2">暂无数据</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = videos.map((video, index) => `
+        <div class="flex items-start space-x-3 p-4">
+            <span class="w-8 h-8 rounded-lg ${
+                index < 3 ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-600'
+            } flex items-center justify-center font-bold text-sm flex-shrink-0">
+                ${index + 1}
+            </span>
+            <div class="flex-1 min-w-0">
+                <p class="text-gray-800 truncate">${video.title}</p>
+                <div class="flex items-center space-x-3 mt-1 text-xs text-gray-500">
+                    <span>${video.owner}</span>
+                    <span><i class="ri-play-line"></i> ${formatNumber(video.view)}</span>
+                    <span><i class="ri-thumb-up-line"></i> ${formatNumber(video.like)}</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function showTagDetail(tagName) {
+    document.getElementById('tag-name').textContent = `#${tagName}`;
+    document.getElementById('tag-detail').classList.remove('hidden');
+    
+    try {
+        const response = await fetch(`/api/trends/tags/${encodeURIComponent(tagName)}?page=1&page_size=10`);
+        const data = await response.json();
+        
+        const container = document.getElementById('tag-videos');
+        container.innerHTML = (data.top_videos || []).map(video => `
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-gray-800 text-sm truncate">${video.title}</p>
+                <div class="flex items-center space-x-3 mt-2 text-xs text-gray-500">
+                    <span>${video.owner}</span>
+                    <span><i class="ri-play-line"></i> ${formatNumber(video.view)}</span>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        showToast('加载详情失败: ' + error.message, 'error');
+    }
+}
+
+function closeTagDetail() {
+    document.getElementById('tag-detail').classList.add('hidden');
+}
+
+async function searchTag() {
+    const keyword = document.getElementById('search-keyword').value;
+    if (!keyword) return;
+    
+    try {
+        const response = await fetch(`/api/trends/search?keyword=${encodeURIComponent(keyword)}`);
+        const data = await response.json();
+        renderTags(data.tags || []);
+    } catch (error) {
+        showToast('搜索失败: ' + error.message, 'error');
+    }
+}
+
+async function syncTrends() {
+    showToast('正在同步热度数据...', 'info');
+    try {
+        await fetch('/api/trends/sync', { method: 'POST' });
+        showToast('同步完成', 'success');
+        loadTrendingTags();
+        loadVideoRanking();
+    } catch (error) {
+        showToast('同步失败: ' + error.message, 'error');
+    }
+}
+
+function formatNumber(num) {
+    if (!num) return '0';
+    if (num >= 10000) {
+        return (num / 10000).toFixed(1) + '万';
+    }
+    return num.toString();
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    }`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+loadTrendingTags();
+loadVideoRanking();
+</script>
+{{ end }}

@@ -1,0 +1,310 @@
+{{ define "head" }}
+<style>
+.interaction-card {
+    transition: all 0.2s ease;
+}
+.interaction-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+</style>
+{{ end }}
+
+{{ define "content" }}
+<div class="mb-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">互动管理</h2>
+            <p class="text-gray-500 mt-1">管理点赞、投币等互动操作</p>
+        </div>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-sm">今日点赞</p>
+                <p id="stat-like" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+            </div>
+            <div class="w-14 h-14 rounded-2xl gradient-amber flex items-center justify-center">
+                <i class="ri-thumb-up-line text-white text-2xl"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-sm">今日投币</p>
+                <p id="stat-coin" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+            </div>
+            <div class="w-14 h-14 rounded-2xl gradient-teal flex items-center justify-center">
+                <i class="ri-coin-line text-white text-2xl"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-sm">今日收藏</p>
+                <p id="stat-favorite" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+            </div>
+            <div class="w-14 h-14 rounded-2xl gradient-pink flex items-center justify-center">
+                <i class="ri-star-line text-white text-2xl"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 快捷操作 -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-2xl p-6 shadow-sm">
+        <h3 class="font-semibold text-gray-800 mb-4">单视频互动</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm text-gray-500 mb-2">视频BV号</label>
+                <input type="text" id="single-bvid" placeholder="输入BV号" 
+                       class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <button onclick="likeVideo()" class="flex items-center justify-center space-x-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl p-3 transition">
+                    <i class="ri-thumb-up-line"></i>
+                    <span>点赞</span>
+                </button>
+                <button onclick="coinVideo()" class="flex items-center justify-center space-x-2 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-xl p-3 transition">
+                    <i class="ri-coin-line"></i>
+                    <span>投币</span>
+                </button>
+                <button onclick="tripleVideo()" class="flex items-center justify-center space-x-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl p-3 transition">
+                    <i class="ri-heart-line"></i>
+                    <span>三连</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-2xl p-6 shadow-sm">
+        <h3 class="font-semibold text-gray-800 mb-4">粉丝互动</h3>
+        <p class="text-gray-500 text-sm mb-4">自动互动粉丝的最新视频</p>
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="interactFans('like')" class="flex items-center justify-center space-x-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl p-4 transition">
+                <i class="ri-thumb-up-line"></i>
+                <span>点赞粉丝视频</span>
+            </button>
+            <button onclick="interactFans('coin')" class="flex items-center justify-center space-x-2 bg-teal-500 hover:bg-teal-600 text-white rounded-xl p-4 transition">
+                <i class="ri-coin-line"></i>
+                <span>投币粉丝视频</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 批量操作 -->
+<div class="bg-white rounded-2xl p-6 shadow-sm mb-8">
+    <h3 class="font-semibold text-gray-800 mb-4">批量互动</h3>
+    <div class="space-y-4">
+        <div>
+            <label class="block text-sm text-gray-500 mb-2">视频BV号（每行一个）</label>
+            <textarea id="batch-bvids" rows="4" placeholder="BV1xx...
+BV2xx...
+BV3xx..." 
+                      class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+        </div>
+        <div class="flex space-x-3">
+            <select id="batch-action" class="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option value="like">点赞</option>
+                <option value="coin">投币</option>
+                <option value="triple">三连</option>
+            </select>
+            <button onclick="batchInteract()" class="px-6 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition">
+                执行批量操作
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 操作记录 -->
+<div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-gray-100">
+        <h3 class="font-semibold text-gray-800">操作记录</h3>
+    </div>
+    <div id="interaction-list" class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+        <div class="p-8 text-center text-gray-400">
+            <i class="ri-history-line text-4xl"></i>
+            <p class="mt-2">暂无操作记录</p>
+        </div>
+    </div>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script>
+async function loadStats() {
+    try {
+        const response = await fetch('/api/interactions/stats?days=1');
+        const data = await response.json();
+        document.getElementById('stat-like').textContent = data.like || 0;
+        document.getElementById('stat-coin').textContent = data.coin || 0;
+        document.getElementById('stat-favorite').textContent = data.favorite || 0;
+    } catch (error) {
+        console.error('加载统计失败:', error);
+    }
+}
+
+async function loadInteractions() {
+    try {
+        const response = await fetch('/api/interactions?page=1&page_size=20');
+        const data = await response.json();
+        renderInteractions(data.items || []);
+    } catch (error) {
+        console.error('加载记录失败:', error);
+    }
+}
+
+function renderInteractions(items) {
+    const container = document.getElementById('interaction-list');
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center text-gray-400">
+                <i class="ri-history-line text-4xl"></i>
+                <p class="mt-2">暂无操作记录</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = items.map(item => `
+        <div class="flex items-center justify-between p-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full ${
+                    item.action_type === 'like' ? 'bg-amber-100' :
+                    item.action_type === 'coin' ? 'bg-teal-100' : 'bg-purple-100'
+                } flex items-center justify-center">
+                    <i class="ri-${item.action_type === 'like' ? 'thumb-up' : item.action_type === 'coin' ? 'coin' : 'heart'}-line ${
+                        item.action_type === 'like' ? 'text-amber-600' :
+                        item.action_type === 'coin' ? 'text-teal-600' : 'text-purple-600'
+                    }"></i>
+                </div>
+                <div>
+                    <p class="text-gray-800">${item.video_title || item.video_bvid}</p>
+                    <p class="text-xs text-gray-500">${item.video_owner || ''}</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="text-xs px-2 py-1 rounded-full ${item.success ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
+                    ${item.success ? '成功' : '失败'}
+                </span>
+                <p class="text-xs text-gray-400 mt-1">${formatTime(item.action_time)}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function likeVideo() {
+    const bvid = document.getElementById('single-bvid').value;
+    if (!bvid) return showToast('请输入BV号', 'error');
+    
+    try {
+        const response = await fetch(`/api/videos/${bvid}/like`, { method: 'POST' });
+        const data = await response.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        loadInteractions();
+        loadStats();
+    } catch (error) {
+        showToast('操作失败: ' + error.message, 'error');
+    }
+}
+
+async function coinVideo() {
+    const bvid = document.getElementById('single-bvid').value;
+    if (!bvid) return showToast('请输入BV号', 'error');
+    
+    try {
+        const response = await fetch(`/api/videos/${bvid}/coin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ coin_count: 1 })
+        });
+        const data = await response.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        loadInteractions();
+        loadStats();
+    } catch (error) {
+        showToast('操作失败: ' + error.message, 'error');
+    }
+}
+
+async function tripleVideo() {
+    const bvid = document.getElementById('single-bvid').value;
+    if (!bvid) return showToast('请输入BV号', 'error');
+    
+    try {
+        const response = await fetch(`/api/videos/${bvid}/triple`, { method: 'POST' });
+        const data = await response.json();
+        showToast(data.message, data.success ? 'success' : 'error');
+        loadInteractions();
+        loadStats();
+    } catch (error) {
+        showToast('操作失败: ' + error.message, 'error');
+    }
+}
+
+async function interactFans(action) {
+    showToast(`正在${action === 'like' ? '点赞' : '投币'}粉丝视频...`, 'info');
+    try {
+        const response = await fetch(`/api/fans/interact?action=${action}&limit=10`, { method: 'POST' });
+        const data = await response.json();
+        showToast(`完成，处理 ${data.count} 个视频`, 'success');
+        loadInteractions();
+        loadStats();
+    } catch (error) {
+        showToast('操作失败: ' + error.message, 'error');
+    }
+}
+
+async function batchInteract() {
+    const bvidsText = document.getElementById('batch-bvids').value;
+    const action = document.getElementById('batch-action').value;
+    const bvids = bvidsText.split('\n').filter(b => b.trim());
+    
+    if (bvids.length === 0) return showToast('请输入BV号', 'error');
+    
+    showToast('正在批量操作...', 'info');
+    try {
+        const response = await fetch('/api/videos/batch-interact', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bv_ids: bvids, action, coin_count: 1 })
+        });
+        const data = await response.json();
+        showToast('批量操作完成', 'success');
+        loadInteractions();
+        loadStats();
+    } catch (error) {
+        showToast('操作失败: ' + error.message, 'error');
+    }
+}
+
+function formatTime(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString('zh-CN');
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    }`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+loadStats();
+loadInteractions();
+</script>
+{{ end }}

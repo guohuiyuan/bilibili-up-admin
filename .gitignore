@@ -1,0 +1,46 @@
+# 忽略编译产物
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bili-admin
+
+# 测试文件
+*.test
+*.out
+coverage.txt
+
+# Go 工作空间文件
+go.work
+
+# IDE 配置
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 环境配置（可能包含敏感信息）
+config/config.local.yaml
+config/*.local.yaml
+.env
+.env.*
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+tmp/
+temp/
+
+# 依赖目录
+vendor/
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 数据库文件
+*.db
+*.sqlite
