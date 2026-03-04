@@ -3,21 +3,22 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
+	"bilibili-up-admin/internal/model"
 	"bilibili-up-admin/internal/repository"
 	"bilibili-up-admin/pkg/bilibili"
 	"bilibili-up-admin/pkg/llm"
 )
 
 const (
-	settingKeyBilibili     = "app.bilibili"
-	settingKeyLLM          = "app.llm"
-	settingKeyLLMProviders = "app.llm_providers"
-	settingKeyTask         = "app.task"
-	settingKeyLog          = "app.log"
+	settingKeyBilibili = "app.bilibili"
+	settingKeyLLM      = "app.llm"
+	settingKeyTask     = "app.task"
+	settingKeyLog      = "app.log"
+	// 注意：删除了 settingKeyLLMProviders，因为不再使用 KV 存储
 )
 
+// 数据结构定义 (BilibiliSettings, LLMSettings 等保持不变) ...
 type BilibiliSettings struct {
 	SESSData   string `json:"sess_data"`
 	BiliJct    string `json:"bili_jct"`
@@ -62,112 +63,66 @@ type AppSettings struct {
 }
 
 type AppSettingsService struct {
-	repo *repository.SettingRepository
+	settingRepo  *repository.SettingRepository
+	providerRepo *repository.LLMProviderRepository // 新增独立的 Provider 仓库
 }
 
-func NewAppSettingsService(repo *repository.SettingRepository) *AppSettingsService {
-	return &AppSettingsService{repo: repo}
-}
-
-func DefaultAppSettings() *AppSettings {
-	return &AppSettings{
-		LLM: LLMSettings{
-			DefaultProvider: "openai",
-		},
-		LLMProviders: map[string]LLMProviderSettings{
-			"openai":   {Enabled: false, Provider: "openai", Model: "gpt-4o-mini", MaxTokens: 1000, Temperature: 0.7},
-			"claude":   {Enabled: false, Provider: "claude", Model: "claude-3-5-sonnet-latest", MaxTokens: 1000, Temperature: 0.7},
-			"gemini":   {Enabled: false, Provider: "gemini", Model: "gemini-2.5-flash", MaxTokens: 1000, Temperature: 0.7},
-			"deepseek": {Enabled: false, Provider: "deepseek", Model: "deepseek-chat", MaxTokens: 1000, Temperature: 0.7},
-			"qwen":     {Enabled: false, Provider: "qwen", Model: "qwen-plus", BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", MaxTokens: 1000, Temperature: 0.7},
-			"moonshot": {Enabled: false, Provider: "moonshot", Model: "moonshot-v1-8k", MaxTokens: 1000, Temperature: 0.7},
-			"zhipu":    {Enabled: false, Provider: "zhipu", Model: "glm-4-flash", MaxTokens: 1000, Temperature: 0.7},
-			"ollama":   {Enabled: false, Provider: "ollama", Model: "llama3.1", BaseURL: "http://localhost:11434", MaxTokens: 1000, Temperature: 0.7},
-		},
-		Task: TaskSettings{
-			WorkerCount: 5,
-			QueueSize:   100,
-		},
-		Log: LogSettings{
-			Level:    "debug",
-			Format:   "console",
-			FilePath: "logs/bilibili-up-admin.log",
-		},
+// 修改构造函数
+func NewAppSettingsService(settingRepo *repository.SettingRepository, providerRepo *repository.LLMProviderRepository) *AppSettingsService {
+	return &AppSettingsService{
+		settingRepo:  settingRepo,
+		providerRepo: providerRepo,
 	}
-}
-
-func CloneAppSettings(src *AppSettings) *AppSettings {
-	if src == nil {
-		return DefaultAppSettings()
-	}
-	clone := *src
-	if src.LLMProviders != nil {
-		clone.LLMProviders = make(map[string]LLMProviderSettings, len(src.LLMProviders))
-		for k, v := range src.LLMProviders {
-			clone.LLMProviders[k] = v
-		}
-	}
-	return &clone
 }
 
 func (s *AppSettingsService) Load(ctx context.Context) (*AppSettings, error) {
-	settings := DefaultAppSettings()
-	if err := s.repo.GetJSON(ctx, settingKeyBilibili, &settings.Bilibili); err != nil {
-		return nil, err
+	app := &AppSettings{
+		LLMProviders: make(map[string]LLMProviderSettings),
 	}
-	if err := s.repo.GetJSON(ctx, settingKeyLLM, &settings.LLM); err != nil {
-		return nil, err
+
+	// 1. 加载旧的常规配置 (KV 表)
+	if setting, _ := s.settingRepo.GetByKey(ctx, settingKeyBilibili); setting != nil {
+		json.Unmarshal([]byte(setting.Value), &app.Bilibili)
 	}
-	if err := s.repo.GetJSON(ctx, settingKeyLLMProviders, &settings.LLMProviders); err != nil {
-		return nil, err
+	if setting, _ := s.settingRepo.GetByKey(ctx, settingKeyLLM); setting != nil {
+		json.Unmarshal([]byte(setting.Value), &app.LLM)
 	}
-	if err := s.repo.GetJSON(ctx, settingKeyTask, &settings.Task); err != nil {
-		return nil, err
+	if setting, _ := s.settingRepo.GetByKey(ctx, settingKeyTask); setting != nil {
+		json.Unmarshal([]byte(setting.Value), &app.Task)
 	}
-	if err := s.repo.GetJSON(ctx, settingKeyLog, &settings.Log); err != nil {
-		return nil, err
+	if setting, _ := s.settingRepo.GetByKey(ctx, settingKeyLog); setting != nil {
+		json.Unmarshal([]byte(setting.Value), &app.Log)
 	}
-	return settings, nil
+
+	// 2. [核心改变]：从独立的 llm_providers 实体表中提取模型配置
+	dbProviders, err := s.providerRepo.List(ctx)
+	if err == nil {
+		for _, p := range dbProviders {
+			app.LLMProviders[p.Name] = LLMProviderSettings{
+				Enabled:     p.Enabled,
+				Provider:    p.Provider,
+				APIKey:      p.APIKey,
+				BaseURL:     p.BaseURL,
+				Model:       p.Model,
+				MaxTokens:   p.MaxTokens,
+				Temperature: p.Temperature,
+			}
+		}
+	}
+
+	return app, nil
 }
 
-func (s *AppSettingsService) SaveApp(ctx context.Context, settings *AppSettings) error {
-	if settings == nil {
-		return fmt.Errorf("settings is nil")
-	}
-	if settings.LLMProviders == nil {
-		settings.LLMProviders = map[string]LLMProviderSettings{}
-	}
-	if err := s.repo.SetJSON(ctx, settingKeyBilibili, settings.Bilibili); err != nil {
-		return err
-	}
-	if err := s.repo.SetJSON(ctx, settingKeyLLM, settings.LLM); err != nil {
-		return err
-	}
-	if err := s.repo.SetJSON(ctx, settingKeyLLMProviders, settings.LLMProviders); err != nil {
-		return err
-	}
-	if err := s.repo.SetJSON(ctx, settingKeyTask, settings.Task); err != nil {
-		return err
-	}
-	if err := s.repo.SetJSON(ctx, settingKeyLog, settings.Log); err != nil {
-		return err
-	}
+func (s *AppSettingsService) SaveApp(ctx context.Context, app *AppSettings) error {
+	vLLM, _ := EncodeJSON(app.LLM)
+	vTask, _ := EncodeJSON(app.Task)
+	vLog, _ := EncodeJSON(app.Log)
+
+	s.settingRepo.Set(ctx, settingKeyLLM, vLLM)
+	s.settingRepo.Set(ctx, settingKeyTask, vTask)
+	s.settingRepo.Set(ctx, settingKeyLog, vLog)
+	// 不再保存 app.LLMProviders 到 KV 数据库中，完全由下方的独立接口负责
 	return nil
-}
-
-func (s *AppSettingsService) SaveGeneral(ctx context.Context, llmSettings LLMSettings, providers map[string]LLMProviderSettings, task TaskSettings, log LogSettings) (*AppSettings, error) {
-	current, err := s.Load(ctx)
-	if err != nil {
-		return nil, err
-	}
-	current.LLM = llmSettings
-	current.LLMProviders = providers
-	current.Task = task
-	current.Log = log
-	if err := s.SaveApp(ctx, current); err != nil {
-		return nil, err
-	}
-	return current, nil
 }
 
 func (s *AppSettingsService) SaveBilibili(ctx context.Context, bilibiliSettings BilibiliSettings) (*AppSettings, error) {
@@ -180,6 +135,44 @@ func (s *AppSettingsService) SaveBilibili(ctx context.Context, bilibiliSettings 
 		return nil, err
 	}
 	return current, nil
+}
+
+// --- 真正对接数据库表的 CRUD 方法 ---
+
+func (s *AppSettingsService) AddOrUpdateLLMProvider(ctx context.Context, name string, settings LLMProviderSettings) (*AppSettings, error) {
+	provider := &model.LLMProvider{
+		Name:        name,
+		Provider:    settings.Provider,
+		APIKey:      settings.APIKey,
+		BaseURL:     settings.BaseURL,
+		Model:       settings.Model,
+		MaxTokens:   settings.MaxTokens,
+		Temperature: settings.Temperature,
+		Enabled:     settings.Enabled,
+	}
+
+	// 将其保存到新的实体表中
+	if err := s.providerRepo.Save(ctx, provider); err != nil {
+		return nil, err
+	}
+
+	return s.Load(ctx) // 重新加载完整配置返回给前端
+}
+
+func (s *AppSettingsService) DeleteLLMProvider(ctx context.Context, name string) (*AppSettings, error) {
+	// 从新实体表中删除
+	if err := s.providerRepo.Delete(ctx, name); err != nil {
+		return nil, err
+	}
+	return s.Load(ctx)
+}
+
+func EncodeJSON(v any) (string, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 func BuildBilibiliClient(settings BilibiliSettings) (*bilibili.Client, error) {
@@ -227,41 +220,4 @@ func BuildLLMManager(settings *AppSettings) (*llm.Manager, error) {
 		manager.SetDefault(settings.LLM.DefaultProvider)
 	}
 	return manager, nil
-}
-
-func EncodeJSON(v any) (string, error) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
-func (s *AppSettingsService) AddOrUpdateLLMProvider(ctx context.Context, name string, provider LLMProviderSettings) (*AppSettings, error) {
-	current, err := s.Load(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if current.LLMProviders == nil {
-		current.LLMProviders = make(map[string]LLMProviderSettings)
-	}
-	current.LLMProviders[name] = provider
-	if err := s.SaveApp(ctx, current); err != nil {
-		return nil, err
-	}
-	return current, nil
-}
-
-func (s *AppSettingsService) DeleteLLMProvider(ctx context.Context, name string) (*AppSettings, error) {
-	current, err := s.Load(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if current.LLMProviders != nil {
-		delete(current.LLMProviders, name)
-		if err := s.SaveApp(ctx, current); err != nil {
-			return nil, err
-		}
-	}
-	return current, nil
 }

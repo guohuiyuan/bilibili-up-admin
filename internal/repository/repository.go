@@ -425,3 +425,33 @@ func (r *TaskRepository) UpdateStatus(ctx context.Context, id uint, status int, 
 
 	return r.db.WithContext(ctx).Model(&model.Task{}).Where("id = ?", id).Updates(updates).Error
 }
+
+// LLMProviderRepository 大模型提供商仓库
+type LLMProviderRepository struct {
+	db *gorm.DB
+}
+
+func NewLLMProviderRepository(db *gorm.DB) *LLMProviderRepository {
+	return &LLMProviderRepository{db: db}
+}
+
+func (r *LLMProviderRepository) List(ctx context.Context) ([]model.LLMProvider, error) {
+	var list []model.LLMProvider
+	err := r.db.WithContext(ctx).Find(&list).Error
+	return list, err
+}
+
+func (r *LLMProviderRepository) Save(ctx context.Context, provider *model.LLMProvider) error {
+	var existing model.LLMProvider
+	// 按照 Name 查找，如果存在则更新，不存在则创建
+	if err := r.db.WithContext(ctx).Where("name = ?", provider.Name).First(&existing).Error; err == nil {
+		provider.ID = existing.ID
+		provider.CreatedAt = existing.CreatedAt
+		return r.db.WithContext(ctx).Save(provider).Error
+	}
+	return r.db.WithContext(ctx).Create(provider).Error
+}
+
+func (r *LLMProviderRepository) Delete(ctx context.Context, name string) error {
+	return r.db.WithContext(ctx).Where("name = ?", name).Delete(&model.LLMProvider{}).Error
+}

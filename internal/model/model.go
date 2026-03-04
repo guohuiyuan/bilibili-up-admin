@@ -142,3 +142,17 @@ const (
 	TaskTypeCoinVideo    = "coin_video"
 	TaskTypeTripleVideo  = "triple_video"
 )
+
+type LLMProvider struct {
+	BaseModel
+	Name        string  `gorm:"uniqueIndex;size:100;not null" json:"name"`
+	Provider    string  `gorm:"size:50;not null" json:"provider"`
+	APIKey      string  `gorm:"size:255" json:"api_key"`
+	BaseURL     string  `gorm:"size:255" json:"base_url"`
+	Model       string  `gorm:"size:100" json:"model"`
+	MaxTokens   int     `gorm:"default:1000" json:"max_tokens"`
+	Temperature float64 `gorm:"type:decimal(5,2);default:0.7" json:"temperature"`
+	Enabled     bool    `gorm:"default:true" json:"enabled"`
+}
+
+func (LLMProvider) TableName() string { return "llm_providers" }

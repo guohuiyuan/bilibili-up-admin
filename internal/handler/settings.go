@@ -32,20 +32,34 @@ func (h *SettingsHandler) GetApp(c *gin.Context) {
 
 func (h *SettingsHandler) SaveApp(c *gin.Context) {
 	var req struct {
-		LLM          service.LLMSettings                    `json:"llm"`
-		LLMProviders map[string]service.LLMProviderSettings `json:"llm_providers"`
-		Task         service.TaskSettings                   `json:"task"`
-		Log          service.LogSettings                    `json:"log"`
+		LLM  service.LLMSettings  `json:"llm"`
+		Task service.TaskSettings `json:"task"`
+		Log  service.LogSettings  `json:"log"`
+		// 注意：不再接受 llm_providers，因为现在通过独立的 API 管理
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	current, err := h.settings.SaveGeneral(c.Request.Context(), req.LLM, req.LLMProviders, req.Task, req.Log)
+
+	// 分别保存各个设置项
+	current, err := h.settings.Load(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 更新设置
+	current.LLM = req.LLM
+	current.Task = req.Task
+	current.Log = req.Log
+
+	// 保存到数据库
+	if err := h.settings.SaveApp(c.Request.Context(), current); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := applyRuntimeSettings(c.Request.Context(), h.settings, h.runtime, current); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

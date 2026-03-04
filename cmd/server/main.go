@@ -37,7 +37,7 @@ func main() {
 	}
 
 	repos := initRepositories(db)
-	settingsSvc := service.NewAppSettingsService(repos.Setting)
+	settingsSvc := service.NewAppSettingsService(repos.Setting, repos.LLMProvider)
 	runtimeStore := appruntime.NewStore()
 
 	appSettings, err := settingsSvc.Load(context.Background())
@@ -145,6 +145,7 @@ func initDatabase() (*gorm.DB, error) {
 		&model.LLMChatLog{},
 		&model.Setting{},
 		&model.Task{},
+		&model.LLMProvider{}, // 新增这一行
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate failed: %w", err)
 	}
@@ -268,6 +269,7 @@ type Repositories struct {
 	TagRanking  *repository.TagRankingRepository
 	LLMChatLog  *repository.LLMChatLogRepository
 	Setting     *repository.SettingRepository
+	LLMProvider *repository.LLMProviderRepository // 新增这一行
 }
 
 func initRepositories(db *gorm.DB) *Repositories {
@@ -278,6 +280,7 @@ func initRepositories(db *gorm.DB) *Repositories {
 		TagRanking:  repository.NewTagRankingRepository(db),
 		LLMChatLog:  repository.NewLLMChatLogRepository(db),
 		Setting:     repository.NewSettingRepository(db),
+		LLMProvider: repository.NewLLMProviderRepository(db), // 新增这一行
 	}
 }
 

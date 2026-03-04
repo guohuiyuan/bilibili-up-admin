@@ -172,3 +172,21 @@ INSERT INTO `settings` (`key`, `value`) VALUES
 ('batch_reply_limit', '10'),
 ('interaction_delay', '2000')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
+
+-- 大模型配置表
+CREATE TABLE IF NOT EXISTS `llm_providers` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(100) NOT NULL COMMENT '配置名称',
+    `provider` VARCHAR(50) NOT NULL COMMENT '渠道(openai等)',
+    `api_key` VARCHAR(255) COMMENT 'API密钥',
+    `base_url` VARCHAR(255) COMMENT '代理URL',
+    `model` VARCHAR(100) COMMENT '具体模型名称',
+    `max_tokens` INT DEFAULT 1000 COMMENT '最大回复长度',
+    `temperature` DECIMAL(5,2) DEFAULT 0.70 COMMENT '温度',
+    `enabled` TINYINT(1) DEFAULT 1 COMMENT '是否启用',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` DATETIME,
+    UNIQUE KEY `idx_name` (`name`),
+    KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='大模型配置表';
