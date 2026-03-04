@@ -1,31 +1,31 @@
 {{ define "content" }}
 <div class="max-w-5xl mx-auto space-y-6">
     <div>
-        <h2 class="text-2xl font-bold">&#x0042;&#x7ad9;&#x914d;&#x7f6e;</h2>
-        <p class="mt-1 text-sm text-gray-500">&#x652f;&#x6301; Cookie &#x767b;&#x5f55;&#x548c;&#x626b;&#x7801;&#x767b;&#x5f55;&#x3002;&#x767b;&#x5f55;&#x6210;&#x529f;&#x540e;&#x81ea;&#x52a8;&#x5199;&#x5165;&#x6570;&#x636e;&#x5e93;&#x3002;</p>
+        <h2 class="text-2xl font-bold">B站配置</h2>
+        <p class="mt-1 text-sm text-gray-500">支持 Cookie 登录和扫码登录。登录成功后自动写入数据库。</p>
     </div>
 
     <div class="grid gap-6 lg:grid-cols-2">
         <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
-            <h3 class="font-semibold">Cookie &#x767b;&#x5f55;</h3>
-            <textarea id="cookie-input" class="h-56 w-full rounded-xl border px-4 py-3" placeholder="&#x7c98;&#x8d34;&#x6d4f;&#x89c8;&#x5668;&#x91cc;&#x7684;&#x5b8c;&#x6574; Cookie"></textarea>
-            <button id="save-cookie-btn" type="button" onclick="saveCookieLogin().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-slate-900 px-5 py-3 text-white">&#x4fdd;&#x5b58; Cookie &#x767b;&#x5f55;</button>
+            <h3 class="font-semibold">Cookie 登录</h3>
+            <textarea id="cookie-input" class="h-56 w-full rounded-xl border px-4 py-3" placeholder="粘贴浏览器里的完整 Cookie"></textarea>
+            <button id="save-cookie-btn" type="button" onclick="saveCookieLogin().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-gray-900 px-5 py-3 text-white hover:bg-gray-800 transition">保存 Cookie 登录</button>
         </section>
 
         <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
             <div class="flex items-center justify-between">
-                <h3 class="font-semibold">&#x626b;&#x7801;&#x767b;&#x5f55;</h3>
-                <button id="generate-qr-btn" type="button" onclick="generateQRCode().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-amber-500 px-4 py-2 text-white">&#x751f;&#x6210;&#x4e8c;&#x7ef4;&#x7801;</button>
+                <h3 class="font-semibold">扫码登录</h3>
+                <button id="generate-qr-btn" type="button" onclick="generateQRCode().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition">生成二维码</button>
             </div>
             <div id="qr-wrapper" class="flex min-h-[280px] items-center justify-center rounded-2xl border bg-gray-50 p-4 text-gray-400">
-                &#x70b9;&#x51fb;&#x4e0a;&#x9762;&#x7684;&#x6309;&#x94ae;&#x751f;&#x6210;&#x4e8c;&#x7ef4;&#x7801;
+                点击上面的按钮生成二维码
             </div>
             <p id="qr-status" class="text-sm text-gray-500"></p>
         </section>
     </div>
 
     <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <h3 class="mb-4 font-semibold">&#x5f53;&#x524d;&#x767b;&#x5f55;&#x72b6;&#x6001;</h3>
+        <h3 class="mb-4 font-semibold">当前登录状态</h3>
         <pre id="bili-state" class="overflow-auto rounded-xl bg-gray-50 p-4 text-sm"></pre>
     </section>
 </div>
@@ -68,11 +68,16 @@ async function generateQRCode() {
 
     try {
         const data = await api("/admin/api/settings/bilibili/qrcode", { method: "POST" });
-        currentQRCodeKey = data.key;
+        currentQRCodeKey = data.qrcode_key;
+
+        if (!data.url) {
+            throw new Error("二维码链接为空！请检查 Go 后端里的 endpointLoginQRCodeGenerate 是否加了 dataField: 'data'");
+        }
+
         document.getElementById("qr-wrapper").innerHTML = `
             <div class="space-y-3 text-center">
                 <img class="mx-auto h-56 w-56 rounded-lg border bg-white p-2" alt="Bilibili QR login" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.url)}">
-                <a class="break-all text-sm text-sky-600 underline" href="${data.url}" target="_blank" rel="noreferrer">如果图片加载失败，点这里打开登录链接</a>
+                <a class="break-all text-sm text-blue-600 underline" href="${data.url}" target="_blank" rel="noreferrer">如果图片加载失败，点这里打开登录链接</a>
             </div>
         `;
         document.getElementById("qr-status").textContent = "请使用 B 站 App 扫码确认";
@@ -100,7 +105,6 @@ async function pollQRCode() {
         }
 
         document.getElementById("qr-status").textContent = data.message || "等待扫码中";
-
         currentPollTimer = setTimeout(pollQRCode, 2000);
     } catch (err) {
         currentPollTimer = null;

@@ -17,11 +17,11 @@ func (h *PageHandler) Index(c *gin.Context) {
 }
 
 func (h *PageHandler) Comments(c *gin.Context) {
-	c.HTML(http.StatusOK, "comment/list.html", gin.H{"title": "评论管理"})
+	c.HTML(http.StatusOK, "comment/comments.html", gin.H{"title": "评论管理"})
 }
 
 func (h *PageHandler) Messages(c *gin.Context) {
-	c.HTML(http.StatusOK, "message/list.html", gin.H{"title": "私信管理"})
+	c.HTML(http.StatusOK, "message/messages.html", gin.H{"title": "私信管理"})
 }
 
 func (h *PageHandler) Interaction(c *gin.Context) {
