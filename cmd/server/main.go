@@ -363,6 +363,7 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 		{
 			api.GET("/comments", h.Comment.List)
 			api.POST("/comments/sync", h.Comment.Sync)
+			api.GET("/comments/my-videos", h.Comment.GetMyVideos)
 			api.POST("/comments/:id/ai-reply", h.Comment.AIReply)
 			api.POST("/comments/:id/reply", h.Comment.ManualReply)
 			api.POST("/comments/:id/ignore", h.Comment.Ignore)

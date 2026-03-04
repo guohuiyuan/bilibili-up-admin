@@ -10,6 +10,8 @@ import (
 	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/pkg/bilibili"
 	"bilibili-up-admin/pkg/llm"
+
+	biligo "github.com/guohuiyuan/biligo"
 )
 
 // CommentService 评论服务
@@ -230,4 +232,21 @@ func (s *CommentService) BatchAIReply(ctx context.Context, limit int) (int, erro
 	}
 
 	return count, nil
+}
+
+// GetMyVideos 获取当前登录用户的投稿列表
+func (s *CommentService) GetMyVideos(ctx context.Context, page, pageSize int) (*biligo.UserVideoSearchResult, error) {
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+
+	// 从客户端配置中提取当前登录的 UserID (mid)
+	cfg := client.GetConfig()
+	if cfg == nil || cfg.UserID == 0 {
+		return nil, fmt.Errorf("请先在「B站配置」页面完成登录")
+	}
+
+	// 调用 B站 API 获取该用户的投稿视频
+	return client.User().Videos(ctx, cfg.UserID, page, pageSize)
 }

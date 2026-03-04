@@ -143,3 +143,17 @@ func (h *CommentHandler) BatchAIReply(c *gin.Context) {
 		"count":   count,
 	})
 }
+
+// GetMyVideos 获取我的投稿
+func (h *CommentHandler) GetMyVideos(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "30")) // 默认拉取前 30 个视频
+
+	result, err := h.svc.GetMyVideos(c.Request.Context(), page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}

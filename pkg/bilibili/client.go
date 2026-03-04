@@ -105,6 +105,10 @@ func (c *Client) GetConfig() *Config {
 	return c.config
 }
 
+func (c *Client) User() *biligo.UserService {
+	return c.inner.User()
+}
+
 func (c *Client) ensureAvailable() error {
 	if c == nil || c.inner == nil {
 		return fmt.Errorf("bilibili client is not initialized, configure bilibili login first")
@@ -170,4 +174,10 @@ func PollLoginQRCode(ctx context.Context, key string) (*QRCodeLoginState, error)
 	}
 	state.Client = wrapped
 	return state, nil
+}
+
+type UserVideoSearchResult struct {
+	List struct {
+		VList []VideoInfo `json:"vlist"`
+	} `json:"list"`
 }

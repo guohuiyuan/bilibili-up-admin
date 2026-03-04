@@ -4,7 +4,10 @@
     transition: all 0.2s ease;
 }
 .comment-card:hover {
-    background-color: #f9fafb;
+    background-color: #fcfcfc;
+}
+.video-card:hover img {
+    transform: scale(1.05);
 }
 </style>
 {{ end }}
@@ -14,14 +17,14 @@
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-2xl font-bold text-gray-800">评论管理</h2>
-            <p class="text-gray-500 mt-1">管理和回复视频评论</p>
+            <p class="text-gray-500 mt-1">管理和回复视频评论，支持一键拉取投稿数据</p>
         </div>
         <div class="flex space-x-3">
-            <button onclick="syncComments()" class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition">
-                <i class="ri-refresh-line"></i>
+            <button onclick="syncComments()" class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition text-gray-700 shadow-sm">
+                <i class="ri-refresh-line text-pink-500"></i>
                 <span>同步评论</span>
             </button>
-            <button onclick="batchAIReply()" class="flex items-center space-x-2 px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition">
+            <button onclick="batchAIReply()" class="flex items-center space-x-2 px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition shadow-sm">
                 <i class="ri-robot-line"></i>
                 <span>批量AI回复</span>
             </button>
@@ -29,17 +32,21 @@
     </div>
 </div>
 
-<!-- 筛选器 -->
-<div class="bg-white rounded-2xl p-6 shadow-sm mb-6">
+<div class="bg-white rounded-2xl p-6 shadow-sm mb-6 border border-gray-100">
     <div class="flex flex-wrap gap-4">
-        <div class="flex-1 min-w-[200px]">
+        <div class="flex-1 min-w-[300px]">
             <label class="block text-sm text-gray-500 mb-2">视频BV号</label>
-            <input type="text" id="filter-bvid" placeholder="输入BV号筛选"
-                   class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500">
+            <div class="flex space-x-2">
+                <input type="text" id="filter-bvid" placeholder="输入BV号，或从右侧快速选择" 
+                       class="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400">
+                <button onclick="openVideoSelector()" class="px-4 py-2 bg-pink-50 text-pink-600 border border-pink-200 rounded-xl hover:bg-pink-100 transition whitespace-nowrap flex items-center">
+                    <i class="ri-video-add-line mr-1"></i> 我的投稿
+                </button>
+            </div>
         </div>
         <div class="w-48">
             <label class="block text-sm text-gray-500 mb-2">回复状态</label>
-            <select id="filter-status" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500">
+            <select id="filter-status" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 bg-white">
                 <option value="-1">全部</option>
                 <option value="0">未回复</option>
                 <option value="1">已回复</option>
@@ -47,33 +54,42 @@
             </select>
         </div>
         <div class="flex items-end">
-            <button onclick="loadComments()" class="px-6 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition">
+            <button onclick="loadComments()" class="px-6 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition shadow-sm">
                 搜索
             </button>
         </div>
     </div>
 </div>
 
-<!-- 评论列表 -->
-<div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="p-6 border-b border-gray-100">
         <div class="flex items-center justify-between">
-            <h3 class="font-semibold text-gray-800">评论列表</h3>
-            <span id="total-count" class="text-sm text-gray-500">共 0 条评论</span>
+            <h3 class="font-semibold text-gray-800 flex items-center"><i class="ri-chat-4-line text-pink-500 mr-2"></i>评论列表</h3>
+            <span id="total-count" class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">共 0 条</span>
         </div>
     </div>
-
-    <div id="comment-list" class="divide-y divide-gray-100">
-        <!-- 评论项将通过JS动态加载 -->
-        <div class="p-8 text-center text-gray-400">
-            <i class="ri-chat-off-line text-4xl"></i>
-            <p class="mt-2">暂无评论数据</p>
+    
+    <div id="comment-list" class="divide-y divide-gray-50">
         </div>
-    </div>
-
-    <!-- 分页 -->
+    
     <div class="p-4 border-t border-gray-100 flex justify-center">
-        <div id="pagination" class="flex space-x-2">
+        <div id="pagination" class="flex space-x-2"></div>
+    </div>
+</div>
+
+<div id="video-selector-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-[900px] max-w-[95vw] max-h-[85vh] flex flex-col shadow-xl">
+        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                <i class="ri-bilibili-line text-pink-500 mr-2 text-xl"></i>选择要同步的投稿
+            </h3>
+            <button onclick="Modal.hide('video-selector-modal')" class="text-gray-400 hover:text-pink-500 transition">
+                <i class="ri-close-line text-2xl"></i>
+            </button>
+        </div>
+        <div class="p-5 overflow-y-auto flex-1">
+            <div id="my-videos-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                </div>
         </div>
     </div>
 </div>
@@ -84,77 +100,153 @@
 let currentPage = 1;
 const pageSize = 20;
 
+function getApiPrefix() {
+    return window.location.pathname.startsWith('/admin') ? '/admin' : '';
+}
+
+// ---------------- 核心新增：投稿选择器 ---------------- //
+
+async function openVideoSelector() {
+    Modal.show('video-selector-modal');
+    const container = document.getElementById('my-videos-list');
+    container.innerHTML = '<div class="col-span-full text-center py-12"><i class="ri-loader-4-line animate-spin text-4xl text-pink-400"></i><p class="mt-3 text-gray-500">正在拉取投稿列表...</p></div>';
+    
+    try {
+        const response = await api(`${getApiPrefix()}/api/comments/my-videos?page=1&page_size=30`);
+        const videos = response.list?.vlist || [];
+        
+        if (videos.length === 0) {
+            container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400"><i class="ri-video-line text-5xl mb-2"></i><p>账号暂无投稿，或Cookie已过期</p></div>';
+            return;
+        }
+
+        container.innerHTML = videos.map(v => `
+            <div class="video-card border border-gray-100 rounded-xl overflow-hidden hover:border-pink-300 hover:shadow-md transition cursor-pointer bg-white group flex flex-col h-full" 
+                 onclick="selectVideo('${v.bvid}')" title="点击立刻拉取评论">
+                <div class="relative h-28 bg-gray-100 overflow-hidden flex-shrink-0">
+                    <img src="${v.pic.startsWith('http') ? v.pic : 'https:'+v.pic}" class="w-full h-full object-cover transition duration-300">
+                    <div class="absolute bottom-1.5 right-1.5 bg-black bg-opacity-70 text-white text-[11px] px-1.5 py-0.5 rounded">
+                        ${v.length}
+                    </div>
+                </div>
+                <div class="p-3 flex flex-col flex-1">
+                    <h4 class="text-sm font-medium text-gray-800 line-clamp-2 leading-snug mb-2 flex-1">${v.title}</h4>
+                    <div class="flex items-center justify-between text-xs text-gray-500 mt-auto">
+                        <span title="播放量" class="flex items-center"><i class="ri-play-circle-line mr-1 text-gray-400"></i>${formatNumber(v.play)}</span>
+                        <span title="评论数" class="flex items-center"><i class="ri-message-2-line mr-1 text-gray-400"></i>${formatNumber(v.comment)}</span>
+                        <span title="发布时间">${formatShortDate(v.created)}</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-red-500"><i class="ri-error-warning-line text-4xl mb-2"></i><p>加载失败: ${err.message}</p></div>`;
+    }
+}
+
+function selectVideo(bvid) {
+    document.getElementById('filter-bvid').value = bvid;
+    Modal.hide('video-selector-modal');
+    syncComments(bvid); // 选中后直接触发同步
+}
+
+function formatShortDate(ts) {
+    if (!ts) return '';
+    const d = new Date(ts * 1000);
+    return `${d.getMonth()+1}-${d.getDate().toString().padStart(2, '0')}`;
+}
+
+// ---------------- 原有逻辑改良 ---------------- //
+
 async function loadComments() {
     const bvid = document.getElementById('filter-bvid').value;
     const status = document.getElementById('filter-status').value;
-
+    
     try {
-        const response = await fetch(`/admin/api/comments?video_bvid=${bvid}&reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
-        const data = await response.json();
-
-        renderComments(data.comments || []);
-        document.getElementById('total-count').textContent = `共 ${data.total || 0} 条评论`;
-        renderPagination(data.total || 0);
+        const data = await api(`${getApiPrefix()}/api/comments?video_bvid=${bvid}&reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
+        document.getElementById('total-count').textContent = `共 ${data.page.count} 条`;
+        renderComments(data.replies || []);
+        renderPagination(data.page.count);
     } catch (error) {
-        showToast('加载失败: ' + error.message, 'error');
+        showToast('加载评论失败: ' + error.message, 'error');
+    }
+}
+
+// 支持直接传入 bvid 进行同步
+async function syncComments(directBvid) {
+    const bvid = directBvid || document.getElementById('filter-bvid').value || prompt('请输入视频BV号:');
+    if (!bvid) return;
+    
+    document.getElementById('filter-bvid').value = bvid;
+    showToast(`正在拉取视频 ${bvid} 的评论...`, 'info');
+    
+    try {
+        // 改用 api 函数封装
+        const data = await api(`${getApiPrefix()}/api/comments/sync`, {
+            method: 'POST',
+            body: { video_bvid: bvid, page: 1, page_size: 50 } // 每次同步拉取前50条最新评论
+        });
+        showToast('拉取完成，已同步到数据库', 'success');
+        currentPage = 1;
+        loadComments();
+    } catch (error) {
+        showToast('同步失败: ' + error.message, 'error');
     }
 }
 
 function renderComments(comments) {
     const container = document.getElementById('comment-list');
-
+    
     if (comments.length === 0) {
         container.innerHTML = `
-            <div class="p-8 text-center text-gray-400">
-                <i class="ri-chat-off-line text-4xl"></i>
-                <p class="mt-2">暂无评论数据</p>
+            <div class="p-12 text-center text-gray-400">
+                <i class="ri-chat-off-line text-5xl mb-3 text-gray-300"></i>
+                <p>暂无评论数据</p>
             </div>
         `;
         return;
     }
-
+    
     container.innerHTML = comments.map(c => `
         <div class="comment-card p-6">
             <div class="flex items-start space-x-4">
-                <div class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
+                <div class="w-10 h-10 rounded-full bg-pink-50 flex items-center justify-center flex-shrink-0 border border-pink-100">
                     <i class="ri-user-smile-line text-pink-500"></i>
                 </div>
                 <div class="flex-1">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-3">
                             <span class="font-medium text-gray-800">${c.author_name || '用户'}</span>
-                            <span class="text-xs px-2 py-1 rounded-full ${
-                                c.reply_status === 1 ? 'bg-green-100 text-green-600' :
-                                c.reply_status === 2 ? 'bg-gray-100 text-gray-500' : 'bg-pink-100 text-pink-600'
+                            <span class="text-xs px-2 py-0.5 rounded-md ${
+                                c.reply_status === 1 ? 'bg-green-50 text-green-600 border border-green-100' : 
+                                c.reply_status === 2 ? 'bg-gray-50 text-gray-500 border border-gray-200' : 'bg-pink-50 text-pink-600 border border-pink-100'
                             }">
                                 ${c.reply_status === 1 ? '已回复' : c.reply_status === 2 ? '已忽略' : '待回复'}
                             </span>
-                            ${c.is_ai_reply ? '<span class="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-600">AI回复</span>' : ''}
+                            ${c.is_ai_reply ? '<span class="text-xs px-2 py-0.5 rounded-md bg-purple-50 text-purple-600 border border-purple-100"><i class="ri-robot-line mr-1"></i>AI回复</span>' : ''}
                         </div>
                         <span class="text-xs text-gray-400">${formatTime(c.comment_time)}</span>
                     </div>
-                    <p class="text-gray-600 mt-2">${c.content}</p>
+                    <p class="text-gray-700 mt-2 text-sm leading-relaxed">${c.content}</p>
                     ${c.reply_content ? `
-                        <div class="mt-3 p-3 bg-gray-50 rounded-lg">
-                            <p class="text-sm text-gray-500">回复: ${c.reply_content}</p>
+                        <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100 relative">
+                            <div class="absolute w-2 h-2 bg-gray-50 border-t border-l border-gray-100 transform rotate-45 -top-1 left-4"></div>
+                            <p class="text-sm text-gray-600"><span class="text-pink-500 font-medium mr-1">UP主:</span> ${c.reply_content}</p>
                         </div>
                     ` : ''}
-                    <div class="flex items-center space-x-4 mt-4">
+                    <div class="flex items-center space-x-5 mt-4">
                         ${c.reply_status === 0 ? `
-                            <button onclick="aiReply(${c.comment_id})" class="text-pink-500 hover:text-pink-600 text-sm flex items-center space-x-1">
-                                <i class="ri-robot-line"></i>
-                                <span>AI回复</span>
+                            <button onclick="aiReply(${c.comment_id})" class="text-pink-500 hover:text-pink-600 text-sm flex items-center space-x-1 transition">
+                                <i class="ri-robot-line"></i><span>智能回复</span>
                             </button>
-                            <button onclick="manualReply(${c.comment_id})" class="text-gray-500 hover:text-gray-600 text-sm flex items-center space-x-1">
-                                <i class="ri-edit-line"></i>
-                                <span>手动回复</span>
+                            <button onclick="manualReply(${c.comment_id})" class="text-blue-500 hover:text-blue-600 text-sm flex items-center space-x-1 transition">
+                                <i class="ri-edit-2-line"></i><span>手动回复</span>
                             </button>
-                            <button onclick="ignore(${c.comment_id})" class="text-gray-400 hover:text-gray-500 text-sm flex items-center space-x-1">
-                                <i class="ri-close-line"></i>
-                                <span>忽略</span>
+                            <button onclick="ignore(${c.comment_id})" class="text-gray-400 hover:text-gray-500 text-sm flex items-center space-x-1 transition">
+                                <i class="ri-eye-off-line"></i><span>忽略</span>
                             </button>
                         ` : ''}
-                        <span class="text-xs text-gray-400">视频: ${c.video_bvid}</span>
+                        <span class="text-xs text-gray-400 flex items-center ml-auto"><i class="ri-video-line mr-1"></i> ${c.video_bvid}</span>
                     </div>
                 </div>
             </div>
@@ -165,16 +257,12 @@ function renderComments(comments) {
 function renderPagination(total) {
     const totalPages = Math.ceil(total / pageSize);
     const container = document.getElementById('pagination');
-
-    if (totalPages <= 1) {
-        container.innerHTML = '';
-        return;
-    }
-
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+    
     let html = '';
     for (let i = 1; i <= totalPages && i <= 5; i++) {
-        html += `<button onclick="goToPage(${i})" class="px-3 py-1 rounded ${
-            i === currentPage ? 'bg-pink-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        html += `<button onclick="goToPage(${i})" class="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition ${
+            i === currentPage ? 'bg-pink-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-500'
         }">${i}</button>`;
     }
     container.innerHTML = html;
@@ -185,30 +273,10 @@ function goToPage(page) {
     loadComments();
 }
 
-async function syncComments() {
-    const bvid = document.getElementById('filter-bvid').value || prompt('请输入视频BV号:');
-    if (!bvid) return;
-
-    showToast('正在同步评论...', 'info');
-    try {
-        const response = await fetch('/admin/api/comments/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ video_bvid: bvid, page: 1, page_size: 50 })
-        });
-        const data = await response.json();
-        showToast(`同步完成，新增 ${data.count} 条评论`, 'success');
-        loadComments();
-    } catch (error) {
-        showToast('同步失败: ' + error.message, 'error');
-    }
-}
-
 async function aiReply(commentId) {
     showToast('正在生成AI回复...', 'info');
     try {
-        const response = await fetch(`/admin/api/comments/${commentId}/ai-reply`, { method: 'POST' });
-        const data = await response.json();
+        await api(`${getApiPrefix()}/api/comments/${commentId}/ai-reply`, { method: 'POST' });
         showToast('回复成功', 'success');
         loadComments();
     } catch (error) {
@@ -216,27 +284,27 @@ async function aiReply(commentId) {
     }
 }
 
-function manualReply(commentId) {
+async function manualReply(commentId) {
     const content = prompt('请输入回复内容:');
     if (!content) return;
-
-    fetch(`/admin/api/comments/${commentId}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
-    }).then(() => {
+    
+    try {
+        await api(`${getApiPrefix()}/api/comments/${commentId}/reply`, {
+            method: 'POST',
+            body: { content }
+        });
         showToast('回复成功', 'success');
         loadComments();
-    }).catch(err => {
+    } catch (err) {
         showToast('回复失败: ' + err.message, 'error');
-    });
+    }
 }
 
 async function ignore(commentId) {
     if (!confirm('确定忽略此评论?')) return;
-
+    
     try {
-        await fetch(`/admin/api/comments/${commentId}/ignore`, { method: 'POST' });
+        await api(`${getApiPrefix()}/api/comments/${commentId}/ignore`, { method: 'POST' });
         showToast('已忽略', 'success');
         loadComments();
     } catch (error) {
@@ -246,11 +314,10 @@ async function ignore(commentId) {
 
 async function batchAIReply() {
     if (!confirm('确定批量AI回复未处理的评论?')) return;
-
+    
     showToast('正在批量AI回复...', 'info');
     try {
-        const response = await fetch('/admin/api/comments/batch-ai-reply?limit=10', { method: 'POST' });
-        const data = await response.json();
+        const data = await api(`${getApiPrefix()}/api/comments/batch-ai-reply?limit=10`, { method: 'POST' });
         showToast(`批量回复完成，处理 ${data.count} 条`, 'success');
         loadComments();
     } catch (error) {
@@ -258,24 +325,6 @@ async function batchAIReply() {
     }
 }
 
-function formatTime(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleString('zh-CN');
-}
-
-function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
-        type === 'success' ? 'bg-green-500' :
-        type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-    }`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
-// 初始加载
-loadComments();
+document.addEventListener('DOMContentLoaded', loadComments);
 </script>
 {{ end }}
