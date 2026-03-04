@@ -73,7 +73,7 @@ func (c *Client) GetTagRanking(ctx context.Context, tagName string, page, pageSi
 		TagName:    tagName,
 		TagID:      tagInfo.TagID,
 		HotValue:   tagInfo.Hot,
-		VideoCount: int(tagInfo.Count),
+		VideoCount: int(tagInfo.Count.View),
 		TopVideos:  make([]VideoInfo, 0),
 	}
 

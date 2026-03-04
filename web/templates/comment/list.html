@@ -89,7 +89,7 @@ async function loadComments() {
     const status = document.getElementById('filter-status').value;
     
     try {
-        const response = await fetch(`/api/comments?video_bvid=${bvid}&reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
+        const response = await fetch(`/admin/api/comments?video_bvid=${bvid}&reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
         const data = await response.json();
         
         renderComments(data.comments || []);
@@ -191,7 +191,7 @@ async function syncComments() {
     
     showToast('正在同步评论...', 'info');
     try {
-        const response = await fetch('/api/comments/sync', {
+        const response = await fetch('/admin/api/comments/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ video_bvid: bvid, page: 1, page_size: 50 })
@@ -207,7 +207,7 @@ async function syncComments() {
 async function aiReply(commentId) {
     showToast('正在生成AI回复...', 'info');
     try {
-        const response = await fetch(`/api/comments/${commentId}/ai-reply`, { method: 'POST' });
+        const response = await fetch(`/admin/api/comments/${commentId}/ai-reply`, { method: 'POST' });
         const data = await response.json();
         showToast('回复成功', 'success');
         loadComments();
@@ -220,7 +220,7 @@ function manualReply(commentId) {
     const content = prompt('请输入回复内容:');
     if (!content) return;
     
-    fetch(`/api/comments/${commentId}/reply`, {
+    fetch(`/admin/api/comments/${commentId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content })
@@ -236,7 +236,7 @@ async function ignore(commentId) {
     if (!confirm('确定忽略此评论?')) return;
     
     try {
-        await fetch(`/api/comments/${commentId}/ignore`, { method: 'POST' });
+        await fetch(`/admin/api/comments/${commentId}/ignore`, { method: 'POST' });
         showToast('已忽略', 'success');
         loadComments();
     } catch (error) {
@@ -249,7 +249,7 @@ async function batchAIReply() {
     
     showToast('正在批量AI回复...', 'info');
     try {
-        const response = await fetch('/api/comments/batch-ai-reply?limit=10', { method: 'POST' });
+        const response = await fetch('/admin/api/comments/batch-ai-reply?limit=10', { method: 'POST' });
         const data = await response.json();
         showToast(`批量回复完成，处理 ${data.count} 条`, 'success');
         loadComments();

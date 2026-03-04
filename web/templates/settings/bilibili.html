@@ -38,7 +38,7 @@ let currentPollTimer = null;
 let isGeneratingQR = false;
 
 async function loadBilibiliSettings() {
-    const data = await api("/api/settings/bilibili");
+    const data = await api("/admin/api/settings/bilibili");
     document.getElementById("bili-state").textContent = JSON.stringify(data, null, 2);
 }
 
@@ -48,7 +48,7 @@ async function saveCookieLogin() {
         throw new Error("请先粘贴 Cookie");
     }
 
-    await api("/api/settings/bilibili/cookie", {
+    await api("/admin/api/settings/bilibili/cookie", {
         method: "PUT",
         body: { cookie }
     });
@@ -67,7 +67,7 @@ async function generateQRCode() {
     }
 
     try {
-        const data = await api("/api/settings/bilibili/qrcode", { method: "POST" });
+        const data = await api("/admin/api/settings/bilibili/qrcode", { method: "POST" });
         currentQRCodeKey = data.key;
         document.getElementById("qr-wrapper").innerHTML = `
             <div class="space-y-3 text-center">
@@ -89,7 +89,7 @@ async function pollQRCode() {
     if (!currentQRCodeKey) return;
 
     try {
-        const data = await api(`/api/settings/bilibili/qrcode/poll?key=${encodeURIComponent(currentQRCodeKey)}`);
+        const data = await api(`/admin/api/settings/bilibili/qrcode/poll?key=${encodeURIComponent(currentQRCodeKey)}`);
 
         if (data.success) {
             currentPollTimer = null;

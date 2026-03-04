@@ -99,7 +99,7 @@
 <script>
 async function loadTrendingTags() {
     try {
-        const response = await fetch('/api/trends/tags?limit=50');
+        const response = await fetch('/admin/api/trends/tags?limit=50');
         const data = await response.json();
         renderTags(data.tags || []);
     } catch (error) {
@@ -110,7 +110,7 @@ async function loadTrendingTags() {
 async function loadVideoRanking() {
     const category = document.getElementById('category-select').value;
     try {
-        const response = await fetch(`/api/trends/videos?category=${category}&limit=50`);
+        const response = await fetch(`/admin/api/trends/videos?category=${category}&limit=50`);
         const data = await response.json();
         renderVideos(data.videos || []);
     } catch (error) {
@@ -186,7 +186,7 @@ async function showTagDetail(tagName) {
     document.getElementById('tag-detail').classList.remove('hidden');
     
     try {
-        const response = await fetch(`/api/trends/tags/${encodeURIComponent(tagName)}?page=1&page_size=10`);
+        const response = await fetch(`/admin/api/trends/tags/${encodeURIComponent(tagName)}?page=1&page_size=10`);
         const data = await response.json();
         
         const container = document.getElementById('tag-videos');
@@ -213,7 +213,7 @@ async function searchTag() {
     if (!keyword) return;
     
     try {
-        const response = await fetch(`/api/trends/search?keyword=${encodeURIComponent(keyword)}`);
+        const response = await fetch(`/admin/api/trends/search?keyword=${encodeURIComponent(keyword)}`);
         const data = await response.json();
         renderTags(data.tags || []);
     } catch (error) {
@@ -224,7 +224,7 @@ async function searchTag() {
 async function syncTrends() {
     showToast('正在同步热度数据...', 'info');
     try {
-        await fetch('/api/trends/sync', { method: 'POST' });
+        await fetch('/admin/api/trends/sync', { method: 'POST' });
         showToast('同步完成', 'success');
         loadTrendingTags();
         loadVideoRanking();

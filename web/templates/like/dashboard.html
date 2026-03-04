@@ -144,7 +144,7 @@ BV3xx..."
 <script>
 async function loadStats() {
     try {
-        const response = await fetch('/api/interactions/stats?days=1');
+        const response = await fetch('/admin/api/interactions/stats?days=1');
         const data = await response.json();
         document.getElementById('stat-like').textContent = data.like || 0;
         document.getElementById('stat-coin').textContent = data.coin || 0;
@@ -156,7 +156,7 @@ async function loadStats() {
 
 async function loadInteractions() {
     try {
-        const response = await fetch('/api/interactions?page=1&page_size=20');
+        const response = await fetch('/admin/api/interactions?page=1&page_size=20');
         const data = await response.json();
         renderInteractions(data.items || []);
     } catch (error) {
@@ -208,7 +208,7 @@ async function likeVideo() {
     if (!bvid) return showToast('请输入BV号', 'error');
     
     try {
-        const response = await fetch(`/api/videos/${bvid}/like`, { method: 'POST' });
+        const response = await fetch(`/admin/api/videos/${bvid}/like`, { method: 'POST' });
         const data = await response.json();
         showToast(data.message, data.success ? 'success' : 'error');
         loadInteractions();
@@ -223,7 +223,7 @@ async function coinVideo() {
     if (!bvid) return showToast('请输入BV号', 'error');
     
     try {
-        const response = await fetch(`/api/videos/${bvid}/coin`, {
+        const response = await fetch(`/admin/api/videos/${bvid}/coin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ coin_count: 1 })
@@ -242,7 +242,7 @@ async function tripleVideo() {
     if (!bvid) return showToast('请输入BV号', 'error');
     
     try {
-        const response = await fetch(`/api/videos/${bvid}/triple`, { method: 'POST' });
+        const response = await fetch(`/admin/api/videos/${bvid}/triple`, { method: 'POST' });
         const data = await response.json();
         showToast(data.message, data.success ? 'success' : 'error');
         loadInteractions();
@@ -255,7 +255,7 @@ async function tripleVideo() {
 async function interactFans(action) {
     showToast(`正在${action === 'like' ? '点赞' : '投币'}粉丝视频...`, 'info');
     try {
-        const response = await fetch(`/api/fans/interact?action=${action}&limit=10`, { method: 'POST' });
+        const response = await fetch(`/admin/api/fans/interact?action=${action}&limit=10`, { method: 'POST' });
         const data = await response.json();
         showToast(`完成，处理 ${data.count} 个视频`, 'success');
         loadInteractions();
@@ -274,7 +274,7 @@ async function batchInteract() {
     
     showToast('正在批量操作...', 'info');
     try {
-        const response = await fetch('/api/videos/batch-interact', {
+        const response = await fetch('/admin/api/videos/batch-interact', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ bv_ids: bvids, action, coin_count: 1 })

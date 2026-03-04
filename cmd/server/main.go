@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net/http" // 新增导入
 	"os"
 	"path/filepath"
 	"slices"
@@ -64,7 +65,14 @@ func main() {
 	router := initRouter(handlers, config.GlobalConfig.Server.Mode)
 
 	addr := fmt.Sprintf(":%d", config.GlobalConfig.Server.Port)
-	zapLogger.Info("server starting", zap.String("addr", addr))
+	localURL := fmt.Sprintf("http://localhost%s/admin/", addr)
+	
+	// 启动时在控制台打印运行网址
+	fmt.Printf("\n========================================================\n")
+	fmt.Printf("🚀 服务启动成功! 请在浏览器中访问: %s\n", localURL)
+	fmt.Printf("========================================================\n\n")
+
+	zapLogger.Info("server starting", zap.String("addr", addr), zap.String("url", localURL))
 	if err := router.Run(addr); err != nil {
 		zapLogger.Fatal("server start failed", zap.Error(err))
 	}
@@ -328,66 +336,76 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 		panic(fmt.Errorf("build html renderer failed: %w", err))
 	}
 	router.HTMLRender = htmlRenderer
-	router.Static("/static", "web/static")
 	router.Use(corsMiddleware())
 
-	router.GET("/", h.Page.Index)
-	router.GET("/comments", h.Page.Comments)
-	router.GET("/messages", h.Page.Messages)
-	router.GET("/interaction", h.Page.Interaction)
-	router.GET("/trends", h.Page.Trends)
-	router.GET("/settings", h.Page.Settings)
-	router.GET("/settings/bilibili", h.Page.Bilibili)
+	// 根目录重定向至统一前缀
+	router.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/admin/")
+	})
 
-	api := router.Group("/api")
+	// 统一前缀路由组
+	admin := router.Group("/admin")
 	{
-		api.GET("/comments", h.Comment.List)
-		api.POST("/comments/sync", h.Comment.Sync)
-		api.POST("/comments/:id/ai-reply", h.Comment.AIReply)
-		api.POST("/comments/:id/reply", h.Comment.ManualReply)
-		api.POST("/comments/:id/ignore", h.Comment.Ignore)
-		api.POST("/comments/batch-ai-reply", h.Comment.BatchAIReply)
+		admin.Static("/static", "web/static")
 
-		api.GET("/messages", h.Message.List)
-		api.POST("/messages/sync", h.Message.Sync)
-		api.GET("/messages/unread", h.Message.UnreadCount)
-		api.POST("/messages/:id/ai-reply", h.Message.AIReply)
-		api.POST("/messages/:id/reply", h.Message.ManualReply)
-		api.POST("/messages/:id/ignore", h.Message.Ignore)
+		admin.GET("/", h.Page.Index)
+		admin.GET("/comments", h.Page.Comments)
+		admin.GET("/messages", h.Page.Messages)
+		admin.GET("/interaction", h.Page.Interaction)
+		admin.GET("/trends", h.Page.Trends)
+		admin.GET("/settings", h.Page.Settings)
+		admin.GET("/settings/bilibili", h.Page.Bilibili)
 
-		api.GET("/interactions", h.Interaction.List)
-		api.GET("/interactions/stats", h.Interaction.Stats)
-		api.POST("/videos/:id/like", h.Interaction.Like)
-		api.POST("/videos/:id/coin", h.Interaction.Coin)
-		api.POST("/videos/:id/triple", h.Interaction.Triple)
-		api.POST("/videos/batch-interact", h.Interaction.BatchInteract)
-		api.POST("/fans/interact", h.Interaction.InteractFans)
+		api := admin.Group("/api")
+		{
+			api.GET("/comments", h.Comment.List)
+			api.POST("/comments/sync", h.Comment.Sync)
+			api.POST("/comments/:id/ai-reply", h.Comment.AIReply)
+			api.POST("/comments/:id/reply", h.Comment.ManualReply)
+			api.POST("/comments/:id/ignore", h.Comment.Ignore)
+			api.POST("/comments/batch-ai-reply", h.Comment.BatchAIReply)
 
-		api.GET("/trends/tags", h.Trend.TrendingTags)
-		api.GET("/trends/tags/:name", h.Trend.TagDetail)
-		api.GET("/trends/videos", h.Trend.VideoRanking)
-		api.GET("/trends/historical", h.Trend.HistoricalRankings)
-		api.GET("/trends/latest", h.Trend.LatestRankings)
-		api.GET("/trends/search", h.Trend.SearchTag)
-		api.POST("/trends/sync", h.Trend.Sync)
-		api.GET("/trends/stats", h.Trend.Stats)
+			api.GET("/messages", h.Message.List)
+			api.POST("/messages/sync", h.Message.Sync)
+			api.GET("/messages/unread", h.Message.UnreadCount)
+			api.POST("/messages/:id/ai-reply", h.Message.AIReply)
+			api.POST("/messages/:id/reply", h.Message.ManualReply)
+			api.POST("/messages/:id/ignore", h.Message.Ignore)
 
-		api.POST("/llm/chat", h.LLM.Chat)
-		api.GET("/llm/providers", h.LLM.Providers)
-		api.POST("/llm/default", h.LLM.SetDefault)
-		api.GET("/llm/test/:provider", h.LLM.Test)
-		api.GET("/llm/stats", h.LLM.Stats)
+			api.GET("/interactions", h.Interaction.List)
+			api.GET("/interactions/stats", h.Interaction.Stats)
+			api.POST("/videos/:id/like", h.Interaction.Like)
+			api.POST("/videos/:id/coin", h.Interaction.Coin)
+			api.POST("/videos/:id/triple", h.Interaction.Triple)
+			api.POST("/videos/batch-interact", h.Interaction.BatchInteract)
+			api.POST("/fans/interact", h.Interaction.InteractFans)
 
-		api.GET("/settings/app", h.Settings.GetApp)
-		api.PUT("/settings/app", h.Settings.SaveApp)
-		api.GET("/settings/bilibili", h.Settings.GetBilibili)
-		api.PUT("/settings/bilibili/cookie", h.Settings.SaveBilibiliCookie)
-		api.POST("/settings/bilibili/qrcode", h.Settings.GenerateBilibiliQRCode)
-		api.GET("/settings/bilibili/qrcode/poll", h.Settings.PollBilibiliQRCode)
+			api.GET("/trends/tags", h.Trend.TrendingTags)
+			api.GET("/trends/tags/:name", h.Trend.TagDetail)
+			api.GET("/trends/videos", h.Trend.VideoRanking)
+			api.GET("/trends/historical", h.Trend.HistoricalRankings)
+			api.GET("/trends/latest", h.Trend.LatestRankings)
+			api.GET("/trends/search", h.Trend.SearchTag)
+			api.POST("/trends/sync", h.Trend.Sync)
+			api.GET("/trends/stats", h.Trend.Stats)
 
-		api.GET("/health", func(c *gin.Context) {
-			c.JSON(200, gin.H{"status": "ok"})
-		})
+			api.POST("/llm/chat", h.LLM.Chat)
+			api.GET("/llm/providers", h.LLM.Providers)
+			api.POST("/llm/default", h.LLM.SetDefault)
+			api.GET("/llm/test/:provider", h.LLM.Test)
+			api.GET("/llm/stats", h.LLM.Stats)
+
+			api.GET("/settings/app", h.Settings.GetApp)
+			api.PUT("/settings/app", h.Settings.SaveApp)
+			api.GET("/settings/bilibili", h.Settings.GetBilibili)
+			api.PUT("/settings/bilibili/cookie", h.Settings.SaveBilibiliCookie)
+			api.POST("/settings/bilibili/qrcode", h.Settings.GenerateBilibiliQRCode)
+			api.GET("/settings/bilibili/qrcode/poll", h.Settings.PollBilibiliQRCode)
+
+			api.GET("/health", func(c *gin.Context) {
+				c.JSON(200, gin.H{"status": "ok"})
+			})
+		}
 	}
 
 	return router

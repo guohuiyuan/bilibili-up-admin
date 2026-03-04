@@ -164,7 +164,7 @@ function addProvider() {
 }
 
 async function loadAppSettings() {
-    const data = await api("/api/settings/app");
+    const data = await api("/admin/api/settings/app");
     document.getElementById("default-provider").value = data.llm?.default_provider || "";
     document.getElementById("worker-count").value = data.task?.worker_count || 5;
     document.getElementById("queue-size").value = data.task?.queue_size || 100;
@@ -178,7 +178,7 @@ async function loadAppSettings() {
 async function saveAppSettings() {
     syncProvidersFromDOM();
 
-    await api("/api/settings/app", {
+    await api("/admin/api/settings/app", {
         method: "PUT",
         body: {
             llm: { default_provider: document.getElementById("default-provider").value.trim() },
