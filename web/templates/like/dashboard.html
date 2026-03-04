@@ -28,31 +28,31 @@
                 <p class="text-gray-500 text-sm">今日点赞</p>
                 <p id="stat-like" class="text-3xl font-bold text-gray-800 mt-2">0</p>
             </div>
-            <div class="w-14 h-14 rounded-2xl gradient-amber flex items-center justify-center">
+            <div class="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center">
                 <i class="ri-thumb-up-line text-white text-2xl"></i>
             </div>
         </div>
     </div>
-    
+
     <div class="bg-white rounded-2xl p-6 shadow-sm">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">今日投币</p>
                 <p id="stat-coin" class="text-3xl font-bold text-gray-800 mt-2">0</p>
             </div>
-            <div class="w-14 h-14 rounded-2xl gradient-teal flex items-center justify-center">
+            <div class="w-14 h-14 rounded-2xl gradient-blue flex items-center justify-center">
                 <i class="ri-coin-line text-white text-2xl"></i>
             </div>
         </div>
     </div>
-    
+
     <div class="bg-white rounded-2xl p-6 shadow-sm">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm">今日收藏</p>
                 <p id="stat-favorite" class="text-3xl font-bold text-gray-800 mt-2">0</p>
             </div>
-            <div class="w-14 h-14 rounded-2xl gradient-pink flex items-center justify-center">
+            <div class="w-14 h-14 rounded-2xl gradient-teal flex items-center justify-center">
                 <i class="ri-star-line text-white text-2xl"></i>
             </div>
         </div>
@@ -66,15 +66,15 @@
         <div class="space-y-4">
             <div>
                 <label class="block text-sm text-gray-500 mb-2">视频BV号</label>
-                <input type="text" id="single-bvid" placeholder="输入BV号" 
-                       class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <input type="text" id="single-bvid" placeholder="输入BV号"
+                       class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500">
             </div>
             <div class="grid grid-cols-3 gap-3">
-                <button onclick="likeVideo()" class="flex items-center justify-center space-x-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl p-3 transition">
+                <button onclick="likeVideo()" class="flex items-center justify-center space-x-2 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-xl p-3 transition">
                     <i class="ri-thumb-up-line"></i>
                     <span>点赞</span>
                 </button>
-                <button onclick="coinVideo()" class="flex items-center justify-center space-x-2 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-xl p-3 transition">
+                <button onclick="coinVideo()" class="flex items-center justify-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl p-3 transition">
                     <i class="ri-coin-line"></i>
                     <span>投币</span>
                 </button>
@@ -85,16 +85,16 @@
             </div>
         </div>
     </div>
-    
+
     <div class="bg-white rounded-2xl p-6 shadow-sm">
         <h3 class="font-semibold text-gray-800 mb-4">粉丝互动</h3>
         <p class="text-gray-500 text-sm mb-4">自动互动粉丝的最新视频</p>
         <div class="grid grid-cols-2 gap-3">
-            <button onclick="interactFans('like')" class="flex items-center justify-center space-x-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl p-4 transition">
+            <button onclick="interactFans('like')" class="flex items-center justify-center space-x-2 bg-pink-500 hover:bg-pink-600 text-white rounded-xl p-4 transition">
                 <i class="ri-thumb-up-line"></i>
                 <span>点赞粉丝视频</span>
             </button>
-            <button onclick="interactFans('coin')" class="flex items-center justify-center space-x-2 bg-teal-500 hover:bg-teal-600 text-white rounded-xl p-4 transition">
+            <button onclick="interactFans('coin')" class="flex items-center justify-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl p-4 transition">
                 <i class="ri-coin-line"></i>
                 <span>投币粉丝视频</span>
             </button>
@@ -110,11 +110,11 @@
             <label class="block text-sm text-gray-500 mb-2">视频BV号（每行一个）</label>
             <textarea id="batch-bvids" rows="4" placeholder="BV1xx...
 BV2xx...
-BV3xx..." 
-                      class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+BV3xx..."
+                      class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"></textarea>
         </div>
         <div class="flex space-x-3">
-            <select id="batch-action" class="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <select id="batch-action" class="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500">
                 <option value="like">点赞</option>
                 <option value="coin">投币</option>
                 <option value="triple">三连</option>
@@ -175,17 +175,17 @@ function renderInteractions(items) {
         `;
         return;
     }
-    
+
     container.innerHTML = items.map(item => `
         <div class="flex items-center justify-between p-4">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-full ${
-                    item.action_type === 'like' ? 'bg-amber-100' :
-                    item.action_type === 'coin' ? 'bg-teal-100' : 'bg-purple-100'
+                    item.action_type === 'like' ? 'bg-pink-100' :
+                    item.action_type === 'coin' ? 'bg-blue-100' : 'bg-purple-100'
                 } flex items-center justify-center">
                     <i class="ri-${item.action_type === 'like' ? 'thumb-up' : item.action_type === 'coin' ? 'coin' : 'heart'}-line ${
-                        item.action_type === 'like' ? 'text-amber-600' :
-                        item.action_type === 'coin' ? 'text-teal-600' : 'text-purple-600'
+                        item.action_type === 'like' ? 'text-pink-600' :
+                        item.action_type === 'coin' ? 'text-blue-600' : 'text-purple-600'
                     }"></i>
                 </div>
                 <div>
@@ -206,7 +206,7 @@ function renderInteractions(items) {
 async function likeVideo() {
     const bvid = document.getElementById('single-bvid').value;
     if (!bvid) return showToast('请输入BV号', 'error');
-    
+
     try {
         const response = await fetch(`/admin/api/videos/${bvid}/like`, { method: 'POST' });
         const data = await response.json();
@@ -221,7 +221,7 @@ async function likeVideo() {
 async function coinVideo() {
     const bvid = document.getElementById('single-bvid').value;
     if (!bvid) return showToast('请输入BV号', 'error');
-    
+
     try {
         const response = await fetch(`/admin/api/videos/${bvid}/coin`, {
             method: 'POST',
@@ -240,7 +240,7 @@ async function coinVideo() {
 async function tripleVideo() {
     const bvid = document.getElementById('single-bvid').value;
     if (!bvid) return showToast('请输入BV号', 'error');
-    
+
     try {
         const response = await fetch(`/admin/api/videos/${bvid}/triple`, { method: 'POST' });
         const data = await response.json();
@@ -269,9 +269,9 @@ async function batchInteract() {
     const bvidsText = document.getElementById('batch-bvids').value;
     const action = document.getElementById('batch-action').value;
     const bvids = bvidsText.split('\n').filter(b => b.trim());
-    
+
     if (bvids.length === 0) return showToast('请输入BV号', 'error');
-    
+
     showToast('正在批量操作...', 'info');
     try {
         const response = await fetch('/admin/api/videos/batch-interact', {

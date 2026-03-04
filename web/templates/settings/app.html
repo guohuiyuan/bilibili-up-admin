@@ -14,7 +14,7 @@
         <div class="space-y-4">
             <div class="flex items-center justify-between">
                 <h3 class="font-semibold">LLM Providers</h3>
-                <button id="add-provider-btn" type="button" onclick="addProvider()" class="rounded-xl bg-amber-500 px-4 py-2 text-white">&#x65b0;&#x589e; Provider</button>
+                <button id="add-provider-btn" type="button" onclick="addProvider()" class="rounded-xl bg-pink-500 px-4 py-2 text-white hover:bg-pink-600 transition">&#x65b0;&#x589e; Provider</button>
             </div>
             <div id="providers" class="space-y-4"></div>
         </div>
@@ -43,7 +43,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button id="save-settings-btn" type="button" onclick="saveAppSettings().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-slate-900 px-5 py-3 text-white">&#x4fdd;&#x5b58;&#x8bbe;&#x7f6e;</button>
+            <button id="save-settings-btn" type="button" onclick="saveAppSettings().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-pink-500 px-5 py-3 text-white hover:bg-pink-600 transition">&#x4fdd;&#x5b58;&#x8bbe;&#x7f6e;</button>
         </div>
     </section>
 </div>
