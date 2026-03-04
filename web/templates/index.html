@@ -5,7 +5,15 @@
 }
 .stat-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    box-shadow: 0 8px 24px rgba(251, 114, 153, 0.15); /* 悬浮时带有B站粉的微弱阴影 */
+}
+/* 隐藏滚动条但保留功能 */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 </style>
 {{ end }}
@@ -13,65 +21,65 @@
 {{ define "content" }}
 <div class="mb-8">
     <h2 class="text-2xl font-bold text-gray-800">仪表盘</h2>
-    <p class="text-gray-500 mt-1">欢迎回来，查看今日运营数据</p>
+    <p class="text-gray-500 mt-1">欢迎回来，查看今日运营数据及 AI 模型运行状态</p>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="stat-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <div class="flex items-center justify-between">
+    <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100 relative overflow-hidden">
+        <div class="flex items-center justify-between relative z-10">
             <div>
-                <p class="text-gray-500 text-sm">今日评论</p>
+                <p class="text-gray-500 text-sm font-medium">今日评论</p>
                 <p class="text-3xl font-bold text-gray-800 mt-2">128</p>
-                <p class="text-green-500 text-sm mt-2">
+                <p class="text-pink-500 text-sm mt-2 font-medium">
                     <i class="ri-arrow-up-line"></i> 12.5%
                 </p>
             </div>
-            <div class="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-sm">
+            <div class="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-md">
                 <i class="ri-chat-3-line text-white text-2xl"></i>
             </div>
         </div>
     </div>
-
-    <div class="stat-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+    
+    <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-500 text-sm">今日私信</p>
+                <p class="text-gray-500 text-sm font-medium">今日私信</p>
                 <p class="text-3xl font-bold text-gray-800 mt-2">36</p>
-                <p class="text-green-500 text-sm mt-2">
+                <p class="text-pink-500 text-sm mt-2 font-medium">
                     <i class="ri-arrow-up-line"></i> 8.3%
                 </p>
             </div>
-            <div class="w-14 h-14 rounded-2xl gradient-blue flex items-center justify-center shadow-sm">
+            <div class="w-14 h-14 rounded-2xl gradient-blue flex items-center justify-center shadow-md">
                 <i class="ri-mail-line text-white text-2xl"></i>
             </div>
         </div>
     </div>
-
-    <div class="stat-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+    
+    <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-500 text-sm">今日互动</p>
+                <p class="text-gray-500 text-sm font-medium">今日互动</p>
                 <p class="text-3xl font-bold text-gray-800 mt-2">256</p>
-                <p class="text-green-500 text-sm mt-2">
+                <p class="text-pink-500 text-sm mt-2 font-medium">
                     <i class="ri-arrow-up-line"></i> 15.2%
                 </p>
             </div>
-            <div class="w-14 h-14 rounded-2xl gradient-teal flex items-center justify-center shadow-sm">
+            <div class="w-14 h-14 rounded-2xl gradient-teal flex items-center justify-center shadow-md">
                 <i class="ri-thumb-up-line text-white text-2xl"></i>
             </div>
         </div>
     </div>
-
-    <div class="stat-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+    
+    <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-500 text-sm">AI回复</p>
+                <p class="text-gray-500 text-sm font-medium">AI回复</p>
                 <p class="text-3xl font-bold text-gray-800 mt-2">89</p>
-                <p class="text-gray-500 text-sm mt-2">
-                    <i class="ri-robot-line"></i> 自动处理
+                <p class="text-gray-500 text-sm mt-2 font-medium">
+                    <i class="ri-robot-line"></i> 全自动处理
                 </p>
             </div>
-            <div class="w-14 h-14 rounded-2xl gradient-purple flex items-center justify-center shadow-sm">
+            <div class="w-14 h-14 rounded-2xl gradient-purple flex items-center justify-center shadow-md">
                 <i class="ri-robot-line text-white text-2xl"></i>
             </div>
         </div>
@@ -79,41 +87,40 @@
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 class="font-semibold text-gray-800 mb-4">快捷操作</h3>
-        <div class="grid grid-cols-2 gap-4">
-            <button onclick="syncComments()" class="flex items-center justify-center space-x-2 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-xl p-4 transition">
-                <i class="ri-refresh-line"></i>
-                <span>同步评论</span>
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+        <h3 class="font-semibold text-gray-800 mb-5 flex items-center"><i class="ri-flashlight-line text-pink-500 mr-2"></i>快捷操作</h3>
+        <div class="grid grid-cols-2 gap-4 flex-1">
+            <button onclick="syncComments()" class="flex flex-col items-center justify-center space-y-2 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-xl p-5 transition border border-pink-100 shadow-sm">
+                <i class="ri-refresh-line text-2xl"></i>
+                <span class="font-medium">同步评论</span>
             </button>
-            <button onclick="syncMessages()" class="flex items-center justify-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl p-4 transition">
-                <i class="ri-mail-download-line"></i>
-                <span>同步私信</span>
+            <button onclick="syncMessages()" class="flex flex-col items-center justify-center space-y-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl p-5 transition border border-blue-100 shadow-sm">
+                <i class="ri-mail-download-line text-2xl"></i>
+                <span class="font-medium">同步私信</span>
             </button>
-            <button onclick="batchAIReply()" class="flex items-center justify-center space-x-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl p-4 transition">
-                <i class="ri-robot-line"></i>
-                <span>批量AI回复</span>
+            <button onclick="batchAIReply()" class="flex flex-col items-center justify-center space-y-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl p-5 transition border border-purple-100 shadow-sm">
+                <i class="ri-robot-line text-2xl"></i>
+                <span class="font-medium">批量AI回复</span>
             </button>
-            <button onclick="interactFans()" class="flex items-center justify-center space-x-2 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-xl p-4 transition">
-                <i class="ri-heart-line"></i>
-                <span>互动粉丝</span>
+            <button onclick="interactFans()" class="flex flex-col items-center justify-center space-y-2 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-xl p-5 transition border border-teal-100 shadow-sm">
+                <i class="ri-heart-line text-2xl"></i>
+                <span class="font-medium">互动粉丝</span>
             </button>
         </div>
     </div>
-
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 class="font-semibold text-gray-800 mb-4">AI模型状态</h3>
-        <div id="llm-status" class="space-y-3">
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div class="flex items-center space-x-3">
-                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                    <span class="text-gray-600">DeepSeek</span>
-                </div>
-                <span class="text-green-500 text-sm">已连接</span>
-            </div>
+    
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col h-full">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-800 flex items-center"><i class="ri-server-line text-blue-500 mr-2"></i>AI模型真实状态</h3>
+            <button onclick="loadLLMStatus()" class="text-gray-400 hover:text-pink-500 transition" title="刷新状态">
+                <i class="ri-refresh-line text-lg"></i>
+            </button>
         </div>
-        <button onclick="testLLM()" class="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl p-3 transition">
-            测试AI连接
+        <div id="llm-status" class="space-y-3 flex-1 overflow-y-auto pr-2 max-h-[250px] no-scrollbar">
+            <div class="text-center text-pink-400 py-8"><i class="ri-loader-4-line animate-spin text-3xl"></i><p class="text-sm mt-2">读取配置中...</p></div>
+        </div>
+        <button onclick="testAllLLM()" class="mt-4 w-full bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 rounded-xl p-3 transition font-medium flex items-center justify-center shadow-sm">
+            <i class="ri-pulse-line mr-2"></i> 一键测试连通性
         </button>
     </div>
 </div>
@@ -121,19 +128,19 @@
 <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
     <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-gray-800">最近评论</h3>
-        <a href="/admin/comments" class="text-pink-500 hover:text-pink-600 text-sm transition">查看全部</a>
+        <a href="/admin/comments" class="text-pink-500 hover:text-pink-600 text-sm transition font-medium">查看全部 <i class="ri-arrow-right-s-line"></i></a>
     </div>
     <div id="recent-comments" class="space-y-4">
-        <div class="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl">
+        <div class="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
             <div class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
                 <i class="ri-user-smile-line text-pink-500"></i>
             </div>
             <div class="flex-1">
                 <div class="flex items-center justify-between">
-                    <span class="font-medium text-gray-800">用户名</span>
-                    <span class="text-xs text-gray-400">2分钟前</span>
+                    <span class="font-medium text-gray-800">系统提示</span>
+                    <span class="text-xs text-gray-400">刚刚</span>
                 </div>
-                <p class="text-gray-600 mt-1">这是评论内容示例...</p>
+                <p class="text-gray-600 mt-1 text-sm">暂未拉取评论记录，请点击上方“同步评论”。</p>
             </div>
         </div>
     </div>
@@ -142,6 +149,145 @@
 
 {{ define "scripts" }}
 <script>
-// ... 这里保持之前的脚本内容不变 ...
+// 动态兼容前缀
+function getApiPrefix() {
+    return window.location.pathname.startsWith('/admin') ? '/admin' : '';
+}
+
+// 占位函数：原本页面的按钮
+async function syncComments() { showToast("正在同步...", "info"); }
+async function syncMessages() { showToast("正在同步...", "info"); }
+async function batchAIReply() { showToast("正在执行...", "info"); }
+async function interactFans() { showToast("正在执行...", "info"); }
+
+// --- 真正的模型状态核心逻辑 ---
+
+// 加载模型真实状态
+async function loadLLMStatus() {
+    const container = document.getElementById('llm-status');
+    container.innerHTML = '<div class="text-center text-pink-400 py-8"><i class="ri-loader-4-line animate-spin text-3xl"></i><p class="text-sm mt-2">获取最新状态...</p></div>';
+    
+    try {
+        const prefix = getApiPrefix();
+        // 1. 获取数据库里所有的模型配置
+        const providersData = await api(`${prefix}/api/settings/llm/providers`);
+        // 2. 获取当前实际生效的（运行时管理器中成功载入的）
+        const runtimeInfo = await api(`${prefix}/api/llm/providers`);
+        
+        const defaultProv = runtimeInfo.default_provider || "";
+        const activeProvs = runtimeInfo.providers || [];
+
+        const entries = Object.entries(providersData || {});
+        
+        if (entries.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    <i class="ri-robot-line text-3xl mb-2"></i>
+                    <p>暂无配置的大模型</p>
+                    <a href="${prefix}/settings" class="text-pink-500 hover:underline mt-2 inline-block font-medium">前往设置添加配置</a>
+                </div>`;
+            return;
+        }
+
+        // 渲染列表
+        container.innerHTML = entries.map(([name, config]) => {
+            const isEnabled = config.enabled;
+            const isActive = activeProvs.includes(name); // 存在于运行时管理器
+            
+            // 状态指示器诊断
+            let statusColor = 'bg-gray-300';
+            let statusText = '未启用';
+            if (isActive) {
+                statusColor = 'bg-green-500';
+                statusText = '已就绪';
+            } else if (isEnabled) {
+                statusColor = 'bg-amber-500';
+                statusText = '配置异常'; // 勾选了启用，但没有被成功加载进内存(可能缺API Key)
+            }
+
+            const isDefault = name === defaultProv;
+
+            return `
+            <div class="flex items-center justify-between p-3.5 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-pink-200 transition group">
+                <div class="flex flex-col">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2.5 h-2.5 rounded-full ${statusColor} shadow-sm" id="status-dot-${name}" title="${statusText}"></div>
+                        <span class="text-gray-800 font-bold text-sm">${name}</span>
+                        ${isDefault ? '<span class="text-[10px] bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded font-bold">全局默认</span>' : ''}
+                    </div>
+                    <span class="text-[11px] text-gray-400 mt-1 ml-4 flex items-center">
+                        <i class="ri-cpu-line mr-1"></i>${config.provider} ${config.model ? `(${config.model})` : ''}
+                    </span>
+                </div>
+                ${isActive ? `
+                <button onclick="testLLM('${name}')" class="text-blue-500 hover:text-white hover:bg-blue-500 text-xs flex items-center transition bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg shadow-sm">
+                    <i class="ri-pulse-line mr-1" id="test-icon-${name}"></i> 连通性
+                </button>
+                ` : `
+                <span class="text-xs ${isEnabled ? 'text-amber-500 bg-amber-50' : 'text-gray-400 bg-gray-50'} px-2 py-1 rounded-md border ${isEnabled ? 'border-amber-100' : 'border-gray-100'}">${statusText}</span>
+                `}
+            </div>
+            `;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = `<div class="text-center text-red-400 text-sm py-4"><i class="ri-error-warning-line text-2xl mb-1"></i><p>状态加载失败</p></div>`;
+        console.error("Load LLM Status Error:", err);
+    }
+}
+
+// 单独测试某个模型
+async function testLLM(providerName) {
+    const icon = document.getElementById(`test-icon-${providerName}`);
+    const dot = document.getElementById(`status-dot-${providerName}`);
+    if (icon) icon.classList.add('animate-spin');
+    
+    showToast(`正在发送测试请求给 [${providerName}]...`, 'info');
+    try {
+        const prefix = getApiPrefix();
+        const response = await fetch(`${prefix}/api/llm/test/${encodeURIComponent(providerName)}`);
+        const data = await response.json();
+        
+        if (response.ok && data.success !== false) {
+            showToast(`[${providerName}] 响应成功!`, 'success');
+            if (dot) { dot.className = 'w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm'; }
+        } else {
+            throw new Error(data.message || data.error || '请求超时或配置错误');
+        }
+    } catch (error) {
+        showToast(`[${providerName}] 测试失败: ` + error.message, 'error');
+        if (dot) { dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm'; }
+    } finally {
+        if (icon) icon.classList.remove('animate-spin');
+    }
+}
+
+// 批量测试所有激活的模型
+async function testAllLLM() {
+    const prefix = getApiPrefix();
+    try {
+        const runtimeInfo = await api(`${prefix}/api/llm/providers`);
+        const activeProvs = runtimeInfo.providers || [];
+        if (activeProvs.length === 0) {
+            showToast("没有检测到处于已就绪状态的模型", "warning");
+            return;
+        }
+        
+        showToast(`开始批量测试 ${activeProvs.length} 个就绪模型...`, "info");
+        for (const p of activeProvs) {
+            try {
+                await testLLM(p);
+            } catch(e) {}
+            // 延时 1000 毫秒，避免并发超速触发 API 限制
+            await new Promise(r => setTimeout(r, 1000));
+        }
+    } catch (err) {
+        showToast("读取运行状态失败: " + err.message, "error");
+    }
+}
+
+// 页面加载完成后，自动拉取真实状态
+document.addEventListener('DOMContentLoaded', () => {
+    loadLLMStatus();
+});
 </script>
 {{ end }}
