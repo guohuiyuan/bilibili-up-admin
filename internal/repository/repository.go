@@ -208,15 +208,15 @@ func (r *InteractionRepository) GetStats(ctx context.Context, startTime, endTime
 	var likeCount, coinCount, favoriteCount int64
 
 	r.db.WithContext(ctx).Model(&model.Interaction{}).
-		Where("action_type = ? AND success = ? AND action_time BETWEEN ?", "like", true, startTime, endTime).
+		Where("action_type = ? AND success = ? AND action_time BETWEEN ? AND ?", "like", true, startTime, endTime).
 		Count(&likeCount)
 
 	r.db.WithContext(ctx).Model(&model.Interaction{}).
-		Where("action_type = ? AND success = ? AND action_time BETWEEN ?", "coin", true, startTime, endTime).
+		Where("action_type = ? AND success = ? AND action_time BETWEEN ? AND ?", "coin", true, startTime, endTime).
 		Count(&coinCount)
 
 	r.db.WithContext(ctx).Model(&model.Interaction{}).
-		Where("action_type = ? AND success = ? AND action_time BETWEEN ?", "favorite", true, startTime, endTime).
+		Where("action_type = ? AND success = ? AND action_time BETWEEN ? AND ?", "favorite", true, startTime, endTime).
 		Count(&favoriteCount)
 
 	stats["like"] = likeCount
@@ -302,15 +302,15 @@ func (r *LLMChatLogRepository) GetStats(ctx context.Context, startTime, endTime 
 	var successCount int64
 
 	r.db.WithContext(ctx).Model(&model.LLMChatLog{}).
-		Where("created_at BETWEEN ?", startTime, endTime).
+		Where("created_at BETWEEN ? AND ?", startTime, endTime).
 		Count(&totalCalls)
 
 	r.db.WithContext(ctx).Model(&model.LLMChatLog{}).
-		Where("created_at BETWEEN ? AND success = ?", startTime, endTime, true).
+		Where("created_at BETWEEN ? AND ? AND success = ?", startTime, endTime, true).
 		Select("COALESCE(SUM(total_tokens), 0)").Scan(&totalTokens)
 
 	r.db.WithContext(ctx).Model(&model.LLMChatLog{}).
-		Where("created_at BETWEEN ? AND success = ?", startTime, endTime, true).
+		Where("created_at BETWEEN ? AND ? AND success = ?", startTime, endTime, true).
 		Count(&successCount)
 
 	stats["total_calls"] = totalCalls
