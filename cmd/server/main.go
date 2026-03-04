@@ -66,7 +66,7 @@ func main() {
 
 	addr := fmt.Sprintf(":%d", config.GlobalConfig.Server.Port)
 	localURL := fmt.Sprintf("http://localhost%s/admin/", addr)
-	
+
 	// 启动时在控制台打印运行网址
 	fmt.Printf("\n========================================================\n")
 	fmt.Printf("🚀 服务启动成功! 请在浏览器中访问: %s\n", localURL)
@@ -394,6 +394,13 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 			api.POST("/llm/default", h.LLM.SetDefault)
 			api.GET("/llm/test/:provider", h.LLM.Test)
 			api.GET("/llm/stats", h.LLM.Stats)
+
+			// 新增的 大模型 CRUD 独立路由
+			api.GET("/settings/llm/channels", h.Settings.GetLLMChannels)
+			api.GET("/settings/llm/providers", h.Settings.GetLLMProviders)
+			api.POST("/settings/llm/providers", h.Settings.AddLLMProvider)
+			api.PUT("/settings/llm/providers/:name", h.Settings.UpdateLLMProvider)
+			api.DELETE("/settings/llm/providers/:name", h.Settings.DeleteLLMProvider)
 
 			api.GET("/settings/app", h.Settings.GetApp)
 			api.PUT("/settings/app", h.Settings.SaveApp)

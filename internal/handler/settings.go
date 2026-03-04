@@ -7,6 +7,7 @@ import (
 	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/internal/service"
 	"bilibili-up-admin/pkg/bilibili"
+	"bilibili-up-admin/pkg/llm"
 
 	"github.com/gin-gonic/gin"
 )
@@ -165,4 +166,71 @@ func applyRuntimeSettings(ctx context.Context, settingsSvc *service.AppSettingsS
 	}
 	store.Apply(biliClient, llmManager)
 	return nil
+}
+
+func (h *SettingsHandler) GetLLMChannels(c *gin.Context) {
+	c.JSON(http.StatusOK, llm.SupportedProviders())
+}
+
+func (h *SettingsHandler) GetLLMProviders(c *gin.Context) {
+	settings, err := h.settings.Load(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, settings.LLMProviders)
+}
+
+func (h *SettingsHandler) AddLLMProvider(c *gin.Context) {
+	var req struct {
+		Name     string                      `json:"name" binding:"required"`
+		Settings service.LLMProviderSettings `json:"settings" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	current, err := h.settings.AddOrUpdateLLMProvider(c.Request.Context(), req.Name, req.Settings)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if err := applyRuntimeSettings(c.Request.Context(), h.settings, h.runtime, current); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func (h *SettingsHandler) UpdateLLMProvider(c *gin.Context) {
+	name := c.Param("name")
+	var settings service.LLMProviderSettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	current, err := h.settings.AddOrUpdateLLMProvider(c.Request.Context(), name, settings)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if err := applyRuntimeSettings(c.Request.Context(), h.settings, h.runtime, current); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func (h *SettingsHandler) DeleteLLMProvider(c *gin.Context) {
+	name := c.Param("name")
+	current, err := h.settings.DeleteLLMProvider(c.Request.Context(), name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if err := applyRuntimeSettings(c.Request.Context(), h.settings, h.runtime, current); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }

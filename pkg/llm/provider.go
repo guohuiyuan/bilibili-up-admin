@@ -48,3 +48,16 @@ type Config struct {
 	MaxTokens   int          `json:"max_tokens"`
 	Temperature float64      `json:"temperature"`
 }
+
+func SupportedProviders() []string {
+	return []string{
+		string(ProviderOpenAI),
+		string(ProviderClaude),
+		string(ProviderDeepSeek),
+		string(ProviderQwen),
+		string(ProviderMoonshot),
+		string(ProviderZhipu),
+		string(ProviderOllama),
+		string(ProviderGemini),
+	}
+}

@@ -236,3 +236,32 @@ func EncodeJSON(v any) (string, error) {
 	}
 	return string(data), nil
 }
+
+func (s *AppSettingsService) AddOrUpdateLLMProvider(ctx context.Context, name string, provider LLMProviderSettings) (*AppSettings, error) {
+	current, err := s.Load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if current.LLMProviders == nil {
+		current.LLMProviders = make(map[string]LLMProviderSettings)
+	}
+	current.LLMProviders[name] = provider
+	if err := s.SaveApp(ctx, current); err != nil {
+		return nil, err
+	}
+	return current, nil
+}
+
+func (s *AppSettingsService) DeleteLLMProvider(ctx context.Context, name string) (*AppSettings, error) {
+	current, err := s.Load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if current.LLMProviders != nil {
+		delete(current.LLMProviders, name)
+		if err := s.SaveApp(ctx, current); err != nil {
+			return nil, err
+		}
+	}
+	return current, nil
+}

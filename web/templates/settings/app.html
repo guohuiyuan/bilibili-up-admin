@@ -1,206 +1,293 @@
 {{ define "content" }}
 <div class="max-w-6xl mx-auto space-y-6">
     <div>
-        <h2 class="text-2xl font-bold">&#x7cfb;&#x7edf;&#x8bbe;&#x7f6e;</h2>
-        <p class="mt-1 text-sm text-gray-500">&#x8fd9;&#x91cc;&#x7ba1;&#x7406;&#x5927;&#x6a21;&#x578b;&#x3001;&#x4efb;&#x52a1;&#x961f;&#x5217;&#x548c;&#x65e5;&#x5fd7;&#x914d;&#x7f6e;&#xff0c;&#x4fdd;&#x5b58;&#x540e;&#x5199;&#x5165;&#x6570;&#x636e;&#x5e93;&#x3002;</p>
+        <h2 class="text-2xl font-bold text-gray-800">系统设置</h2>
+        <p class="mt-1 text-sm text-gray-500">管理全局基础配置和所有的大模型通道，更改后即时生效。</p>
     </div>
 
     <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
-        <div>
-            <label class="mb-2 block text-sm font-medium">&#x9ed8;&#x8ba4; LLM Provider</label>
-            <input id="default-provider" class="w-full rounded-xl border px-4 py-3" placeholder="openai">
+        <div class="flex items-center justify-between border-b border-gray-100 pb-4">
+            <h3 class="text-lg font-semibold text-gray-800">常规设置</h3>
+            <button type="button" onclick="saveGeneralSettings().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-pink-500 px-5 py-2 text-white hover:bg-pink-600 transition shadow-sm">
+                <i class="ri-save-line mr-1"></i>保存常规设置
+            </button>
         </div>
 
-        <div class="space-y-4">
-            <div class="flex items-center justify-between">
-                <h3 class="font-semibold">LLM Providers</h3>
-                <button id="add-provider-btn" type="button" onclick="addProvider()" class="rounded-xl bg-pink-500 px-4 py-2 text-white hover:bg-pink-600 transition">&#x65b0;&#x589e; Provider</button>
-            </div>
-            <div id="providers" class="space-y-4"></div>
+        <div>
+            <label class="mb-2 block text-sm font-medium text-gray-700">默认调用模型 (Default Provider)</label>
+            <select id="default-provider" class="w-full rounded-xl border border-gray-200 px-4 py-3 bg-white focus:ring-2 focus:ring-pink-400 outline-none"></select>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2">
             <div>
-                <label class="mb-2 block text-sm font-medium">Worker &#x6570;&#x91cf;</label>
-                <input id="worker-count" type="number" class="w-full rounded-xl border px-4 py-3">
+                <label class="mb-2 block text-sm font-medium text-gray-700">Worker 数量</label>
+                <input id="worker-count" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none">
             </div>
             <div>
-                <label class="mb-2 block text-sm font-medium">&#x961f;&#x5217;&#x5bb9;&#x91cf;</label>
-                <input id="queue-size" type="number" class="w-full rounded-xl border px-4 py-3">
+                <label class="mb-2 block text-sm font-medium text-gray-700">队列容量</label>
+                <input id="queue-size" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none">
             </div>
             <div>
-                <label class="mb-2 block text-sm font-medium">&#x65e5;&#x5fd7;&#x7ea7;&#x522b;</label>
-                <input id="log-level" class="w-full rounded-xl border px-4 py-3" placeholder="debug / info / warn / error">
+                <label class="mb-2 block text-sm font-medium text-gray-700">日志级别</label>
+                <input id="log-level" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="debug / info / warn / error">
             </div>
             <div>
-                <label class="mb-2 block text-sm font-medium">&#x65e5;&#x5fd7;&#x683c;&#x5f0f;</label>
-                <input id="log-format" class="w-full rounded-xl border px-4 py-3" placeholder="console / json">
+                <label class="mb-2 block text-sm font-medium text-gray-700">日志格式</label>
+                <input id="log-format" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="console / json">
             </div>
             <div class="md:col-span-2">
-                <label class="mb-2 block text-sm font-medium">&#x65e5;&#x5fd7;&#x6587;&#x4ef6;&#x8def;&#x5f84;</label>
-                <input id="log-file-path" class="w-full rounded-xl border px-4 py-3" placeholder="logs/bilibili-up-admin.log">
+                <label class="mb-2 block text-sm font-medium text-gray-700">日志文件路径</label>
+                <input id="log-file-path" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="logs/bilibili-up-admin.log">
             </div>
         </div>
+    </section>
 
-        <div class="flex justify-end">
-            <button id="save-settings-btn" type="button" onclick="saveAppSettings().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-pink-500 px-5 py-3 text-white hover:bg-pink-600 transition">&#x4fdd;&#x5b58;&#x8bbe;&#x7f6e;</button>
+    <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
+        <div class="flex items-center justify-between border-b border-gray-100 pb-4">
+            <h3 class="text-lg font-semibold text-gray-800">大模型管理 (Providers)</h3>
+            <button type="button" onclick="Modal.show('add-provider-modal')" class="rounded-xl bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition shadow-sm">
+                <i class="ri-add-line mr-1"></i>添加模型
+            </button>
+        </div>
+        <div id="providers" class="space-y-4">
+            <div class="text-center text-gray-400 py-8"><i class="ri-loader-4-line animate-spin text-2xl"></i><p>加载中...</p></div>
         </div>
     </section>
+</div>
+
+<div id="add-provider-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-[400px] p-6 shadow-xl transform transition-all">
+        <h3 class="text-lg font-bold mb-4 text-gray-800 flex items-center"><i class="ri-robot-line text-pink-500 mr-2"></i>添加模型渠道</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm mb-1 text-gray-700">配置名称 (唯一标识，如 my-openai)</label>
+                <input id="new-provider-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-pink-400 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm mb-1 text-gray-700">模型渠道 (Channel - 由后端动态拉取)</label>
+                <select id="new-provider-channel" class="w-full border border-gray-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-pink-400 outline-none">
+                    <option value="">加载中...</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+            <button onclick="Modal.hide('add-provider-modal')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">取消</button>
+            <button onclick="submitNewProvider()" class="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition shadow-sm">确定添加</button>
+        </div>
+    </div>
 </div>
 {{ end }}
 
 {{ define "scripts" }}
 <script>
-const providerTypeOptions = ["openai", "claude", "gemini", "deepseek", "qwen", "moonshot", "zhipu", "ollama"];
+let availableChannels = [];
 let currentProviders = {};
 
-function providerTypeSelect(value) {
-    return `<select class="provider-type w-full rounded-lg border px-3 py-2">
-        ${providerTypeOptions.map(option => `<option value="${option}" ${option === value ? "selected" : ""}>${option}</option>`).join("")}
-    </select>`;
+// 动态兼容有无 /admin 前缀
+function getApiPrefix() {
+    return window.location.pathname.startsWith('/admin') ? '/admin' : '';
 }
 
-function providerCard(name, config = {}) {
-    const type = config.provider || "openai";
-    return `
-    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4" data-provider="${name}">
-        <div class="mb-3 flex items-center justify-between">
-            <div class="font-medium">${name}</div>
-            <button type="button" class="remove-provider rounded-lg border border-red-200 px-3 py-1 text-sm text-red-600">&#x5220;&#x9664;</button>
-        </div>
-        <div class="grid gap-3 md:grid-cols-2">
-            <div>
-                <label class="mb-1 block text-xs font-medium">&#x914d;&#x7f6e;&#x540d;</label>
-                <input class="provider-name w-full rounded-lg border px-3 py-2" value="${name}">
-            </div>
-            <div>
-                <label class="mb-1 block text-xs font-medium">&#x7c7b;&#x578b;</label>
-                ${providerTypeSelect(type)}
-            </div>
-            <div>
-                <label class="mb-1 block text-xs font-medium">&#x6a21;&#x578b;</label>
-                <input class="provider-model w-full rounded-lg border px-3 py-2" value="${config.model || ""}">
-            </div>
-            <div>
-                <label class="mb-1 block text-xs font-medium">Base URL</label>
-                <input class="provider-base-url w-full rounded-lg border px-3 py-2" value="${config.base_url || ""}">
-            </div>
-            <div>
-                <label class="mb-1 block text-xs font-medium">API Key</label>
-                <input class="provider-api-key w-full rounded-lg border px-3 py-2" value="${config.api_key || ""}">
-            </div>
-            <div class="grid grid-cols-3 gap-3">
-                <div>
-                    <label class="mb-1 block text-xs font-medium">&#x542f;&#x7528;</label>
-                    <input class="provider-enabled mt-3" type="checkbox" ${config.enabled ? "checked" : ""}>
-                </div>
-                <div>
-                    <label class="mb-1 block text-xs font-medium">Max Tokens</label>
-                    <input class="provider-max-tokens w-full rounded-lg border px-3 py-2" type="number" value="${config.max_tokens || 1000}">
-                </div>
-                <div>
-                    <label class="mb-1 block text-xs font-medium">Temperature</label>
-                    <input class="provider-temperature w-full rounded-lg border px-3 py-2" type="number" step="0.1" value="${config.temperature ?? 0.7}">
-                </div>
-            </div>
-        </div>
-    </div>`;
+// 1. 从后端获取允许的底层渠道列表 (GET)
+async function loadChannels() {
+    try {
+        availableChannels = await api(`${getApiPrefix()}/api/settings/llm/channels`);
+        const select = document.getElementById("new-provider-channel");
+        select.innerHTML = availableChannels.map(ch => `<option value="${ch}">${ch}</option>`).join('');
+    } catch (err) {
+        console.error("加载渠道失败", err);
+    }
 }
 
+// 2. 加载整个页面的数据
+async function loadData() {
+    try {
+        // 加载常规配置
+        const appData = await api(`${getApiPrefix()}/api/settings/app`);
+        document.getElementById("worker-count").value = appData.task?.worker_count || 5;
+        document.getElementById("queue-size").value = appData.task?.queue_size || 100;
+        document.getElementById("log-level").value = appData.log?.level || "debug";
+        document.getElementById("log-format").value = appData.log?.format || "console";
+        document.getElementById("log-file-path").value = appData.log?.file_path || "";
+
+        // 加载独立拉取的模型列表
+        const providers = await api(`${getApiPrefix()}/api/settings/llm/providers`);
+        currentProviders = providers || {};
+        renderProviders();
+
+        // 刷新默认模型下拉菜单
+        const defaultSelect = document.getElementById("default-provider");
+        const currentDefault = appData.llm?.default_provider || "";
+        defaultSelect.innerHTML = Object.keys(currentProviders).map(name =>
+            `<option value="${name}" ${name === currentDefault ? "selected" : ""}>${name}</option>`
+        ).join('') + `<option value="" ${currentDefault === "" ? "selected" : ""}>不设置 (关闭AI)</option>`;
+    } catch(err) {
+        showToast('加载失败: ' + err.message, 'error');
+    }
+}
+
+// 渲染大模型列表卡片
 function renderProviders() {
     const container = document.getElementById("providers");
     const entries = Object.entries(currentProviders);
-    container.innerHTML = entries.map(([name, cfg]) => providerCard(name, cfg)).join("");
 
-    container.querySelectorAll(".remove-provider").forEach(button => {
-        button.addEventListener("click", event => {
-            syncProvidersFromDOM(); // 保存当前页面上的输入，防止被覆盖
-            const card = event.target.closest("[data-provider]");
-            const name = card.querySelector(".provider-name").value.trim();
-            delete currentProviders[name];
-            renderProviders();
-        });
-    });
-}
-
-// 将页面上的输入同步回 currentProviders
-function syncProvidersFromDOM() {
-    const providers = {};
-    document.querySelectorAll("#providers [data-provider]").forEach(card => {
-        const name = card.querySelector(".provider-name").value.trim();
-        if (!name) return;
-        providers[name] = {
-            provider: card.querySelector(".provider-type").value,
-            model: card.querySelector(".provider-model").value.trim(),
-            base_url: card.querySelector(".provider-base-url").value.trim(),
-            api_key: card.querySelector(".provider-api-key").value.trim(),
-            enabled: card.querySelector(".provider-enabled").checked,
-            max_tokens: Number(card.querySelector(".provider-max-tokens").value || 1000),
-            temperature: Number(card.querySelector(".provider-temperature").value || 0.7)
-        };
-    });
-    currentProviders = providers;
-}
-
-function addProvider() {
-    syncProvidersFromDOM(); // 先保存当前用户的输入
-
-    let index = Object.keys(currentProviders).length + 1;
-    let name = `provider_${index}`;
-    while (currentProviders[name]) {
-        index += 1;
-        name = `provider_${index}`;
+    if (entries.length === 0) {
+        container.innerHTML = `<div class="text-center text-gray-400 py-8">暂无配置的大模型</div>`;
+        return;
     }
-    currentProviders[name] = {
-        enabled: false,
-        provider: "openai",
-        model: "",
-        base_url: "",
-        api_key: "",
-        max_tokens: 1000,
-        temperature: 0.7
-    };
-    renderProviders();
+
+    container.innerHTML = entries.map(([name, config]) => `
+    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 hover:border-pink-200 transition" data-provider="${name}">
+        <div class="mb-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="font-bold text-gray-800 text-lg">${name}</span>
+                <span class="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200">${config.provider}</span>
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="updateProvider('${name}')" class="rounded-lg bg-white border border-gray-200 px-3 py-1 text-sm text-gray-700 hover:text-pink-500 hover:border-pink-300 transition shadow-sm"><i class="ri-save-line mr-1"></i>保存此模型</button>
+                <button onclick="deleteProvider('${name}')" class="rounded-lg bg-white border border-red-100 px-3 py-1 text-sm text-red-500 hover:bg-red-50 transition shadow-sm"><i class="ri-delete-bin-line mr-1"></i>删除</button>
+            </div>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
+            <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600">具体的模型类型 (Model)</label>
+                <input class="provider-model w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" value="${config.model || ""}" placeholder="例如 gpt-4o 或 deepseek-chat">
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600">中转代理 URL (可选)</label>
+                <input class="provider-base-url w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" value="${config.base_url || ""}" placeholder="不填则使用官方默认地址">
+            </div>
+            <div class="md:col-span-2">
+                <label class="mb-1 block text-xs font-medium text-gray-600">API Key</label>
+                <input class="provider-api-key w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" type="password" value="${config.api_key || ""}" placeholder="sk-...">
+            </div>
+            <div class="grid grid-cols-3 gap-3 md:col-span-2">
+                <div class="flex flex-col justify-center">
+                    <label class="flex items-center space-x-2 cursor-pointer mt-4">
+                        <input class="provider-enabled w-4 h-4 text-pink-500 border-gray-300 rounded focus:ring-pink-500" type="checkbox" ${config.enabled ? "checked" : ""}>
+                        <span class="text-sm font-medium text-gray-700">启用该模型</span>
+                    </label>
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600">Max Tokens</label>
+                    <input class="provider-max-tokens w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" type="number" value="${config.max_tokens || 1000}">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600">Temperature</label>
+                    <input class="provider-temperature w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" type="number" step="0.1" value="${config.temperature ?? 0.7}">
+                </div>
+            </div>
+        </div>
+    </div>`).join("");
 }
 
-async function loadAppSettings() {
-    const data = await api("/admin/api/settings/app");
-    document.getElementById("default-provider").value = data.llm?.default_provider || "";
-    document.getElementById("worker-count").value = data.task?.worker_count || 5;
-    document.getElementById("queue-size").value = data.task?.queue_size || 100;
-    document.getElementById("log-level").value = data.log?.level || "debug";
-    document.getElementById("log-format").value = data.log?.format || "console";
-    document.getElementById("log-file-path").value = data.log?.file_path || "";
-    currentProviders = data.llm_providers || {};
-    renderProviders();
-}
+// 3. 独立提交添加 (POST)
+async function submitNewProvider() {
+    const name = document.getElementById("new-provider-name").value.trim();
+    const channel = document.getElementById("new-provider-channel").value;
 
-async function saveAppSettings() {
-    syncProvidersFromDOM();
+    if (!name) return showToast("请输入配置名称", "warning");
+    if (currentProviders[name]) return showToast("名称已存在", "warning");
+    if (!channel) return showToast("请选择渠道", "warning");
 
-    await api("/admin/api/settings/app", {
-        method: "PUT",
-        body: {
-            llm: { default_provider: document.getElementById("default-provider").value.trim() },
-            llm_providers: currentProviders,
-            task: {
-                worker_count: Number(document.getElementById("worker-count").value || 5),
-                queue_size: Number(document.getElementById("queue-size").value || 100)
-            },
-            log: {
-                level: document.getElementById("log-level").value.trim(),
-                format: document.getElementById("log-format").value.trim(),
-                file_path: document.getElementById("log-file-path").value.trim()
+    try {
+        await api(`${getApiPrefix()}/api/settings/llm/providers`, {
+            method: 'POST',
+            body: {
+                name: name,
+                settings: {
+                    enabled: true,
+                    provider: channel,
+                    model: "",
+                    base_url: "",
+                    api_key: "",
+                    max_tokens: 1000,
+                    temperature: 0.7
+                }
             }
-        }
-    });
+        });
+        showToast("添加成功，请在下方补充参数", "success");
+        Modal.hide('add-provider-modal');
+        document.getElementById("new-provider-name").value = "";
+        await loadData();
+    } catch (err) {
+        showToast("添加失败: " + err.message, "error");
+    }
+}
 
-    showToast("设置已保存", "success");
-    await loadAppSettings();
+// 4. 独立更新模型 (PUT)
+async function updateProvider(name) {
+    const card = document.querySelector(`[data-provider="${name}"]`);
+    if (!card) return;
+
+    const settings = {
+        provider: currentProviders[name].provider, // 渠道类型不能改
+        model: card.querySelector(".provider-model").value.trim(),
+        base_url: card.querySelector(".provider-base-url").value.trim(),
+        api_key: card.querySelector(".provider-api-key").value.trim(),
+        enabled: card.querySelector(".provider-enabled").checked,
+        max_tokens: Number(card.querySelector(".provider-max-tokens").value || 1000),
+        temperature: Number(card.querySelector(".provider-temperature").value || 0.7)
+    };
+
+    try {
+        await api(`${getApiPrefix()}/api/settings/llm/providers/${encodeURIComponent(name)}`, {
+            method: 'PUT',
+            body: settings
+        });
+        showToast("模型配置保存成功", "success");
+        await loadData();
+    } catch (err) {
+        showToast("保存失败: " + err.message, "error");
+    }
+}
+
+// 5. 独立删除模型 (DELETE)
+async function deleteProvider(name) {
+    if (!confirm(`确定要彻底删除配置 [${name}] 吗？`)) return;
+
+    try {
+        await api(`${getApiPrefix()}/api/settings/llm/providers/${encodeURIComponent(name)}`, {
+            method: 'DELETE'
+        });
+        showToast("已删除该配置", "success");
+        await loadData();
+    } catch (err) {
+        showToast("删除失败: " + err.message, "error");
+    }
+}
+
+// 6. 保存其它杂项设置 (常规配置)
+async function saveGeneralSettings() {
+    try {
+        // 先获取最新避免覆盖，再组合提交 (由于后端需要完整对象)
+        const appData = await api(`${getApiPrefix()}/api/settings/app`);
+        appData.llm.default_provider = document.getElementById("default-provider").value.trim();
+        appData.task.worker_count = Number(document.getElementById("worker-count").value || 5);
+        appData.task.queue_size = Number(document.getElementById("queue-size").value || 100);
+        appData.log.level = document.getElementById("log-level").value.trim();
+        appData.log.format = document.getElementById("log-format").value.trim();
+        appData.log.file_path = document.getElementById("log-file-path").value.trim();
+
+        await api(`${getApiPrefix()}/api/settings/app`, {
+            method: "PUT",
+            body: {
+                llm: appData.llm,
+                llm_providers: currentProviders, // 保持现状
+                task: appData.task,
+                log: appData.log
+            }
+        });
+
+        showToast("常规设置已保存", "success");
+    } catch (err) {
+        showToast("保存常规设置失败: " + err.message, "error");
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    loadAppSettings().catch(err => showToast(err.message, "error"));
+    loadChannels(); // 先获取渠道拉取下拉条
+    loadData().catch(err => showToast("初始化失败: " + err.message, "error"));
 });
 </script>
 {{ end }}
