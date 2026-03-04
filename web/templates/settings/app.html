@@ -1,0 +1,206 @@
+{{ define "content" }}
+<div class="max-w-6xl mx-auto space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold">&#x7cfb;&#x7edf;&#x8bbe;&#x7f6e;</h2>
+        <p class="mt-1 text-sm text-gray-500">&#x8fd9;&#x91cc;&#x7ba1;&#x7406;&#x5927;&#x6a21;&#x578b;&#x3001;&#x4efb;&#x52a1;&#x961f;&#x5217;&#x548c;&#x65e5;&#x5fd7;&#x914d;&#x7f6e;&#xff0c;&#x4fdd;&#x5b58;&#x540e;&#x5199;&#x5165;&#x6570;&#x636e;&#x5e93;&#x3002;</p>
+    </div>
+
+    <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
+        <div>
+            <label class="mb-2 block text-sm font-medium">&#x9ed8;&#x8ba4; LLM Provider</label>
+            <input id="default-provider" class="w-full rounded-xl border px-4 py-3" placeholder="openai">
+        </div>
+
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="font-semibold">LLM Providers</h3>
+                <button id="add-provider-btn" type="button" onclick="addProvider()" class="rounded-xl bg-amber-500 px-4 py-2 text-white">&#x65b0;&#x589e; Provider</button>
+            </div>
+            <div id="providers" class="space-y-4"></div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+            <div>
+                <label class="mb-2 block text-sm font-medium">Worker &#x6570;&#x91cf;</label>
+                <input id="worker-count" type="number" class="w-full rounded-xl border px-4 py-3">
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium">&#x961f;&#x5217;&#x5bb9;&#x91cf;</label>
+                <input id="queue-size" type="number" class="w-full rounded-xl border px-4 py-3">
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium">&#x65e5;&#x5fd7;&#x7ea7;&#x522b;</label>
+                <input id="log-level" class="w-full rounded-xl border px-4 py-3" placeholder="debug / info / warn / error">
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium">&#x65e5;&#x5fd7;&#x683c;&#x5f0f;</label>
+                <input id="log-format" class="w-full rounded-xl border px-4 py-3" placeholder="console / json">
+            </div>
+            <div class="md:col-span-2">
+                <label class="mb-2 block text-sm font-medium">&#x65e5;&#x5fd7;&#x6587;&#x4ef6;&#x8def;&#x5f84;</label>
+                <input id="log-file-path" class="w-full rounded-xl border px-4 py-3" placeholder="logs/bilibili-up-admin.log">
+            </div>
+        </div>
+
+        <div class="flex justify-end">
+            <button id="save-settings-btn" type="button" onclick="saveAppSettings().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-slate-900 px-5 py-3 text-white">&#x4fdd;&#x5b58;&#x8bbe;&#x7f6e;</button>
+        </div>
+    </section>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script>
+const providerTypeOptions = ["openai", "claude", "gemini", "deepseek", "qwen", "moonshot", "zhipu", "ollama"];
+let currentProviders = {};
+
+function providerTypeSelect(value) {
+    return `<select class="provider-type w-full rounded-lg border px-3 py-2">
+        ${providerTypeOptions.map(option => `<option value="${option}" ${option === value ? "selected" : ""}>${option}</option>`).join("")}
+    </select>`;
+}
+
+function providerCard(name, config = {}) {
+    const type = config.provider || "openai";
+    return `
+    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4" data-provider="${name}">
+        <div class="mb-3 flex items-center justify-between">
+            <div class="font-medium">${name}</div>
+            <button type="button" class="remove-provider rounded-lg border border-red-200 px-3 py-1 text-sm text-red-600">&#x5220;&#x9664;</button>
+        </div>
+        <div class="grid gap-3 md:grid-cols-2">
+            <div>
+                <label class="mb-1 block text-xs font-medium">&#x914d;&#x7f6e;&#x540d;</label>
+                <input class="provider-name w-full rounded-lg border px-3 py-2" value="${name}">
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-medium">&#x7c7b;&#x578b;</label>
+                ${providerTypeSelect(type)}
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-medium">&#x6a21;&#x578b;</label>
+                <input class="provider-model w-full rounded-lg border px-3 py-2" value="${config.model || ""}">
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-medium">Base URL</label>
+                <input class="provider-base-url w-full rounded-lg border px-3 py-2" value="${config.base_url || ""}">
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-medium">API Key</label>
+                <input class="provider-api-key w-full rounded-lg border px-3 py-2" value="${config.api_key || ""}">
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="mb-1 block text-xs font-medium">&#x542f;&#x7528;</label>
+                    <input class="provider-enabled mt-3" type="checkbox" ${config.enabled ? "checked" : ""}>
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium">Max Tokens</label>
+                    <input class="provider-max-tokens w-full rounded-lg border px-3 py-2" type="number" value="${config.max_tokens || 1000}">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium">Temperature</label>
+                    <input class="provider-temperature w-full rounded-lg border px-3 py-2" type="number" step="0.1" value="${config.temperature ?? 0.7}">
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderProviders() {
+    const container = document.getElementById("providers");
+    const entries = Object.entries(currentProviders);
+    container.innerHTML = entries.map(([name, cfg]) => providerCard(name, cfg)).join("");
+
+    container.querySelectorAll(".remove-provider").forEach(button => {
+        button.addEventListener("click", event => {
+            syncProvidersFromDOM(); // 保存当前页面上的输入，防止被覆盖
+            const card = event.target.closest("[data-provider]");
+            const name = card.querySelector(".provider-name").value.trim();
+            delete currentProviders[name];
+            renderProviders();
+        });
+    });
+}
+
+// 将页面上的输入同步回 currentProviders
+function syncProvidersFromDOM() {
+    const providers = {};
+    document.querySelectorAll("#providers [data-provider]").forEach(card => {
+        const name = card.querySelector(".provider-name").value.trim();
+        if (!name) return;
+        providers[name] = {
+            provider: card.querySelector(".provider-type").value,
+            model: card.querySelector(".provider-model").value.trim(),
+            base_url: card.querySelector(".provider-base-url").value.trim(),
+            api_key: card.querySelector(".provider-api-key").value.trim(),
+            enabled: card.querySelector(".provider-enabled").checked,
+            max_tokens: Number(card.querySelector(".provider-max-tokens").value || 1000),
+            temperature: Number(card.querySelector(".provider-temperature").value || 0.7)
+        };
+    });
+    currentProviders = providers;
+}
+
+function addProvider() {
+    syncProvidersFromDOM(); // 先保存当前用户的输入
+
+    let index = Object.keys(currentProviders).length + 1;
+    let name = `provider_${index}`;
+    while (currentProviders[name]) {
+        index += 1;
+        name = `provider_${index}`;
+    }
+    currentProviders[name] = {
+        enabled: false,
+        provider: "openai",
+        model: "",
+        base_url: "",
+        api_key: "",
+        max_tokens: 1000,
+        temperature: 0.7
+    };
+    renderProviders();
+}
+
+async function loadAppSettings() {
+    const data = await api("/api/settings/app");
+    document.getElementById("default-provider").value = data.llm?.default_provider || "";
+    document.getElementById("worker-count").value = data.task?.worker_count || 5;
+    document.getElementById("queue-size").value = data.task?.queue_size || 100;
+    document.getElementById("log-level").value = data.log?.level || "debug";
+    document.getElementById("log-format").value = data.log?.format || "console";
+    document.getElementById("log-file-path").value = data.log?.file_path || "";
+    currentProviders = data.llm_providers || {};
+    renderProviders();
+}
+
+async function saveAppSettings() {
+    syncProvidersFromDOM();
+
+    await api("/api/settings/app", {
+        method: "PUT",
+        body: {
+            llm: { default_provider: document.getElementById("default-provider").value.trim() },
+            llm_providers: currentProviders,
+            task: {
+                worker_count: Number(document.getElementById("worker-count").value || 5),
+                queue_size: Number(document.getElementById("queue-size").value || 100)
+            },
+            log: {
+                level: document.getElementById("log-level").value.trim(),
+                format: document.getElementById("log-format").value.trim(),
+                file_path: document.getElementById("log-file-path").value.trim()
+            }
+        }
+    });
+
+    showToast("设置已保存", "success");
+    await loadAppSettings();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadAppSettings().catch(err => showToast(err.message, "error"));
+});
+</script>
+{{ end }}

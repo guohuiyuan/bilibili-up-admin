@@ -2,28 +2,37 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"bilibili-up-admin/internal/model"
 	"bilibili-up-admin/internal/repository"
+	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/pkg/bilibili"
 )
 
 // InteractionService 互动服务
 type InteractionService struct {
-	biliClient *bilibili.Client
-	repo       *repository.InteractionRepository
+	runtime *appruntime.Store
+	repo    *repository.InteractionRepository
 }
 
 // NewInteractionService 创建互动服务
 func NewInteractionService(
-	biliClient *bilibili.Client,
+	runtime *appruntime.Store,
 	repo *repository.InteractionRepository,
 ) *InteractionService {
 	return &InteractionService{
-		biliClient: biliClient,
-		repo:       repo,
+		runtime: runtime,
+		repo:    repo,
 	}
+}
+
+func (s *InteractionService) biliClient() (*bilibili.Client, error) {
+	if s.runtime == nil || s.runtime.BilibiliClient() == nil {
+		return nil, fmt.Errorf("bilibili login is not configured")
+	}
+	return s.runtime.BilibiliClient(), nil
 }
 
 // InteractionResult 互动结果
@@ -35,7 +44,11 @@ type InteractionResult struct {
 // LikeVideo 点赞视频
 func (s *InteractionService) LikeVideo(ctx context.Context, bvID string) (*InteractionResult, error) {
 	// 检查是否已点赞
-	liked, err := s.biliClient.IsLiked(ctx, bvID)
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+	liked, err := client.IsLiked(ctx, bvID)
 	if err != nil {
 		return nil, err
 	}
@@ -44,13 +57,13 @@ func (s *InteractionService) LikeVideo(ctx context.Context, bvID string) (*Inter
 	}
 
 	// 获取视频信息
-	info, err := s.biliClient.GetVideoInfo(ctx, bvID)
+	info, err := client.GetVideoInfo(ctx, bvID)
 	if err != nil {
 		return nil, err
 	}
 
 	// 点赞
-	result, err := s.biliClient.LikeVideo(ctx, bvID)
+	result, err := client.LikeVideo(ctx, bvID)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +86,11 @@ func (s *InteractionService) LikeVideo(ctx context.Context, bvID string) (*Inter
 // CoinVideo 投币视频
 func (s *InteractionService) CoinVideo(ctx context.Context, bvID string, coinCount int) (*InteractionResult, error) {
 	// 检查是否已投币
-	coined, err := s.biliClient.IsCoined(ctx, bvID)
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+	coined, err := client.IsCoined(ctx, bvID)
 	if err != nil {
 		return nil, err
 	}
@@ -82,13 +99,13 @@ func (s *InteractionService) CoinVideo(ctx context.Context, bvID string, coinCou
 	}
 
 	// 获取视频信息
-	info, err := s.biliClient.GetVideoInfo(ctx, bvID)
+	info, err := client.GetVideoInfo(ctx, bvID)
 	if err != nil {
 		return nil, err
 	}
 
 	// 投币
-	result, err := s.biliClient.CoinVideo(ctx, bvID, coinCount)
+	result, err := client.CoinVideo(ctx, bvID, coinCount)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +128,16 @@ func (s *InteractionService) CoinVideo(ctx context.Context, bvID string, coinCou
 
 // TripleAction 三连
 func (s *InteractionService) TripleAction(ctx context.Context, bvID string) (*InteractionResult, error) {
-	info, err := s.biliClient.GetVideoInfo(ctx, bvID)
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+	info, err := client.GetVideoInfo(ctx, bvID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.biliClient.TripleAction(ctx, bvID)
+	err = client.TripleAction(ctx, bvID)
 	if err != nil {
 		return &InteractionResult{Success: false, Message: err.Error()}, nil
 	}
@@ -170,7 +191,11 @@ func (s *InteractionService) BatchInteract(ctx context.Context, bvIDs []string, 
 // InteractFansVideos 互动粉丝视频
 func (s *InteractionService) InteractFansVideos(ctx context.Context, actionType string, limit int) (int, error) {
 	// 获取粉丝视频
-	fansVideos, err := s.biliClient.GetFansVideos(ctx, 1, 20)
+	client, err := s.biliClient()
+	if err != nil {
+		return 0, err
+	}
+	fansVideos, err := client.GetFansVideos(ctx, 1, 20)
 	if err != nil {
 		return 0, err
 	}

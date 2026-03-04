@@ -37,6 +37,9 @@ type CoinResult struct {
 }
 
 func (c *Client) LikeVideo(ctx context.Context, bvID string) (*LikeResult, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return nil, err
@@ -50,6 +53,9 @@ func (c *Client) LikeVideo(ctx context.Context, bvID string) (*LikeResult, error
 }
 
 func (c *Client) UnlikeVideo(ctx context.Context, bvID string) (*LikeResult, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return nil, err
@@ -63,6 +69,9 @@ func (c *Client) UnlikeVideo(ctx context.Context, bvID string) (*LikeResult, err
 }
 
 func (c *Client) CoinVideo(ctx context.Context, bvID string, multiply int) (*CoinResult, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return nil, err
@@ -80,6 +89,9 @@ func (c *Client) CoinVideo(ctx context.Context, bvID string, multiply int) (*Coi
 }
 
 func (c *Client) FavoriteVideo(ctx context.Context, bvID string, mediaID int64) error {
+	if err := c.ensureAvailable(); err != nil {
+		return err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return err
@@ -93,6 +105,9 @@ func (c *Client) FavoriteVideo(ctx context.Context, bvID string, mediaID int64) 
 }
 
 func (c *Client) GetVideoInfo(ctx context.Context, bvID string) (*VideoInfo, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return nil, fmt.Errorf("get video info failed: %w", err)
@@ -123,6 +138,9 @@ func (c *Client) GetVideoInfo(ctx context.Context, bvID string) (*VideoInfo, err
 }
 
 func (c *Client) IsLiked(ctx context.Context, bvID string) (bool, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return false, err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return false, err
@@ -136,6 +154,9 @@ func (c *Client) IsLiked(ctx context.Context, bvID string) (bool, error) {
 }
 
 func (c *Client) IsCoined(ctx context.Context, bvID string) (bool, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return false, err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return false, err
@@ -149,6 +170,9 @@ func (c *Client) IsCoined(ctx context.Context, bvID string) (bool, error) {
 }
 
 func (c *Client) TripleAction(ctx context.Context, bvID string) error {
+	if err := c.ensureAvailable(); err != nil {
+		return err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return err

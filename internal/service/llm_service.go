@@ -6,66 +6,74 @@ import (
 
 	"bilibili-up-admin/internal/model"
 	"bilibili-up-admin/internal/repository"
+	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/pkg/llm"
 )
 
 type LLMService struct {
-	manager    *llm.Manager
+	runtime    *appruntime.Store
 	llmLogRepo *repository.LLMChatLogRepository
 }
 
-func NewLLMService(manager *llm.Manager, llmLogRepo *repository.LLMChatLogRepository) *LLMService {
+func NewLLMService(runtime *appruntime.Store, llmLogRepo *repository.LLMChatLogRepository) *LLMService {
 	return &LLMService{
-		manager:    manager,
+		runtime:    runtime,
 		llmLogRepo: llmLogRepo,
 	}
 }
 
+func (s *LLMService) manager() *llm.Manager {
+	if s.runtime == nil {
+		return nil
+	}
+	return s.runtime.LLMManager()
+}
+
 func (s *LLMService) Chat(ctx context.Context, provider string, messages []llm.Message) (*llm.Response, error) {
-	if s.manager == nil {
+	if s.manager() == nil {
 		return nil, nil
 	}
 	if provider != "" {
-		p, err := s.manager.Get(provider)
+		p, err := s.manager().Get(provider)
 		if err != nil {
 			return nil, err
 		}
 		return p.Chat(ctx, messages)
 	}
-	return s.manager.Chat(ctx, messages)
+	return s.manager().Chat(ctx, messages)
 }
 
 func (s *LLMService) ChatWithSystem(ctx context.Context, provider, systemPrompt string, messages []llm.Message) (*llm.Response, error) {
-	if s.manager == nil {
+	if s.manager() == nil {
 		return nil, nil
 	}
 	if provider != "" {
-		p, err := s.manager.Get(provider)
+		p, err := s.manager().Get(provider)
 		if err != nil {
 			return nil, err
 		}
 		return p.ChatWithSystem(ctx, systemPrompt, messages)
 	}
-	return s.manager.ChatWithSystem(ctx, systemPrompt, messages)
+	return s.manager().ChatWithSystem(ctx, systemPrompt, messages)
 }
 
 func (s *LLMService) GetProviders() []string {
-	if s.manager == nil {
+	if s.manager() == nil {
 		return nil
 	}
-	return s.manager.Names()
+	return s.manager().Names()
 }
 
 func (s *LLMService) GetDefaultProvider() string {
-	if s.manager == nil {
+	if s.manager() == nil {
 		return ""
 	}
-	return s.manager.DefaultName()
+	return s.manager().DefaultName()
 }
 
 func (s *LLMService) SetDefaultProvider(name string) {
-	if s.manager != nil {
-		s.manager.SetDefault(name)
+	if s.manager() != nil {
+		s.manager().SetDefault(name)
 	}
 }
 
@@ -76,10 +84,10 @@ func (s *LLMService) GetStats(ctx context.Context, days int) (map[string]interfa
 }
 
 func (s *LLMService) TestProvider(ctx context.Context, provider string) (bool, string) {
-	if s.manager == nil {
+	if s.manager() == nil {
 		return false, "llm manager is not configured"
 	}
-	p, err := s.manager.Get(provider)
+	p, err := s.manager().Get(provider)
 	if err != nil {
 		return false, err.Error()
 	}

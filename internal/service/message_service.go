@@ -7,31 +7,43 @@ import (
 
 	"bilibili-up-admin/internal/model"
 	"bilibili-up-admin/internal/repository"
+	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/pkg/bilibili"
 	"bilibili-up-admin/pkg/llm"
 )
 
 // MessageService 私信服务
 type MessageService struct {
-	biliClient  *bilibili.Client
-	llmProvider llm.Provider
-	repo        *repository.MessageRepository
-	llmLogRepo  *repository.LLMChatLogRepository
+	runtime    *appruntime.Store
+	repo       *repository.MessageRepository
+	llmLogRepo *repository.LLMChatLogRepository
 }
 
 // NewMessageService 创建私信服务
 func NewMessageService(
-	biliClient *bilibili.Client,
-	llmProvider llm.Provider,
+	runtime *appruntime.Store,
 	repo *repository.MessageRepository,
 	llmLogRepo *repository.LLMChatLogRepository,
 ) *MessageService {
 	return &MessageService{
-		biliClient:  biliClient,
-		llmProvider: llmProvider,
-		repo:        repo,
-		llmLogRepo:  llmLogRepo,
+		runtime:    runtime,
+		repo:       repo,
+		llmLogRepo: llmLogRepo,
 	}
+}
+
+func (s *MessageService) biliClient() (*bilibili.Client, error) {
+	if s.runtime == nil || s.runtime.BilibiliClient() == nil {
+		return nil, fmt.Errorf("bilibili login is not configured")
+	}
+	return s.runtime.BilibiliClient(), nil
+}
+
+func (s *MessageService) llmProvider() (llm.Provider, error) {
+	if s.runtime == nil || s.runtime.LLMManager() == nil {
+		return nil, fmt.Errorf("llm is not configured")
+	}
+	return s.runtime.LLMManager().Default()
 }
 
 // MessageListResult 私信列表结果
@@ -59,7 +71,11 @@ func (s *MessageService) List(ctx context.Context, senderID int64, replyStatus i
 
 // SyncMessages 同步私信
 func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (int, error) {
-	list, err := s.biliClient.GetMessages(ctx, page, pageSize)
+	client, err := s.biliClient()
+	if err != nil {
+		return 0, err
+	}
+	list, err := client.GetMessages(ctx, page, pageSize)
 	if err != nil {
 		return 0, fmt.Errorf("get messages failed: %w", err)
 	}
@@ -67,7 +83,7 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 	count := 0
 	for _, session := range list.Sessions {
 		// 获取聊天记录
-		chat, err := s.biliClient.GetChatHistory(ctx, session.UserID, 1, 20)
+		chat, err := client.GetChatHistory(ctx, session.UserID, 1, 20)
 		if err != nil {
 			continue
 		}
@@ -126,7 +142,11 @@ func (s *MessageService) AIReply(ctx context.Context, messageID int64) (string, 
 	}
 
 	startTime := time.Now()
-	resp, err := s.llmProvider.ChatWithSystem(ctx, systemPrompt, messages)
+	provider, err := s.llmProvider()
+	if err != nil {
+		return "", err
+	}
+	resp, err := provider.ChatWithSystem(ctx, systemPrompt, messages)
 	if err != nil {
 		return "", fmt.Errorf("llm chat failed: %w", err)
 	}
@@ -134,7 +154,7 @@ func (s *MessageService) AIReply(ctx context.Context, messageID int64) (string, 
 
 	// 记录日志
 	log := &model.LLMChatLog{
-		Provider:      s.llmProvider.Name(),
+		Provider:      provider.Name(),
 		InputType:     "message",
 		InputID:       messageID,
 		InputContent:  message.Content,
@@ -148,7 +168,11 @@ func (s *MessageService) AIReply(ctx context.Context, messageID int64) (string, 
 	s.llmLogRepo.Create(ctx, log)
 
 	// 发送回复
-	err = s.biliClient.SendMessage(ctx, message.SenderID, resp.Content)
+	client, err := s.biliClient()
+	if err != nil {
+		return "", err
+	}
+	err = client.SendMessage(ctx, message.SenderID, resp.Content)
 	if err != nil {
 		return "", fmt.Errorf("send message failed: %w", err)
 	}
@@ -165,7 +189,11 @@ func (s *MessageService) AIReply(ctx context.Context, messageID int64) (string, 
 // ManualReply 手动回复
 func (s *MessageService) ManualReply(ctx context.Context, messageID int64, senderID int64, content string) error {
 	// 发送回复
-	err := s.biliClient.SendMessage(ctx, senderID, content)
+	client, err := s.biliClient()
+	if err != nil {
+		return err
+	}
+	err = client.SendMessage(ctx, senderID, content)
 	if err != nil {
 		return fmt.Errorf("send message failed: %w", err)
 	}
@@ -191,5 +219,9 @@ func (s *MessageService) Ignore(ctx context.Context, messageID int64) error {
 
 // GetUnreadCount 获取未读数量
 func (s *MessageService) GetUnreadCount(ctx context.Context) (int, error) {
-	return s.biliClient.GetUnreadMessageCount(ctx)
+	client, err := s.biliClient()
+	if err != nil {
+		return 0, err
+	}
+	return client.GetUnreadMessageCount(ctx)
 }

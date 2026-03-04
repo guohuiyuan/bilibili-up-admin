@@ -13,11 +13,11 @@ import (
 	"bilibili-up-admin/internal/handler"
 	"bilibili-up-admin/internal/model"
 	"bilibili-up-admin/internal/repository"
+	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/internal/service"
-	"bilibili-up-admin/pkg/bilibili"
-	"bilibili-up-admin/pkg/llm"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/render"
 	"github.com/glebarez/sqlite"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -30,30 +30,37 @@ func main() {
 		log.Fatalf("load config failed: %v", err)
 	}
 
-	zapLogger, err := initLogger()
+	db, err := initDatabase()
+	if err != nil {
+		log.Fatalf("init database failed: %v", err)
+	}
+
+	repos := initRepositories(db)
+	settingsSvc := service.NewAppSettingsService(repos.Setting)
+	runtimeStore := appruntime.NewStore()
+
+	appSettings, err := settingsSvc.Load(context.Background())
+	if err != nil {
+		log.Fatalf("load app settings failed: %v", err)
+	}
+	biliClient, err := service.BuildBilibiliClient(appSettings.Bilibili)
+	if err != nil {
+		log.Printf("init bilibili client failed: %v", err)
+	}
+	llmManager, err := service.BuildLLMManager(appSettings)
+	if err != nil {
+		log.Printf("init llm manager failed: %v", err)
+	}
+	runtimeStore.Apply(biliClient, llmManager)
+
+	zapLogger, err := initLogger(appSettings.Log, config.GlobalConfig.DataDir)
 	if err != nil {
 		log.Fatalf("init logger failed: %v", err)
 	}
 	defer zapLogger.Sync()
 
-	db, err := initDatabase()
-	if err != nil {
-		zapLogger.Fatal("init database failed", zap.Error(err))
-	}
-
-	biliClient, err := initBilibiliClient()
-	if err != nil {
-		zapLogger.Warn("init bilibili client failed", zap.Error(err))
-	}
-
-	llmManager, err := initLLMManager()
-	if err != nil {
-		zapLogger.Warn("init llm manager failed", zap.Error(err))
-	}
-
-	repos := initRepositories(db)
-	services := initServices(biliClient, llmManager, repos)
-	handlers := initHandlers(services)
+	services := initServices(runtimeStore, settingsSvc, repos)
+	handlers := initHandlers(services, settingsSvc, runtimeStore)
 	router := initRouter(handlers, config.GlobalConfig.Server.Mode)
 
 	addr := fmt.Sprintf(":%d", config.GlobalConfig.Server.Port)
@@ -63,9 +70,7 @@ func main() {
 	}
 }
 
-func initLogger() (*zap.Logger, error) {
-	cfg := config.GlobalConfig.Log
-
+func initLogger(cfg service.LogSettings, dataDir string) (*zap.Logger, error) {
 	var zapConfig zap.Config
 	if cfg.Format == "json" {
 		zapConfig = zap.NewProductionConfig()
@@ -85,6 +90,7 @@ func initLogger() (*zap.Logger, error) {
 	}
 
 	if cfg.FilePath != "" {
+		cfg.FilePath = ensureUnderDataDir(cfg.FilePath, dataDir)
 		if err := ensureDir(filepath.Dir(cfg.FilePath)); err != nil {
 			return nil, fmt.Errorf("create log dir failed: %w", err)
 		}
@@ -145,6 +151,16 @@ func ensureDir(dir string) error {
 	return os.MkdirAll(dir, 0o755)
 }
 
+func ensureUnderDataDir(path, dataDir string) string {
+	if path == "" || dataDir == "" {
+		return path
+	}
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(dataDir, path)
+}
+
 func loadHTMLTemplates(root string) (*template.Template, error) {
 	var files []string
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
@@ -167,65 +183,74 @@ func loadHTMLTemplates(root string) (*template.Template, error) {
 	return template.ParseFiles(files...)
 }
 
-func initBilibiliClient() (*bilibili.Client, error) {
-	cfg := config.GlobalConfig.Bilibili
-	if cfg.SESSData == "" || cfg.SESSData == "your_sess_data_here" {
-		return nil, fmt.Errorf("missing bilibili sess_data")
+type templateRenderer struct {
+	templates map[string]*template.Template
+}
+
+func (r templateRenderer) Instance(name string, data any) render.Render {
+	tmpl, ok := r.templates[name]
+	if !ok {
+		return render.HTML{
+			Template: template.Must(template.New(name).Parse("template not found")),
+			Name:     name,
+			Data:     data,
+		}
+	}
+	return render.HTML{
+		Template: tmpl,
+		Name:     name,
+		Data:     data,
+	}
+}
+
+func buildHTMLRenderer(root string) (render.HTMLRender, error) {
+	basePath := filepath.Join(root, "layout", "base.html")
+	baseContent, err := os.ReadFile(basePath)
+	if err != nil {
+		return nil, fmt.Errorf("read base template failed: %w", err)
 	}
 
-	return bilibili.NewClient(&bilibili.Config{
-		SESSData: cfg.SESSData,
-		BiliJct:  cfg.BiliJct,
-		UserID:   cfg.UserID,
+	renderer := templateRenderer{templates: make(map[string]*template.Template)}
+	err = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || filepath.Ext(path) != ".html" || path == basePath {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		relPath = filepath.ToSlash(relPath)
+
+		pageContent, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		tmpl := template.New(relPath)
+		if _, err := tmpl.Parse(`{{ template "layout/base.html" . }}`); err != nil {
+			return err
+		}
+		if _, err := tmpl.New("layout/base.html").Parse(string(baseContent)); err != nil {
+			return err
+		}
+		if _, err := tmpl.Parse(string(pageContent)); err != nil {
+			return err
+		}
+
+		renderer.templates[relPath] = tmpl
+		return nil
 	})
-}
-
-func initLLMManager() (*llm.Manager, error) {
-	manager := llm.NewManager()
-
-	cfg := config.GlobalConfig.LLM
-	if shouldRegisterLLM(cfg) {
-		providerCfg := &llm.Config{
-			Provider:    llm.ProviderType(cfg.Provider),
-			APIKey:      cfg.APIKey,
-			BaseURL:     cfg.BaseURL,
-			Model:       cfg.Model,
-			MaxTokens:   cfg.MaxTokens,
-			Temperature: cfg.Temperature,
-		}
-
-		if err := manager.CreateAndRegister("default", providerCfg); err != nil {
-			return nil, err
-		}
-		manager.SetDefault("default")
+	if err != nil {
+		return nil, err
 	}
-
-	for name, providerCfg := range config.GlobalConfig.LLMProviders {
-		if !shouldRegisterLLM(providerCfg) {
-			continue
-		}
-
-		cfg := &llm.Config{
-			Provider:    llm.ProviderType(name),
-			APIKey:      providerCfg.APIKey,
-			BaseURL:     providerCfg.BaseURL,
-			Model:       providerCfg.Model,
-			MaxTokens:   providerCfg.MaxTokens,
-			Temperature: providerCfg.Temperature,
-		}
-		if err := manager.CreateAndRegister(name, cfg); err != nil {
-			return nil, err
-		}
+	if len(renderer.templates) == 0 {
+		return nil, fmt.Errorf("no page templates found under %s", root)
 	}
-
-	return manager, nil
-}
-
-func shouldRegisterLLM(cfg config.LLMConfig) bool {
-	if cfg.Provider == "ollama" {
-		return true
-	}
-	return cfg.APIKey != "" && cfg.APIKey != "your_api_key_here"
+	return renderer, nil
 }
 
 type Repositories struct {
@@ -234,6 +259,7 @@ type Repositories struct {
 	Interaction *repository.InteractionRepository
 	TagRanking  *repository.TagRankingRepository
 	LLMChatLog  *repository.LLMChatLogRepository
+	Setting     *repository.SettingRepository
 }
 
 func initRepositories(db *gorm.DB) *Repositories {
@@ -243,6 +269,7 @@ func initRepositories(db *gorm.DB) *Repositories {
 		Interaction: repository.NewInteractionRepository(db),
 		TagRanking:  repository.NewTagRankingRepository(db),
 		LLMChatLog:  repository.NewLLMChatLogRepository(db),
+		Setting:     repository.NewSettingRepository(db),
 	}
 }
 
@@ -252,20 +279,17 @@ type Services struct {
 	Interaction *service.InteractionService
 	Trend       *service.TrendService
 	LLM         *service.LLMService
+	Settings    *service.AppSettingsService
 }
 
-func initServices(biliClient *bilibili.Client, llmManager *llm.Manager, repos *Repositories) *Services {
-	var llmProvider llm.Provider
-	if llmManager != nil {
-		llmProvider, _ = llmManager.Default()
-	}
-
+func initServices(runtime *appruntime.Store, settings *service.AppSettingsService, repos *Repositories) *Services {
 	return &Services{
-		Comment:     service.NewCommentService(biliClient, llmProvider, repos.Comment, repos.LLMChatLog),
-		Message:     service.NewMessageService(biliClient, llmProvider, repos.Message, repos.LLMChatLog),
-		Interaction: service.NewInteractionService(biliClient, repos.Interaction),
-		Trend:       service.NewTrendService(biliClient, repos.TagRanking),
-		LLM:         service.NewLLMService(llmManager, repos.LLMChatLog),
+		Comment:     service.NewCommentService(runtime, repos.Comment, repos.LLMChatLog),
+		Message:     service.NewMessageService(runtime, repos.Message, repos.LLMChatLog),
+		Interaction: service.NewInteractionService(runtime, repos.Interaction),
+		Trend:       service.NewTrendService(runtime, repos.TagRanking),
+		LLM:         service.NewLLMService(runtime, repos.LLMChatLog),
+		Settings:    settings,
 	}
 }
 
@@ -276,9 +300,10 @@ type Handlers struct {
 	Interaction *handler.InteractionHandler
 	Trend       *handler.TrendHandler
 	LLM         *handler.LLMHandler
+	Settings    *handler.SettingsHandler
 }
 
-func initHandlers(services *Services) *Handlers {
+func initHandlers(services *Services, settings *service.AppSettingsService, runtime *appruntime.Store) *Handlers {
 	return &Handlers{
 		Page:        handler.NewPageHandler(),
 		Comment:     handler.NewCommentHandler(services.Comment),
@@ -286,6 +311,7 @@ func initHandlers(services *Services) *Handlers {
 		Interaction: handler.NewInteractionHandler(services.Interaction),
 		Trend:       handler.NewTrendHandler(services.Trend),
 		LLM:         handler.NewLLMHandler(services.LLM),
+		Settings:    handler.NewSettingsHandler(settings, runtime),
 	}
 }
 
@@ -297,8 +323,11 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 		panic(fmt.Errorf("set trusted proxies failed: %w", err))
 	}
 
-	tmpl := template.Must(loadHTMLTemplates("web/templates"))
-	router.SetHTMLTemplate(tmpl)
+	htmlRenderer, err := buildHTMLRenderer("web/templates")
+	if err != nil {
+		panic(fmt.Errorf("build html renderer failed: %w", err))
+	}
+	router.HTMLRender = htmlRenderer
 	router.Static("/static", "web/static")
 	router.Use(corsMiddleware())
 
@@ -307,6 +336,8 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 	router.GET("/messages", h.Page.Messages)
 	router.GET("/interaction", h.Page.Interaction)
 	router.GET("/trends", h.Page.Trends)
+	router.GET("/settings", h.Page.Settings)
+	router.GET("/settings/bilibili", h.Page.Bilibili)
 
 	api := router.Group("/api")
 	{
@@ -346,6 +377,13 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 		api.POST("/llm/default", h.LLM.SetDefault)
 		api.GET("/llm/test/:provider", h.LLM.Test)
 		api.GET("/llm/stats", h.LLM.Stats)
+
+		api.GET("/settings/app", h.Settings.GetApp)
+		api.PUT("/settings/app", h.Settings.SaveApp)
+		api.GET("/settings/bilibili", h.Settings.GetBilibili)
+		api.PUT("/settings/bilibili/cookie", h.Settings.SaveBilibiliCookie)
+		api.POST("/settings/bilibili/qrcode", h.Settings.GenerateBilibiliQRCode)
+		api.GET("/settings/bilibili/qrcode/poll", h.Settings.PollBilibiliQRCode)
 
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(200, gin.H{"status": "ok"})

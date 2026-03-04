@@ -38,6 +38,9 @@ const (
 )
 
 func (c *Client) GetTrendingTags(ctx context.Context, limit int) ([]TrendingTag, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	tags, err := c.inner.GetHotTags(0)
 	if err != nil {
 		return nil, fmt.Errorf("get trending tags failed: %w", err)
@@ -58,6 +61,9 @@ func (c *Client) GetTrendingTags(ctx context.Context, limit int) ([]TrendingTag,
 }
 
 func (c *Client) GetTagRanking(ctx context.Context, tagName string, page, pageSize int) (*TagRanking, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	tagInfo, err := c.inner.GetTagInfo(tagName)
 	if err != nil {
 		return nil, fmt.Errorf("get tag info failed: %w", err)
@@ -93,6 +99,9 @@ func (c *Client) GetTagRanking(ctx context.Context, tagName string, page, pageSi
 }
 
 func (c *Client) GetVideoRanking(ctx context.Context, tid int, period RankingPeriod) (*VideoRanking, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	rank, err := c.inner.GetRanking(int32(tid))
 	if err != nil {
 		return nil, fmt.Errorf("get video ranking failed: %w", err)
@@ -123,6 +132,9 @@ func (c *Client) GetVideoRanking(ctx context.Context, tid int, period RankingPer
 }
 
 func (c *Client) SearchTag(ctx context.Context, keyword string, page, pageSize int) ([]TagRanking, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	results, err := c.inner.SearchType(keyword, "topic", int32(page))
 	if err != nil {
 		return nil, fmt.Errorf("search tag failed: %w", err)
@@ -140,6 +152,9 @@ func (c *Client) SearchTag(ctx context.Context, keyword string, page, pageSize i
 }
 
 func (c *Client) GetCategoryRanking(ctx context.Context, categoryName string, limit int) (*VideoRanking, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	categoryTIDs := map[string]int{
 		"游戏": 4,
 		"生活": 160,
@@ -179,6 +194,9 @@ type FansVideo struct {
 }
 
 func (c *Client) GetFansVideos(ctx context.Context, page, pageSize int) ([]FansVideo, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	fans, err := c.inner.GetFans(int32(page), int32(pageSize))
 	if err != nil {
 		return nil, fmt.Errorf("get fans failed: %w", err)

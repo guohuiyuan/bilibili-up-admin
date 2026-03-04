@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"bilibili-up-admin/internal/model"
@@ -324,6 +325,50 @@ func (r *LLMChatLogRepository) GetStats(ctx context.Context, startTime, endTime 
 }
 
 // TaskRepository 任务仓库
+type SettingRepository struct {
+	db *gorm.DB
+}
+
+func NewSettingRepository(db *gorm.DB) *SettingRepository {
+	return &SettingRepository{db: db}
+}
+
+func (r *SettingRepository) GetByKey(ctx context.Context, key string) (*model.Setting, error) {
+	var setting model.Setting
+	err := r.db.WithContext(ctx).Where("key = ?", key).First(&setting).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &setting, nil
+}
+
+func (r *SettingRepository) Set(ctx context.Context, key, value string) error {
+	setting := model.Setting{Key: key}
+	return r.db.WithContext(ctx).Where(model.Setting{Key: key}).Assign(model.Setting{
+		Key:   key,
+		Value: value,
+	}).FirstOrCreate(&setting).Error
+}
+
+func (r *SettingRepository) GetJSON(ctx context.Context, key string, out any) error {
+	setting, err := r.GetByKey(ctx, key)
+	if err != nil || setting == nil || setting.Value == "" {
+		return err
+	}
+	return json.Unmarshal([]byte(setting.Value), out)
+}
+
+func (r *SettingRepository) SetJSON(ctx context.Context, key string, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return r.Set(ctx, key, string(data))
+}
+
 type TaskRepository struct {
 	db *gorm.DB
 }

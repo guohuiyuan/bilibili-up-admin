@@ -7,24 +7,32 @@ import (
 
 	"bilibili-up-admin/internal/model"
 	"bilibili-up-admin/internal/repository"
+	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/pkg/bilibili"
 )
 
 // TrendService 热度服务
 type TrendService struct {
-	biliClient *bilibili.Client
-	repo       *repository.TagRankingRepository
+	runtime *appruntime.Store
+	repo    *repository.TagRankingRepository
 }
 
 // NewTrendService 创建热度服务
 func NewTrendService(
-	biliClient *bilibili.Client,
+	runtime *appruntime.Store,
 	repo *repository.TagRankingRepository,
 ) *TrendService {
 	return &TrendService{
-		biliClient: biliClient,
-		repo:       repo,
+		runtime: runtime,
+		repo:    repo,
 	}
+}
+
+func (s *TrendService) biliClient() (*bilibili.Client, error) {
+	if s.runtime == nil || s.runtime.BilibiliClient() == nil {
+		return nil, fmt.Errorf("bilibili login is not configured")
+	}
+	return s.runtime.BilibiliClient(), nil
 }
 
 // TagRankingResult 标签排行结果
@@ -36,17 +44,29 @@ type TagRankingResult struct {
 
 // GetTrendingTags 获取热门标签
 func (s *TrendService) GetTrendingTags(ctx context.Context, limit int) ([]bilibili.TrendingTag, error) {
-	return s.biliClient.GetTrendingTags(ctx, limit)
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+	return client.GetTrendingTags(ctx, limit)
 }
 
 // GetTagDetail 获取标签详情
 func (s *TrendService) GetTagDetail(ctx context.Context, tagName string, page, pageSize int) (*bilibili.TagRanking, error) {
-	return s.biliClient.GetTagRanking(ctx, tagName, page, pageSize)
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+	return client.GetTagRanking(ctx, tagName, page, pageSize)
 }
 
 // GetVideoRanking 获取视频排行
 func (s *TrendService) GetVideoRanking(ctx context.Context, category string, limit int) (*bilibili.VideoRanking, error) {
-	return s.biliClient.GetCategoryRanking(ctx, category, limit)
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+	return client.GetCategoryRanking(ctx, category, limit)
 }
 
 // SaveTagRankings 保存标签排行
@@ -110,7 +130,11 @@ func (s *TrendService) GetStats(ctx context.Context) (*TrendStats, error) {
 
 // SearchTag 搜索标签
 func (s *TrendService) SearchTag(ctx context.Context, keyword string, page, pageSize int) ([]bilibili.TagRanking, error) {
-	return s.biliClient.SearchTag(ctx, keyword, page, pageSize)
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+	return client.SearchTag(ctx, keyword, page, pageSize)
 }
 
 // VideoInfo 视频信息
@@ -129,13 +153,21 @@ type VideoInfo struct {
 
 // GetVideoInfo 获取视频信息
 func (s *TrendService) GetVideoInfo(ctx context.Context, bvID string) (*bilibili.VideoInfo, error) {
-	return s.biliClient.GetVideoInfo(ctx, bvID)
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+	return client.GetVideoInfo(ctx, bvID)
 }
 
 // DailySync 每日同步热度数据
 func (s *TrendService) DailySync(ctx context.Context) error {
 	// 获取热门标签
-	tags, err := s.biliClient.GetTrendingTags(ctx, 50)
+	client, err := s.biliClient()
+	if err != nil {
+		return err
+	}
+	tags, err := client.GetTrendingTags(ctx, 50)
 	if err != nil {
 		return fmt.Errorf("get trending tags failed: %w", err)
 	}

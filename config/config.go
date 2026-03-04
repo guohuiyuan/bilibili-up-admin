@@ -8,15 +8,9 @@ import (
 )
 
 type Config struct {
-	Server       ServerConfig         `mapstructure:"server"`
-	Database     DatabaseConfig       `mapstructure:"database"`
-	Redis        RedisConfig          `mapstructure:"redis"`
-	Bilibili     BilibiliConfig       `mapstructure:"bilibili"`
-	LLM          LLMConfig            `mapstructure:"llm"`
-	LLMProviders map[string]LLMConfig `mapstructure:"llm_providers"`
-	Task         TaskConfig           `mapstructure:"task"`
-	Log          LogConfig            `mapstructure:"log"`
-	DataDir      string               `mapstructure:"data_dir"`
+	Server   ServerConfig   `mapstructure:"server"`
+	Database DatabaseConfig `mapstructure:"database"`
+	DataDir  string         `mapstructure:"data_dir"`
 }
 
 type ServerConfig struct {
@@ -46,38 +40,6 @@ func (c *DatabaseConfig) DSN() string {
 
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local",
 		c.Username, c.Password, c.Host, c.Port, c.DBName, c.Charset)
-}
-
-type RedisConfig struct {
-	Addr     string `mapstructure:"addr"`
-	Password string `mapstructure:"password"`
-	DB       int    `mapstructure:"db"`
-}
-
-type BilibiliConfig struct {
-	SESSData string `mapstructure:"sess_data"`
-	BiliJct  string `mapstructure:"bili_jct"`
-	UserID   int64  `mapstructure:"user_id"`
-}
-
-type LLMConfig struct {
-	Provider    string  `mapstructure:"provider"`
-	APIKey      string  `mapstructure:"api_key"`
-	BaseURL     string  `mapstructure:"base_url"`
-	Model       string  `mapstructure:"model"`
-	MaxTokens   int     `mapstructure:"max_tokens"`
-	Temperature float64 `mapstructure:"temperature"`
-}
-
-type TaskConfig struct {
-	WorkerCount int `mapstructure:"worker_count"`
-	QueueSize   int `mapstructure:"queue_size"`
-}
-
-type LogConfig struct {
-	Level    string `mapstructure:"level"`
-	Format   string `mapstructure:"format"`
-	FilePath string `mapstructure:"file_path"`
 }
 
 var GlobalConfig *Config
@@ -114,32 +76,6 @@ func setDefaults() {
 	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 3306)
 	viper.SetDefault("database.charset", "utf8mb4")
-	viper.SetDefault("redis.addr", "localhost:6379")
-	viper.SetDefault("llm.provider", "openai")
-	viper.SetDefault("llm.max_tokens", 1000)
-	viper.SetDefault("llm.temperature", 0.7)
-	viper.SetDefault("task.worker_count", 5)
-	viper.SetDefault("task.queue_size", 100)
-	viper.SetDefault("log.level", "debug")
-	viper.SetDefault("log.format", "console")
-	viper.SetDefault("log.file_path", "logs/bilibili-up-admin.log")
-}
-
-func GetLLMConfig(provider string) *LLMConfig {
-	if provider == "" {
-		provider = GlobalConfig.LLM.Provider
-	}
-
-	if cfg, ok := GlobalConfig.LLMProviders[provider]; ok {
-		cfg.Provider = provider
-		return &cfg
-	}
-
-	cfg := GlobalConfig.LLM
-	if cfg.Provider == "" {
-		cfg.Provider = provider
-	}
-	return &cfg
 }
 
 func normalizePaths(cfg *Config) {
@@ -154,7 +90,6 @@ func normalizePaths(cfg *Config) {
 	if cfg.Database.Driver == "" || cfg.Database.Driver == "sqlite" {
 		cfg.Database.Path = ensureUnderDataDir(cfg.Database.Path, cfg.DataDir)
 	}
-	cfg.Log.FilePath = ensureUnderDataDir(cfg.Log.FilePath, cfg.DataDir)
 }
 
 func ensureUnderDataDir(path, dataDir string) string {

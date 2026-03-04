@@ -1,0 +1,168 @@
+package handler
+
+import (
+	"context"
+	"net/http"
+
+	appruntime "bilibili-up-admin/internal/runtime"
+	"bilibili-up-admin/internal/service"
+	"bilibili-up-admin/pkg/bilibili"
+
+	"github.com/gin-gonic/gin"
+)
+
+type SettingsHandler struct {
+	settings *service.AppSettingsService
+	runtime  *appruntime.Store
+}
+
+func NewSettingsHandler(settings *service.AppSettingsService, runtime *appruntime.Store) *SettingsHandler {
+	return &SettingsHandler{settings: settings, runtime: runtime}
+}
+
+func (h *SettingsHandler) GetApp(c *gin.Context) {
+	settings, err := h.settings.Load(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, settings)
+}
+
+func (h *SettingsHandler) SaveApp(c *gin.Context) {
+	var req struct {
+		LLM          service.LLMSettings                    `json:"llm"`
+		LLMProviders map[string]service.LLMProviderSettings `json:"llm_providers"`
+		Task         service.TaskSettings                   `json:"task"`
+		Log          service.LogSettings                    `json:"log"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	current, err := h.settings.SaveGeneral(c.Request.Context(), req.LLM, req.LLMProviders, req.Task, req.Log)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if err := applyRuntimeSettings(c.Request.Context(), h.settings, h.runtime, current); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, current)
+}
+
+func (h *SettingsHandler) GetBilibili(c *gin.Context) {
+	settings, err := h.settings.Load(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, settings.Bilibili)
+}
+
+func (h *SettingsHandler) SaveBilibiliCookie(c *gin.Context) {
+	var req struct {
+		Cookie string `json:"cookie" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	client, err := bilibili.NewClientFromCookieString(req.Cookie)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	user, err := client.GetUserInfo(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	cfg := client.GetConfig()
+	current, err := h.settings.SaveBilibili(c.Request.Context(), service.BilibiliSettings{
+		SESSData:   cfg.SESSData,
+		BiliJct:    cfg.BiliJct,
+		UserID:     cfg.UserID,
+		Cookie:     req.Cookie,
+		UserName:   user.Name,
+		UserFace:   user.Face,
+		IsLoggedIn: true,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if err := applyRuntimeSettings(c.Request.Context(), h.settings, h.runtime, current); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, current.Bilibili)
+}
+
+func (h *SettingsHandler) GenerateBilibiliQRCode(c *gin.Context) {
+	qr, err := bilibili.GenerateLoginQRCode(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, qr)
+}
+
+func (h *SettingsHandler) PollBilibiliQRCode(c *gin.Context) {
+	key := c.Query("key")
+	if key == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing qrcode key"})
+		return
+	}
+	state, err := bilibili.PollLoginQRCode(c.Request.Context(), key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !state.Success || state.Client == nil {
+		c.JSON(http.StatusOK, state)
+		return
+	}
+	cfg := state.Client.GetConfig()
+	current, err := h.settings.SaveBilibili(c.Request.Context(), service.BilibiliSettings{
+		SESSData:   cfg.SESSData,
+		BiliJct:    cfg.BiliJct,
+		UserID:     cfg.UserID,
+		UserName:   state.User.Name,
+		UserFace:   state.User.Face,
+		IsLoggedIn: true,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if err := applyRuntimeSettings(c.Request.Context(), h.settings, h.runtime, current); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"user":    state.User,
+	})
+}
+
+func applyRuntimeSettings(ctx context.Context, settingsSvc *service.AppSettingsService, store *appruntime.Store, settings *service.AppSettings) error {
+	if settings == nil {
+		var err error
+		settings, err = settingsSvc.Load(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	biliClient, err := service.BuildBilibiliClient(settings.Bilibili)
+	if err != nil {
+		return err
+	}
+	llmManager, err := service.BuildLLMManager(settings)
+	if err != nil {
+		return err
+	}
+	store.Apply(biliClient, llmManager)
+	return nil
+}

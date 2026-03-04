@@ -26,6 +26,9 @@ type CommentList struct {
 }
 
 func (c *Client) GetVideoComments(ctx context.Context, bvID string, page, pageSize int) (*CommentList, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return nil, fmt.Errorf("get video info failed: %w", err)
@@ -60,6 +63,9 @@ func (c *Client) GetVideoComments(ctx context.Context, bvID string, page, pageSi
 }
 
 func (c *Client) ReplyComment(ctx context.Context, videoAID, commentID int64, content string) error {
+	if err := c.ensureAvailable(); err != nil {
+		return err
+	}
 	_, err := c.inner.ReplyComment(
 		strconv.FormatInt(videoAID, 10),
 		1,
@@ -74,6 +80,9 @@ func (c *Client) ReplyComment(ctx context.Context, videoAID, commentID int64, co
 }
 
 func (c *Client) SendVideoComment(ctx context.Context, bvID, content string) error {
+	if err := c.ensureAvailable(); err != nil {
+		return err
+	}
 	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
 	if err != nil {
 		return err
@@ -87,6 +96,9 @@ func (c *Client) SendVideoComment(ctx context.Context, bvID, content string) err
 }
 
 func (c *Client) DeleteComment(ctx context.Context, videoAID, commentID int64) error {
+	if err := c.ensureAvailable(); err != nil {
+		return err
+	}
 	_, err := c.inner.DelComment(videoAID, 1, commentID)
 	if err != nil {
 		return fmt.Errorf("delete comment failed: %w", err)
@@ -95,6 +107,9 @@ func (c *Client) DeleteComment(ctx context.Context, videoAID, commentID int64) e
 }
 
 func (c *Client) LikeComment(ctx context.Context, videoAID, commentID int64, like bool) error {
+	if err := c.ensureAvailable(); err != nil {
+		return err
+	}
 	action := 0
 	if like {
 		action = 1

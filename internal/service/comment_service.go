@@ -7,31 +7,43 @@ import (
 
 	"bilibili-up-admin/internal/model"
 	"bilibili-up-admin/internal/repository"
+	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/pkg/bilibili"
 	"bilibili-up-admin/pkg/llm"
 )
 
 // CommentService 评论服务
 type CommentService struct {
-	biliClient  *bilibili.Client
-	llmProvider llm.Provider
-	repo        *repository.CommentRepository
-	llmLogRepo  *repository.LLMChatLogRepository
+	runtime    *appruntime.Store
+	repo       *repository.CommentRepository
+	llmLogRepo *repository.LLMChatLogRepository
 }
 
 // NewCommentService 创建评论服务
 func NewCommentService(
-	biliClient *bilibili.Client,
-	llmProvider llm.Provider,
+	runtime *appruntime.Store,
 	repo *repository.CommentRepository,
 	llmLogRepo *repository.LLMChatLogRepository,
 ) *CommentService {
 	return &CommentService{
-		biliClient:  biliClient,
-		llmProvider: llmProvider,
-		repo:        repo,
-		llmLogRepo:  llmLogRepo,
+		runtime:    runtime,
+		repo:       repo,
+		llmLogRepo: llmLogRepo,
 	}
+}
+
+func (s *CommentService) biliClient() (*bilibili.Client, error) {
+	if s.runtime == nil || s.runtime.BilibiliClient() == nil {
+		return nil, fmt.Errorf("bilibili login is not configured")
+	}
+	return s.runtime.BilibiliClient(), nil
+}
+
+func (s *CommentService) llmProvider() (llm.Provider, error) {
+	if s.runtime == nil || s.runtime.LLMManager() == nil {
+		return nil, fmt.Errorf("llm is not configured")
+	}
+	return s.runtime.LLMManager().Default()
 }
 
 // CommentListResult 评论列表结果
@@ -59,7 +71,11 @@ func (s *CommentService) List(ctx context.Context, videoBVID string, replyStatus
 
 // SyncFromVideo 从视频同步评论
 func (s *CommentService) SyncFromVideo(ctx context.Context, bvID string, page, pageSize int) (int, error) {
-	list, err := s.biliClient.GetVideoComments(ctx, bvID, page, pageSize)
+	client, err := s.biliClient()
+	if err != nil {
+		return 0, err
+	}
+	list, err := client.GetVideoComments(ctx, bvID, page, pageSize)
 	if err != nil {
 		return 0, fmt.Errorf("get video comments failed: %w", err)
 	}
@@ -121,7 +137,11 @@ func (s *CommentService) AIReply(ctx context.Context, commentID int64) (string, 
 	}
 
 	startTime := time.Now()
-	resp, err := s.llmProvider.ChatWithSystem(ctx, systemPrompt, messages)
+	provider, err := s.llmProvider()
+	if err != nil {
+		return "", err
+	}
+	resp, err := provider.ChatWithSystem(ctx, systemPrompt, messages)
 	if err != nil {
 		return "", fmt.Errorf("llm chat failed: %w", err)
 	}
@@ -129,7 +149,7 @@ func (s *CommentService) AIReply(ctx context.Context, commentID int64) (string, 
 
 	// 记录日志
 	log := &model.LLMChatLog{
-		Provider:      s.llmProvider.Name(),
+		Provider:      provider.Name(),
 		InputType:     "comment",
 		InputID:       commentID,
 		InputContent:  comment.Content,
@@ -143,7 +163,11 @@ func (s *CommentService) AIReply(ctx context.Context, commentID int64) (string, 
 	s.llmLogRepo.Create(ctx, log)
 
 	// 发送回复到B站
-	err = s.biliClient.ReplyComment(ctx, comment.VideoAID, commentID, resp.Content)
+	client, err := s.biliClient()
+	if err != nil {
+		return "", err
+	}
+	err = client.ReplyComment(ctx, comment.VideoAID, commentID, resp.Content)
 	if err != nil {
 		return "", fmt.Errorf("send reply failed: %w", err)
 	}
@@ -169,7 +193,11 @@ func (s *CommentService) ManualReply(ctx context.Context, commentID int64, conte
 	}
 
 	// 发送回复
-	err = s.biliClient.ReplyComment(ctx, comment.VideoAID, commentID, content)
+	client, err := s.biliClient()
+	if err != nil {
+		return err
+	}
+	err = client.ReplyComment(ctx, comment.VideoAID, commentID, content)
 	if err != nil {
 		return fmt.Errorf("send reply failed: %w", err)
 	}
