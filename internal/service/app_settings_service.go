@@ -114,13 +114,23 @@ func (s *AppSettingsService) Load(ctx context.Context) (*AppSettings, error) {
 }
 
 func (s *AppSettingsService) SaveApp(ctx context.Context, app *AppSettings) error {
+	vBilibili, _ := EncodeJSON(app.Bilibili)
 	vLLM, _ := EncodeJSON(app.LLM)
 	vTask, _ := EncodeJSON(app.Task)
 	vLog, _ := EncodeJSON(app.Log)
 
-	s.settingRepo.Set(ctx, settingKeyLLM, vLLM)
-	s.settingRepo.Set(ctx, settingKeyTask, vTask)
-	s.settingRepo.Set(ctx, settingKeyLog, vLog)
+	if err := s.settingRepo.Set(ctx, settingKeyBilibili, vBilibili); err != nil {
+		return err
+	}
+	if err := s.settingRepo.Set(ctx, settingKeyLLM, vLLM); err != nil {
+		return err
+	}
+	if err := s.settingRepo.Set(ctx, settingKeyTask, vTask); err != nil {
+		return err
+	}
+	if err := s.settingRepo.Set(ctx, settingKeyLog, vLog); err != nil {
+		return err
+	}
 	// 不再保存 app.LLMProviders 到 KV 数据库中，完全由下方的独立接口负责
 	return nil
 }

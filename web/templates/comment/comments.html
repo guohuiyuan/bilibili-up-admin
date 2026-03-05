@@ -164,11 +164,13 @@ async function loadComments() {
     
     try {
         const data = await api(`${getApiPrefix()}/api/comments?video_bvid=${bvid}&reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
-        document.getElementById('total-count').textContent = `共 ${data.page.count} 条`;
-        renderComments(data.replies || []);
-        renderPagination(data.page.count);
+        document.getElementById('total-count').textContent = `共 ${data.total || 0} 条`;
+        renderComments(data.comments || []);
+        renderPagination(data.total || 0);
+        return data;
     } catch (error) {
         showToast('加载评论失败: ' + error.message, 'error');
+        return null;
     }
 }
 
@@ -186,9 +188,10 @@ async function syncComments(directBvid) {
             method: 'POST',
             body: { video_bvid: bvid, page: 1, page_size: 50 } // 每次同步拉取前50条最新评论
         });
-        showToast('拉取完成，已同步到数据库', 'success');
         currentPage = 1;
-        loadComments();
+        const latest = await loadComments();
+        const total = latest?.total || 0;
+        showToast(`拉取完成：本次新增 ${data.count || 0} 条，当前共 ${total} 条`, 'success');
     } catch (error) {
         showToast('同步失败: ' + error.message, 'error');
     }

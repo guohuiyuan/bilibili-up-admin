@@ -10,8 +10,6 @@ import (
 	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/pkg/bilibili"
 	"bilibili-up-admin/pkg/llm"
-
-	biligo "github.com/guohuiyuan/biligo"
 )
 
 // CommentService 评论服务
@@ -54,6 +52,22 @@ type CommentListResult struct {
 	Total    int64           `json:"total"`
 	Page     int             `json:"page"`
 	PageSize int             `json:"page_size"`
+}
+
+type MyVideoListResult struct {
+	List struct {
+		VList []MyVideoItem `json:"vlist"`
+	} `json:"list"`
+}
+
+type MyVideoItem struct {
+	BVID    string `json:"bvid"`
+	Title   string `json:"title"`
+	Pic     string `json:"pic"`
+	Length  string `json:"length"`
+	Play    int64  `json:"play"`
+	Comment int64  `json:"comment"`
+	Created int64  `json:"created"`
 }
 
 // List 获取评论列表
@@ -236,7 +250,7 @@ func (s *CommentService) BatchAIReply(ctx context.Context, limit int) (int, erro
 }
 
 // GetMyVideos 获取当前登录用户的投稿列表
-func (s *CommentService) GetMyVideos(ctx context.Context, page, pageSize int) (*biligo.UserVideoSearchResult, error) {
+func (s *CommentService) GetMyVideos(ctx context.Context, page, pageSize int) (*MyVideoListResult, error) {
 	client, err := s.biliClient()
 	if err != nil {
 		return nil, err
@@ -249,5 +263,37 @@ func (s *CommentService) GetMyVideos(ctx context.Context, page, pageSize int) (*
 	}
 
 	// 调用 B站 API 获取该用户的投稿视频
-	return client.User().Videos(ctx, cfg.UserID, page, pageSize)
+	videos, err := client.User().Videos(ctx, cfg.UserID, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &MyVideoListResult{}
+	result.List.VList = make([]MyVideoItem, 0, len(videos.List.VList))
+	for _, video := range videos.List.VList {
+		duration := 0
+		if len(video.Pages) > 0 {
+			duration = video.Pages[0].Duration
+		}
+		result.List.VList = append(result.List.VList, MyVideoItem{
+			BVID:    video.BVID,
+			Title:   video.Title,
+			Pic:     video.Pic,
+			Length:  formatDuration(duration),
+			Play:    video.Stat.View,
+			Comment: video.Stat.Reply,
+			Created: video.PubDate,
+		})
+	}
+
+	return result, nil
+}
+
+func formatDuration(seconds int) string {
+	if seconds <= 0 {
+		return "00:00"
+	}
+	mins := seconds / 60
+	secs := seconds % 60
+	return fmt.Sprintf("%02d:%02d", mins, secs)
 }
