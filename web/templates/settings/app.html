@@ -40,6 +40,44 @@
                 <input id="log-file-path" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="logs/bilibili-up-admin.log">
             </div>
         </div>
+
+        <div class="rounded-xl border border-pink-100 bg-pink-50/40 p-4">
+            <h4 class="text-sm font-semibold text-pink-700 mb-3">互动规则设置</h4>
+            <div class="grid gap-4 md:grid-cols-2">
+                <label class="flex items-center space-x-2 text-sm text-gray-700">
+                    <input id="interaction-enable-like" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-500">
+                    <span>启用自动点赞</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-gray-700">
+                    <input id="interaction-enable-coin" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-500">
+                    <span>启用自动投币</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-gray-700 md:col-span-2">
+                    <input id="interaction-enable-favorite" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-500">
+                    <span>启用自动收藏</span>
+                </label>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">投币播放阈值</label>
+                    <input id="interaction-coin-threshold" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="10000">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">收藏夹 ID (media_id)</label>
+                    <input id="interaction-favorite-media-id" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="自动收藏时必填">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">粉丝分页大小</label>
+                    <input id="interaction-fan-page-size" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="20">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">投稿分页大小</label>
+                    <input id="interaction-video-page-size" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="5">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">请求间隔（秒）</label>
+                    <input id="interaction-request-interval" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="3">
+                </div>
+            </div>
+        </div>
     </section>
 
     <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
@@ -143,6 +181,14 @@ async function loadData() {
         document.getElementById("log-level").value = appData.log?.level || "debug";
         document.getElementById("log-format").value = appData.log?.format || "console";
         document.getElementById("log-file-path").value = appData.log?.file_path || "";
+        document.getElementById("interaction-enable-like").checked = appData.interaction?.enable_like ?? true;
+        document.getElementById("interaction-enable-coin").checked = appData.interaction?.enable_coin ?? true;
+        document.getElementById("interaction-enable-favorite").checked = appData.interaction?.enable_favorite ?? false;
+        document.getElementById("interaction-coin-threshold").value = appData.interaction?.coin_play_threshold || 10000;
+        document.getElementById("interaction-favorite-media-id").value = appData.interaction?.favorite_media_id || 0;
+        document.getElementById("interaction-fan-page-size").value = appData.interaction?.fan_page_size || 20;
+        document.getElementById("interaction-video-page-size").value = appData.interaction?.video_page_size || 5;
+        document.getElementById("interaction-request-interval").value = appData.interaction?.request_interval_seconds || 3;
 
         // 加载独立拉取的模型列表
         const providers = await api(`${getApiPrefix()}/api/settings/llm/providers`);
@@ -367,6 +413,16 @@ async function saveGeneralSettings() {
         appData.log.level = document.getElementById("log-level").value.trim();
         appData.log.format = document.getElementById("log-format").value.trim();
         appData.log.file_path = document.getElementById("log-file-path").value.trim();
+        appData.interaction = {
+            enable_like: document.getElementById("interaction-enable-like").checked,
+            enable_coin: document.getElementById("interaction-enable-coin").checked,
+            enable_favorite: document.getElementById("interaction-enable-favorite").checked,
+            coin_play_threshold: Number(document.getElementById("interaction-coin-threshold").value || 10000),
+            favorite_media_id: Number(document.getElementById("interaction-favorite-media-id").value || 0),
+            fan_page_size: Number(document.getElementById("interaction-fan-page-size").value || 20),
+            video_page_size: Number(document.getElementById("interaction-video-page-size").value || 5),
+            request_interval_seconds: Number(document.getElementById("interaction-request-interval").value || 3)
+        };
 
         await api(`${getApiPrefix()}/api/settings/app`, {
             method: "PUT",
@@ -374,7 +430,8 @@ async function saveGeneralSettings() {
                 llm: appData.llm,
                 llm_providers: currentProviders, // 保持现状
                 task: appData.task,
-                log: appData.log
+                log: appData.log,
+                interaction: appData.interaction
             }
         });
 

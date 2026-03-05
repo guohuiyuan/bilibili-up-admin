@@ -15,6 +15,7 @@ const (
 	settingKeyLLM      = "app.llm"
 	settingKeyTask     = "app.task"
 	settingKeyLog      = "app.log"
+	settingKeyInteract = "app.interaction"
 	// 注意：删除了 settingKeyLLMProviders，因为不再使用 KV 存储
 )
 
@@ -54,12 +55,24 @@ type LogSettings struct {
 	FilePath string `json:"file_path"`
 }
 
+type InteractionRuleSettings struct {
+	EnableLike             bool  `json:"enable_like"`
+	EnableCoin             bool  `json:"enable_coin"`
+	EnableFavorite         bool  `json:"enable_favorite"`
+	CoinPlayThreshold      int64 `json:"coin_play_threshold"`
+	FavoriteMediaID        int64 `json:"favorite_media_id"`
+	FanPageSize            int   `json:"fan_page_size"`
+	VideoPageSize          int   `json:"video_page_size"`
+	RequestIntervalSeconds int   `json:"request_interval_seconds"`
+}
+
 type AppSettings struct {
 	Bilibili     BilibiliSettings               `json:"bilibili"`
 	LLM          LLMSettings                    `json:"llm"`
 	LLMProviders map[string]LLMProviderSettings `json:"llm_providers"`
 	Task         TaskSettings                   `json:"task"`
 	Log          LogSettings                    `json:"log"`
+	Interaction  InteractionRuleSettings        `json:"interaction"`
 }
 
 type AppSettingsService struct {
@@ -93,6 +106,22 @@ func (s *AppSettingsService) Load(ctx context.Context) (*AppSettings, error) {
 	if setting, _ := s.settingRepo.GetByKey(ctx, settingKeyLog); setting != nil {
 		json.Unmarshal([]byte(setting.Value), &app.Log)
 	}
+	if setting, _ := s.settingRepo.GetByKey(ctx, settingKeyInteract); setting != nil {
+		json.Unmarshal([]byte(setting.Value), &app.Interaction)
+	}
+
+	if app.Interaction.CoinPlayThreshold <= 0 {
+		app.Interaction.CoinPlayThreshold = 10000
+	}
+	if app.Interaction.FanPageSize <= 0 {
+		app.Interaction.FanPageSize = 20
+	}
+	if app.Interaction.VideoPageSize <= 0 {
+		app.Interaction.VideoPageSize = 5
+	}
+	if app.Interaction.RequestIntervalSeconds <= 0 {
+		app.Interaction.RequestIntervalSeconds = 3
+	}
 
 	// 2. [核心改变]：从独立的 llm_providers 实体表中提取模型配置
 	dbProviders, err := s.providerRepo.List(ctx)
@@ -118,6 +147,7 @@ func (s *AppSettingsService) SaveApp(ctx context.Context, app *AppSettings) erro
 	vLLM, _ := EncodeJSON(app.LLM)
 	vTask, _ := EncodeJSON(app.Task)
 	vLog, _ := EncodeJSON(app.Log)
+	vInteract, _ := EncodeJSON(app.Interaction)
 
 	if err := s.settingRepo.Set(ctx, settingKeyBilibili, vBilibili); err != nil {
 		return err
@@ -129,6 +159,9 @@ func (s *AppSettingsService) SaveApp(ctx context.Context, app *AppSettings) erro
 		return err
 	}
 	if err := s.settingRepo.Set(ctx, settingKeyLog, vLog); err != nil {
+		return err
+	}
+	if err := s.settingRepo.Set(ctx, settingKeyInteract, vInteract); err != nil {
 		return err
 	}
 	// 不再保存 app.LLMProviders 到 KV 数据库中，完全由下方的独立接口负责

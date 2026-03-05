@@ -251,6 +251,23 @@ func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager
 		PostHandle: postHandle,
 	})
 
+	_ = mgr.Register(polling.Task{
+		Name:       "fans-weekly-interact",
+		Interval:   10 * time.Minute,
+		Timeout:    180 * time.Second,
+		RunOnStart: false,
+		PreHandle:  checkReady,
+		Handle: func(ctx context.Context) error {
+			cfg, err := services.Settings.Load(ctx)
+			if err != nil {
+				return err
+			}
+			_, err = services.Interaction.AutoInteractRecentFanVideos(ctx, cfg.Interaction, 20)
+			return err
+		},
+		PostHandle: postHandle,
+	})
+
 	return mgr
 }
 
@@ -483,8 +500,13 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 
 			api.GET("/interactions", h.Interaction.List)
 			api.GET("/interactions/stats", h.Interaction.Stats)
+			api.GET("/fans/list", h.Interaction.FansList)
+			api.GET("/fans/:id/videos", h.Interaction.FanVideos)
+			api.GET("/fans/videos", h.Interaction.FansVideos)
+			api.GET("/videos/:id/engagement", h.Interaction.SyncVideoEngagement)
 			api.POST("/videos/:id/like", h.Interaction.Like)
 			api.POST("/videos/:id/coin", h.Interaction.Coin)
+			api.POST("/videos/:id/favorite", h.Interaction.Favorite)
 			api.POST("/videos/:id/triple", h.Interaction.Triple)
 			api.POST("/videos/batch-interact", h.Interaction.BatchInteract)
 			api.POST("/fans/interact", h.Interaction.InteractFans)

@@ -36,6 +36,13 @@ type CoinResult struct {
 	Coins   int
 }
 
+type VideoRelationStatus struct {
+	Like     bool `json:"like"`
+	Coined   bool `json:"coined"`
+	Favorite bool `json:"favorite"`
+	Coin     int  `json:"coin"`
+}
+
 func (c *Client) LikeVideo(ctx context.Context, bvID string) (*LikeResult, error) {
 	if err := c.ensureAvailable(); err != nil {
 		return nil, err
@@ -167,6 +174,39 @@ func (c *Client) IsCoined(ctx context.Context, bvID string) (bool, error) {
 		return false, fmt.Errorf("get video relation failed: %w", err)
 	}
 	return status.Coin > 0, nil
+}
+
+func (c *Client) GetVideoRelationStatus(ctx context.Context, bvID string) (*VideoRelationStatus, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
+	info, err := c.inner.Video().InfoByBVID(ctx, bvID)
+	if err != nil {
+		return nil, err
+	}
+
+	status, err := c.inner.GetVideoRelation(info.AID)
+	if err != nil {
+		return nil, fmt.Errorf("get video relation failed: %w", err)
+	}
+
+	return &VideoRelationStatus{
+		Like:     status.Like,
+		Coined:   status.Coin > 0,
+		Favorite: status.Favorite,
+		Coin:     status.Coin,
+	}, nil
+}
+
+func (c *Client) GetCoinBalance(ctx context.Context) (float64, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return 0, err
+	}
+	nav, err := c.inner.Login().Nav(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("get nav info failed: %w", err)
+	}
+	return nav.Money, nil
 }
 
 func (c *Client) TripleAction(ctx context.Context, bvID string) error {

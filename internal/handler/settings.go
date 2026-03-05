@@ -32,9 +32,10 @@ func (h *SettingsHandler) GetApp(c *gin.Context) {
 
 func (h *SettingsHandler) SaveApp(c *gin.Context) {
 	var req struct {
-		LLM  service.LLMSettings  `json:"llm"`
-		Task service.TaskSettings `json:"task"`
-		Log  service.LogSettings  `json:"log"`
+		LLM         service.LLMSettings             `json:"llm"`
+		Task        service.TaskSettings            `json:"task"`
+		Log         service.LogSettings             `json:"log"`
+		Interaction service.InteractionRuleSettings `json:"interaction"`
 		// 注意：不再接受 llm_providers，因为现在通过独立的 API 管理
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,6 +54,7 @@ func (h *SettingsHandler) SaveApp(c *gin.Context) {
 	current.LLM = req.LLM
 	current.Task = req.Task
 	current.Log = req.Log
+	current.Interaction = req.Interaction
 
 	// 保存到数据库
 	if err := h.settings.SaveApp(c.Request.Context(), current); err != nil {

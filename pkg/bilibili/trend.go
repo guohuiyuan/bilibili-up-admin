@@ -457,6 +457,12 @@ type FansVideo struct {
 	Videos     []VideoInfo
 }
 
+type FanProfile struct {
+	UserID   int64  `json:"user_id"`
+	UserName string `json:"user_name"`
+	UserFace string `json:"user_face"`
+}
+
 func (c *Client) GetFansVideos(ctx context.Context, page, pageSize int) ([]FansVideo, error) {
 	if err := c.ensureAvailable(); err != nil {
 		return nil, err
@@ -494,4 +500,57 @@ func (c *Client) GetFansVideos(ctx context.Context, page, pageSize int) ([]FansV
 		result = append(result, item)
 	}
 	return result, nil
+}
+
+func (c *Client) ListFans(ctx context.Context, page, pageSize int) ([]FanProfile, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	fans, err := c.inner.GetFans(int32(page), int32(pageSize))
+	if err != nil {
+		return nil, fmt.Errorf("get fans failed: %w", err)
+	}
+	out := make([]FanProfile, 0, len(fans))
+	for _, f := range fans {
+		out = append(out, FanProfile{UserID: f.Mid, UserName: f.Uname, UserFace: f.Face})
+	}
+	return out, nil
+}
+
+func (c *Client) ListUserVideos(ctx context.Context, mid int64, page, pageSize int) ([]VideoInfo, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	videos, err := c.inner.GetUserVideos(mid, page, pageSize)
+	if err != nil {
+		return nil, fmt.Errorf("get user videos failed: %w", err)
+	}
+	out := make([]VideoInfo, 0, len(videos))
+	for _, v := range videos {
+		pubDate := v.PubDate
+		if pubDate == 0 {
+			pubDate = v.Created
+		}
+		out = append(out, VideoInfo{
+			BVID:    v.BVID,
+			Title:   v.Title,
+			View:    int(v.Play),
+			Reply:   int(v.Comment),
+			PubDate: pubDate,
+			Pic:     v.Pic,
+		})
+	}
+	return out, nil
 }
