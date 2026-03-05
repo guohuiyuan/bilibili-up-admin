@@ -62,37 +62,47 @@ func (Message) TableName() string { return "messages" }
 
 type Interaction struct {
 	BaseModel
-	VideoBVID  string `gorm:"column:video_bvid;size:20;index" json:"video_bvid"`
-	VideoAID   int64  `gorm:"column:video_aid" json:"video_aid"`
-	ActionType string `gorm:"column:action_type;size:20;index" json:"action_type"` // like, coin, favorite, triple
-	CoinCount  int    `gorm:"column:coin_count;default:0" json:"coin_count"`
+	VideoBVID    string     `gorm:"column:video_bvid;size:20;index" json:"video_bvid"`
+	VideoAID     int64      `gorm:"column:video_aid" json:"video_aid"`
+	VideoTitle   string     `gorm:"column:video_title;size:500" json:"video_title"`
+	VideoOwnerID int64      `gorm:"column:video_owner_id" json:"video_owner_id"`
+	VideoOwner   string     `gorm:"column:video_owner;size:100" json:"video_owner"`
+	ActionType   string     `gorm:"column:action_type;size:20;index" json:"action_type"` // like, coin, favorite, triple
+	CoinCount    int        `gorm:"column:coin_count;default:0" json:"coin_count"`
+	Success      bool       `gorm:"column:success;default:true" json:"success"`
+	ErrorMessage string     `gorm:"column:error_message;type:text" json:"error_message"`
+	ActionTime   *time.Time `gorm:"column:action_time" json:"action_time"`
 }
 
 func (Interaction) TableName() string { return "interactions" }
 
 type TagRanking struct {
 	BaseModel
-	TagName    string `gorm:"column:tag_name;size:100;index" json:"tag_name"`
-	TagID      int64  `gorm:"column:tag_id" json:"tag_id"`
-	ViewCount  int64  `gorm:"column:view_count;default:0" json:"view_count"`
-	UseCount   int64  `gorm:"column:use_count;default:0" json:"use_count"`
-	AttenCount int64  `gorm:"column:atten_count;default:0" json:"atten_count"`
+	TagName    string    `gorm:"column:tag_name;size:100;index" json:"tag_name"`
+	TagID      int64     `gorm:"column:tag_id" json:"tag_id"`
+	HotValue   int64     `gorm:"column:hot_value;default:0" json:"hot_value"`
+	VideoCount int       `gorm:"column:video_count;default:0" json:"video_count"`
+	Rank       int       `gorm:"column:rank;default:0" json:"rank"`
+	Category   string    `gorm:"column:category;size:50" json:"category"`
+	RecordDate time.Time `gorm:"column:record_date" json:"record_date"`
 }
 
 func (TagRanking) TableName() string { return "tag_rankings" }
 
 type LLMChatLog struct {
 	BaseModel
-	Provider     string `gorm:"column:provider;size:50;index" json:"provider"`
-	Model        string `gorm:"column:model;size:100" json:"model"`
-	Prompt       string `gorm:"column:prompt;type:text" json:"prompt"`
-	Response     string `gorm:"column:response;type:text" json:"response"`
-	PromptTokens int    `gorm:"column:prompt_tokens" json:"prompt_tokens"`
-	OutputTokens int    `gorm:"column:output_tokens" json:"output_tokens"`
-	TotalTokens  int    `gorm:"column:total_tokens" json:"total_tokens"`
-	Success      bool   `gorm:"column:success;default:true" json:"success"`
-	ErrorMessage string `gorm:"column:error_message;type:text" json:"error_message"`
-	Duration     int64  `gorm:"column:duration" json:"duration"`
+	Provider      string `gorm:"column:provider;size:50;index" json:"provider"`
+	Model         string `gorm:"column:model;size:100" json:"model"`
+	InputType     string `gorm:"column:input_type;size:20;index" json:"input_type"` // comment/message
+	InputID       int64  `gorm:"column:input_id;index" json:"input_id"`
+	InputContent  string `gorm:"column:input_content;type:text" json:"input_content"`
+	OutputContent string `gorm:"column:output_content;type:text" json:"output_content"`
+	PromptTokens  int    `gorm:"column:prompt_tokens" json:"prompt_tokens"`
+	OutputTokens  int    `gorm:"column:output_tokens" json:"output_tokens"`
+	TotalTokens   int    `gorm:"column:total_tokens" json:"total_tokens"`
+	Success       bool   `gorm:"column:success;default:true" json:"success"`
+	ErrorMessage  string `gorm:"column:error_message;type:text" json:"error_message"`
+	Duration      int64  `gorm:"column:duration" json:"duration"`
 }
 
 func (LLMChatLog) TableName() string { return "llm_chat_logs" }

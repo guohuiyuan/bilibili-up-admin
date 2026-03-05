@@ -77,7 +77,7 @@ func (s *InteractionService) LikeVideo(ctx context.Context, bvID string) (*Inter
 		ActionType:   "like",
 		Success:      result.Success,
 		ErrorMessage: result.Message,
-		ActionTime:   time.Now(),
+		ActionTime:   &[]time.Time{time.Now()}[0],
 	})
 
 	return &InteractionResult{Success: result.Success, Message: result.Message}, nil
@@ -120,7 +120,7 @@ func (s *InteractionService) CoinVideo(ctx context.Context, bvID string, coinCou
 		CoinCount:    result.Coins,
 		Success:      result.Success,
 		ErrorMessage: result.Message,
-		ActionTime:   time.Now(),
+		ActionTime:   &[]time.Time{time.Now()}[0],
 	})
 
 	return &InteractionResult{Success: result.Success, Message: result.Message}, nil
@@ -150,7 +150,7 @@ func (s *InteractionService) TripleAction(ctx context.Context, bvID string) (*In
 		VideoOwner:   info.Owner,
 		ActionType:   "triple",
 		Success:      true,
-		ActionTime:   time.Now(),
+		ActionTime:   &[]time.Time{time.Now()}[0],
 	})
 
 	return &InteractionResult{Success: true, Message: "三连成功"}, nil

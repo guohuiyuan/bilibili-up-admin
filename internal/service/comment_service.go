@@ -95,10 +95,10 @@ func (s *CommentService) SyncFromVideo(ctx context.Context, bvID string, page, p
 			VideoBVID:   c.VideoID,
 			VideoAID:    c.VideoAID,
 			Content:     c.Content,
-			AuthorID:    c.AuthorID,
+			AuthorMid:   c.AuthorID,
 			AuthorName:  c.Author,
 			ReplyStatus: 0,
-			CommentTime: time.Unix(c.Time, 0),
+			CommentTime: &[]time.Time{time.Unix(c.Time, 0)}[0],
 		}
 
 		if err := s.repo.Create(ctx, comment); err != nil {
@@ -152,6 +152,7 @@ func (s *CommentService) AIReply(ctx context.Context, commentID int64) (string, 
 	// 记录日志
 	log := &model.LLMChatLog{
 		Provider:      provider.Name(),
+		Model:         resp.Model,
 		InputType:     "comment",
 		InputID:       commentID,
 		InputContent:  comment.Content,

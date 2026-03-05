@@ -96,12 +96,11 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 
 			message := &model.Message{
 				MessageID:   m.ID,
-				SenderID:    m.SenderID,
+				SenderUID:   m.SenderID,
 				SenderName:  m.SenderName,
 				Content:     m.Content,
 				ReplyStatus: 0,
-				IsRead:      m.IsRead,
-				MessageTime: time.Unix(m.Time, 0),
+				MessageTime: &[]time.Time{time.Unix(m.Time, 0)}[0],
 			}
 
 			if err := s.repo.Create(ctx, message); err != nil {
@@ -172,7 +171,7 @@ func (s *MessageService) AIReply(ctx context.Context, messageID int64) (string, 
 	if err != nil {
 		return "", err
 	}
-	err = client.SendMessage(ctx, message.SenderID, resp.Content)
+	err = client.SendMessage(ctx, message.SenderUID, resp.Content)
 	if err != nil {
 		return "", fmt.Errorf("send message failed: %w", err)
 	}
@@ -201,7 +200,7 @@ func (s *MessageService) ManualReply(ctx context.Context, messageID int64, sende
 	// 更新状态
 	return s.repo.Create(ctx, &model.Message{
 		MessageID:    messageID,
-		SenderID:     senderID,
+		SenderUID:    senderID,
 		ReplyStatus:  1,
 		ReplyContent: content,
 	})
