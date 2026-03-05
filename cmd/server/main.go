@@ -438,7 +438,7 @@ func initHandlers(services *Services, settings *service.AppSettingsService, runt
 		Page:          handler.NewPageHandler(),
 		Comment:       handler.NewCommentHandler(services.Comment),
 		Message:       handler.NewMessageHandler(services.Message),
-		Interaction:   handler.NewInteractionHandler(services.Interaction),
+		Interaction:   handler.NewInteractionHandler(services.Interaction, settings),
 		Trend:         handler.NewTrendHandler(services.Trend),
 		LLM:           handler.NewLLMHandler(services.LLM),
 		Settings:      handler.NewSettingsHandler(settings, runtime),

@@ -11,12 +11,13 @@ import (
 
 // InteractionHandler 互动处理器
 type InteractionHandler struct {
-	svc *service.InteractionService
+	svc      *service.InteractionService
+	settings *service.AppSettingsService
 }
 
 // NewInteractionHandler 创建互动处理器
-func NewInteractionHandler(svc *service.InteractionService) *InteractionHandler {
-	return &InteractionHandler{svc: svc}
+func NewInteractionHandler(svc *service.InteractionService, settings *service.AppSettingsService) *InteractionHandler {
+	return &InteractionHandler{svc: svc, settings: settings}
 }
 
 // Like 点赞视频
@@ -56,20 +57,28 @@ func (h *InteractionHandler) Coin(c *gin.Context) {
 // Favorite 收藏视频
 func (h *InteractionHandler) Favorite(c *gin.Context) {
 	bvID := c.Param("id")
-
-	var req struct {
-		MediaID int64 `json:"media_id"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if h.settings == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "settings service not initialized"})
 		return
 	}
-
-	result, err := h.svc.FavoriteVideo(c.Request.Context(), bvID, req.MediaID)
+	app, err := h.settings.Load(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	mediaID := app.Interaction.FavoriteMediaID
+	if mediaID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "favorite_media_id 未配置，请先到系统设置中填写"})
+		return
+	}
+
+	result, err := h.svc.FavoriteVideo(c.Request.Context(), bvID, mediaID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if result != nil && result.Message != "" {
+		result.Message = result.Message + " (media_id=" + strconv.FormatInt(mediaID, 10) + ")"
 	}
 
 	c.JSON(http.StatusOK, result)
