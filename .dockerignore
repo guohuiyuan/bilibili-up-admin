@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Build artifacts
+bilibili-up-admin
+bilibili-up-admin.exe
+
+# Data (runtime generated)
+data
+
+# Documentation
+README.md
+LICENSE
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# GoReleaser
+dist/
+.goreleaser.yml
+
+# GitHub
+.github/
+
+# Logs & temp
+*.log
+*.tmp
+*.swp

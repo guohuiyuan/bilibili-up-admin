@@ -1,0 +1,16 @@
+services:
+  bilibili-up-admin:
+    # 强制在本地使用 Dockerfile 进行实时构建
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: guohuiyuan/bilibili-up-admin:dev
+    container_name: bilibili-up-admin-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # 🌟 核心修正：同样挂载到 /home/appuser/data
+      - ./data:/home/appuser/data
+    environment:
+      - TZ=Asia/Shanghai

@@ -386,27 +386,27 @@ func buildHTMLRenderer(root string) (render.HTMLRender, error) {
 }
 
 type Repositories struct {
-	Comment     *repository.CommentRepository
-	Message     *repository.MessageRepository
-	Interaction *repository.InteractionRepository
-	TagRanking  *repository.TagRankingRepository
-	LLMChatLog  *repository.LLMChatLogRepository
-	Setting     *repository.SettingRepository
-	LLMProvider *repository.LLMProviderRepository // 新增这一行
-	AdminUser   *repository.AdminUserRepository
+	Comment      *repository.CommentRepository
+	Message      *repository.MessageRepository
+	Interaction  *repository.InteractionRepository
+	TagRanking   *repository.TagRankingRepository
+	LLMChatLog   *repository.LLMChatLogRepository
+	Setting      *repository.SettingRepository
+	LLMProvider  *repository.LLMProviderRepository // 新增这一行
+	AdminUser    *repository.AdminUserRepository
 	AdminSession *repository.AdminSessionRepository
 }
 
 func initRepositories(db *gorm.DB) *Repositories {
 	return &Repositories{
-		Comment:     repository.NewCommentRepository(db),
-		Message:     repository.NewMessageRepository(db),
-		Interaction: repository.NewInteractionRepository(db),
-		TagRanking:  repository.NewTagRankingRepository(db),
-		LLMChatLog:  repository.NewLLMChatLogRepository(db),
-		Setting:     repository.NewSettingRepository(db),
-		LLMProvider: repository.NewLLMProviderRepository(db), // 新增这一行
-		AdminUser:   repository.NewAdminUserRepository(db),
+		Comment:      repository.NewCommentRepository(db),
+		Message:      repository.NewMessageRepository(db),
+		Interaction:  repository.NewInteractionRepository(db),
+		TagRanking:   repository.NewTagRankingRepository(db),
+		LLMChatLog:   repository.NewLLMChatLogRepository(db),
+		Setting:      repository.NewSettingRepository(db),
+		LLMProvider:  repository.NewLLMProviderRepository(db), // 新增这一行
+		AdminUser:    repository.NewAdminUserRepository(db),
 		AdminSession: repository.NewAdminSessionRepository(db),
 	}
 }
@@ -511,62 +511,62 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 
 				api.GET("/observability/polling", h.Observability.PollingStats)
 
-			api.GET("/comments", h.Comment.List)
-			api.POST("/comments/sync", h.Comment.Sync)
-			api.GET("/comments/my-videos", h.Comment.GetMyVideos)
-			api.POST("/comments/:id/ai-reply", h.Comment.AIReply)
-			api.POST("/comments/:id/reply", h.Comment.ManualReply)
-			api.POST("/comments/:id/ignore", h.Comment.Ignore)
-			api.POST("/comments/batch-ai-reply", h.Comment.BatchAIReply)
+				api.GET("/comments", h.Comment.List)
+				api.POST("/comments/sync", h.Comment.Sync)
+				api.GET("/comments/my-videos", h.Comment.GetMyVideos)
+				api.POST("/comments/:id/ai-reply", h.Comment.AIReply)
+				api.POST("/comments/:id/reply", h.Comment.ManualReply)
+				api.POST("/comments/:id/ignore", h.Comment.Ignore)
+				api.POST("/comments/batch-ai-reply", h.Comment.BatchAIReply)
 
-			api.GET("/messages", h.Message.List)
-			api.POST("/messages/sync", h.Message.Sync)
-			api.GET("/messages/unread", h.Message.UnreadCount)
-			api.POST("/messages/:id/ai-reply", h.Message.AIReply)
-			api.POST("/messages/:id/reply", h.Message.ManualReply)
-			api.POST("/messages/:id/ignore", h.Message.Ignore)
+				api.GET("/messages", h.Message.List)
+				api.POST("/messages/sync", h.Message.Sync)
+				api.GET("/messages/unread", h.Message.UnreadCount)
+				api.POST("/messages/:id/ai-reply", h.Message.AIReply)
+				api.POST("/messages/:id/reply", h.Message.ManualReply)
+				api.POST("/messages/:id/ignore", h.Message.Ignore)
 
-			api.GET("/interactions", h.Interaction.List)
-			api.GET("/interactions/stats", h.Interaction.Stats)
-			api.GET("/fans/list", h.Interaction.FansList)
-			api.GET("/fans/:id/videos", h.Interaction.FanVideos)
-			api.GET("/fans/videos", h.Interaction.FansVideos)
-			api.GET("/videos/:id/engagement", h.Interaction.SyncVideoEngagement)
-			api.POST("/videos/:id/like", h.Interaction.Like)
-			api.POST("/videos/:id/coin", h.Interaction.Coin)
-			api.POST("/videos/:id/favorite", h.Interaction.Favorite)
-			api.POST("/videos/:id/triple", h.Interaction.Triple)
-			api.POST("/videos/batch-interact", h.Interaction.BatchInteract)
-			api.POST("/fans/interact", h.Interaction.InteractFans)
+				api.GET("/interactions", h.Interaction.List)
+				api.GET("/interactions/stats", h.Interaction.Stats)
+				api.GET("/fans/list", h.Interaction.FansList)
+				api.GET("/fans/:id/videos", h.Interaction.FanVideos)
+				api.GET("/fans/videos", h.Interaction.FansVideos)
+				api.GET("/videos/:id/engagement", h.Interaction.SyncVideoEngagement)
+				api.POST("/videos/:id/like", h.Interaction.Like)
+				api.POST("/videos/:id/coin", h.Interaction.Coin)
+				api.POST("/videos/:id/favorite", h.Interaction.Favorite)
+				api.POST("/videos/:id/triple", h.Interaction.Triple)
+				api.POST("/videos/batch-interact", h.Interaction.BatchInteract)
+				api.POST("/fans/interact", h.Interaction.InteractFans)
 
-			api.GET("/trends/tags", h.Trend.TrendingTags)
-			api.GET("/trends/tags/:name", h.Trend.TagDetail)
-			api.GET("/trends/videos", h.Trend.VideoRanking)
-			api.GET("/trends/historical", h.Trend.HistoricalRankings)
-			api.GET("/trends/latest", h.Trend.LatestRankings)
-			api.GET("/trends/search", h.Trend.SearchTag)
-			api.POST("/trends/sync", h.Trend.Sync)
-			api.GET("/trends/stats", h.Trend.Stats)
+				api.GET("/trends/tags", h.Trend.TrendingTags)
+				api.GET("/trends/tags/:name", h.Trend.TagDetail)
+				api.GET("/trends/videos", h.Trend.VideoRanking)
+				api.GET("/trends/historical", h.Trend.HistoricalRankings)
+				api.GET("/trends/latest", h.Trend.LatestRankings)
+				api.GET("/trends/search", h.Trend.SearchTag)
+				api.POST("/trends/sync", h.Trend.Sync)
+				api.GET("/trends/stats", h.Trend.Stats)
 
-			api.POST("/llm/chat", h.LLM.Chat)
-			api.GET("/llm/providers", h.LLM.Providers)
-			api.POST("/llm/default", h.LLM.SetDefault)
-			api.GET("/llm/test/:provider", h.LLM.Test)
-			api.GET("/llm/stats", h.LLM.Stats)
+				api.POST("/llm/chat", h.LLM.Chat)
+				api.GET("/llm/providers", h.LLM.Providers)
+				api.POST("/llm/default", h.LLM.SetDefault)
+				api.GET("/llm/test/:provider", h.LLM.Test)
+				api.GET("/llm/stats", h.LLM.Stats)
 
-			// 新增的 大模型 CRUD 独立路由
-			api.GET("/settings/llm/channels", h.Settings.GetLLMChannels)
-			api.GET("/settings/llm/providers", h.Settings.GetLLMProviders)
-			api.POST("/settings/llm/providers", h.Settings.AddLLMProvider)
-			api.PUT("/settings/llm/providers/:name", h.Settings.UpdateLLMProvider)
-			api.DELETE("/settings/llm/providers/:name", h.Settings.DeleteLLMProvider)
+				// 新增的 大模型 CRUD 独立路由
+				api.GET("/settings/llm/channels", h.Settings.GetLLMChannels)
+				api.GET("/settings/llm/providers", h.Settings.GetLLMProviders)
+				api.POST("/settings/llm/providers", h.Settings.AddLLMProvider)
+				api.PUT("/settings/llm/providers/:name", h.Settings.UpdateLLMProvider)
+				api.DELETE("/settings/llm/providers/:name", h.Settings.DeleteLLMProvider)
 
-			api.GET("/settings/app", h.Settings.GetApp)
-			api.PUT("/settings/app", h.Settings.SaveApp)
-			api.GET("/settings/bilibili", h.Settings.GetBilibili)
-			api.PUT("/settings/bilibili/cookie", h.Settings.SaveBilibiliCookie)
-			api.POST("/settings/bilibili/qrcode", h.Settings.GenerateBilibiliQRCode)
-			api.GET("/settings/bilibili/qrcode/poll", h.Settings.PollBilibiliQRCode)
+				api.GET("/settings/app", h.Settings.GetApp)
+				api.PUT("/settings/app", h.Settings.SaveApp)
+				api.GET("/settings/bilibili", h.Settings.GetBilibili)
+				api.PUT("/settings/bilibili/cookie", h.Settings.SaveBilibiliCookie)
+				api.POST("/settings/bilibili/qrcode", h.Settings.GenerateBilibiliQRCode)
+				api.GET("/settings/bilibili/qrcode/poll", h.Settings.PollBilibiliQRCode)
 
 				api.GET("/health", func(c *gin.Context) {
 					c.JSON(200, gin.H{"status": "ok"})
