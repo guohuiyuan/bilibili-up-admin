@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	biligo "github.com/guohuiyuan/biligo"
 )
@@ -18,6 +19,7 @@ type Config struct {
 	SESSData string
 	BiliJct  string
 	UserID   int64
+	Cookie   string
 }
 
 type UserInfo struct {
@@ -28,8 +30,8 @@ type UserInfo struct {
 }
 
 func NewClient(cfg *Config) (*Client, error) {
-	if cfg.SESSData == "" {
-		return nil, fmt.Errorf("sess_data is required")
+	if cfg.Cookie == "" && cfg.SESSData == "" {
+		return nil, fmt.Errorf("cookie or sess_data is required")
 	}
 
 	client := newInnerClient(cfg)
@@ -41,10 +43,19 @@ func NewClient(cfg *Config) (*Client, error) {
 
 func newInnerClient(cfg *Config) *biligo.Client {
 	client := biligo.NewClient()
+	if cfg.Cookie != "" {
+		credential := biligo.NewCredentialFromCookieString(cfg.Cookie)
+		client.SetCredential(credential)
+		return client
+	}
+	dedeUserID := ""
+	if cfg.UserID > 0 {
+		dedeUserID = fmt.Sprintf("%d", cfg.UserID)
+	}
 	client.SetCredential(&biligo.Credential{
 		SessData:   cfg.SESSData,
 		BiliJct:    cfg.BiliJct,
-		DedeUserID: fmt.Sprintf("%d", cfg.UserID),
+		DedeUserID: dedeUserID,
 	})
 	return client
 }
@@ -62,6 +73,7 @@ func NewClientFromCookieString(rawCookie string) (*Client, error) {
 		SESSData: credential.SessData,
 		BiliJct:  credential.BiliJct,
 		UserID:   userID,
+		Cookie:   rawCookie,
 	})
 }
 
@@ -164,6 +176,7 @@ func PollLoginQRCode(ctx context.Context, key string) (*QRCodeLoginState, error)
 		SESSData: credential.SessData,
 		BiliJct:  credential.BiliJct,
 		UserID:   userID,
+		Cookie:   buildCookieString(credential),
 	})
 	if err != nil {
 		return nil, err
@@ -174,6 +187,32 @@ func PollLoginQRCode(ctx context.Context, key string) (*QRCodeLoginState, error)
 	}
 	state.Client = wrapped
 	return state, nil
+}
+
+func buildCookieString(c *biligo.Credential) string {
+	if c == nil {
+		return ""
+	}
+	parts := make([]string, 0, 6)
+	if c.SessData != "" {
+		parts = append(parts, "SESSDATA="+c.SessData)
+	}
+	if c.BiliJct != "" {
+		parts = append(parts, "bili_jct="+c.BiliJct)
+	}
+	if c.DedeUserID != "" {
+		parts = append(parts, "DedeUserID="+c.DedeUserID)
+	}
+	if c.Buvid3 != "" {
+		parts = append(parts, "buvid3="+c.Buvid3)
+	}
+	if c.Buvid4 != "" {
+		parts = append(parts, "buvid4="+c.Buvid4)
+	}
+	if c.AcTimeValue != "" {
+		parts = append(parts, "ac_time_value="+c.AcTimeValue)
+	}
+	return strings.Join(parts, "; ")
 }
 
 type UserVideoSearchResult struct {

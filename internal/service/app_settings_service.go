@@ -186,6 +186,9 @@ func EncodeJSON(v any) (string, error) {
 }
 
 func BuildBilibiliClient(settings BilibiliSettings) (*bilibili.Client, error) {
+	if settings.Cookie != "" {
+		return bilibili.NewClientFromCookieString(settings.Cookie)
+	}
 	if settings.SESSData == "" {
 		return nil, nil
 	}
