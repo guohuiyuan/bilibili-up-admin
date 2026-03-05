@@ -6,7 +6,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.26.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/glebarez/sqlite v1.11.0
-	github.com/guohuiyuan/biligo v0.0.0-20260305164651-60d604b0f1bf
+	github.com/guohuiyuan/biligo v0.0.0-20260305170130-9ef16c6a924d
 	github.com/ollama/ollama v0.17.5
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/spf13/viper v1.18.2

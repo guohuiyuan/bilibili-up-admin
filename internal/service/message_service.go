@@ -334,12 +334,12 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 	}
 	interval := time.Duration(rules.RequestIntervalSeconds) * time.Second
 
+	const followWindow = 10 * time.Minute
 	recordCount, err := s.fanReplyRepo.Count(ctx)
 	if err != nil {
 		return nil, err
 	}
-	bootstrap := recordCount == 0
-	log.Printf("[fans.auto_reply] start fan_page_size=%d interval_sec=%d bootstrap=%v record_count=%d", rules.FanPageSize, rules.RequestIntervalSeconds, bootstrap, recordCount)
+	log.Printf("[fans.auto_reply] start fan_page_size=%d interval_sec=%d follow_window_min=10 record_count=%d", rules.FanPageSize, rules.RequestIntervalSeconds, recordCount)
 	digest := sha256.Sum256([]byte(content))
 	replyDigest := hex.EncodeToString(digest[:])
 
@@ -355,6 +355,9 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 		now := time.Now()
 		summary.ScannedFans += len(fans)
 		for _, fan := range fans {
+			nowUnix := now.Unix()
+			withinWindow := fan.FollowTime > 0 && nowUnix >= fan.FollowTime && (nowUnix-fan.FollowTime) <= int64(followWindow/time.Second)
+
 			record, err := s.fanReplyRepo.GetByFanUID(ctx, fan.UserID)
 			if err != nil {
 				log.Printf("[fans.auto_reply] lookup_failed uid=%d err=%v", fan.UserID, err)
@@ -366,26 +369,26 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 					FanUID:     fan.UserID,
 					FanName:    fan.UserName,
 					LastSeenAt: &now,
-					Replied:    bootstrap,
-				}
-				if bootstrap {
-					record.RepliedAt = &now
-					record.LastError = "seeded on first scan"
+					Replied:    false,
 				}
 				if err := s.fanReplyRepo.Create(ctx, record); err != nil {
 					log.Printf("[fans.auto_reply] create_record_failed uid=%d err=%v", fan.UserID, err)
 					continue
 				}
 				summary.NewFans++
-				log.Printf("[fans.auto_reply] discovered uid=%d uname=%q bootstrap=%v", fan.UserID, fan.UserName, bootstrap)
-				if bootstrap {
-					summary.Seeded++
-					continue
-				}
+				log.Printf("[fans.auto_reply] discovered uid=%d uname=%q follow_time=%d within_window=%v", fan.UserID, fan.UserName, fan.FollowTime, withinWindow)
 			}
 
 			record.FanName = fan.UserName
 			record.LastSeenAt = &now
+			if !withinWindow {
+				record.LastError = "follow_time_outside_10m_window"
+				record.Replied = false
+				record.RepliedAt = nil
+				record.ReplyDigest = ""
+				_ = s.fanReplyRepo.Update(ctx, record)
+				continue
+			}
 			if record.Replied && record.ReplyDigest == replyDigest {
 				_ = s.fanReplyRepo.Update(ctx, record)
 				continue
