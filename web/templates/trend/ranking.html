@@ -192,7 +192,6 @@ function renderTags(tags) {
 
     container.innerHTML = tags.map((tag, index) => {
         const name = tag.name || tag.tag_name || tag.Name || tag.TagName || '';
-        const hotValue = tag.hot_value ?? tag.hotValue ?? tag.HotValue ?? 0;
         const useCount = tag.use_count ?? tag.useCount ?? tag.UseCount ?? 0;
         const followCount = tag.follow_count ?? tag.followCount ?? tag.FollowCount ?? 0;
         const category = tag.category || tag.Category || '';
@@ -208,10 +207,6 @@ function renderTags(tags) {
                     <span class="text-gray-800">${name}</span>
                     <div class="text-xs text-gray-400 mt-1">使用 ${formatNumber(useCount)} · 关注 ${formatNumber(followCount)}${category ? ` · ${category}` : ''}</div>
                 </div>
-            </div>
-            <div class="text-right">
-                <span class="text-sm text-gray-500">${formatNumber(hotValue)}</span>
-                <span class="text-xs text-gray-400 ml-2">热度</span>
             </div>
         </div>
     `}).join('');
