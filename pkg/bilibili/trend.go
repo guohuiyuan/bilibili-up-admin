@@ -6,27 +6,27 @@ import (
 )
 
 type TagRanking struct {
-	TagName    string
-	TagID      int64
-	HotValue   int64
-	VideoCount int
-	ViewCount  int64
-	Trending   bool
-	TopVideos  []VideoInfo
+	TagName    string      `json:"tag_name"`
+	TagID      int64       `json:"tag_id"`
+	HotValue   int64       `json:"hot_value"`
+	VideoCount int         `json:"video_count"`
+	ViewCount  int64       `json:"view_count"`
+	Trending   bool        `json:"trending"`
+	TopVideos  []VideoInfo `json:"top_videos"`
 }
 
 type TrendingTag struct {
-	Name     string
-	HotValue int64
-	Rank     int
-	Category string
+	Name     string `json:"name"`
+	HotValue int64  `json:"hot_value"`
+	Rank     int    `json:"rank"`
+	Category string `json:"category"`
 }
 
 type VideoRanking struct {
-	Videos  []VideoInfo
-	Rank    int
-	Tid     int
-	Keyword string
+	Videos  []VideoInfo `json:"videos"`
+	Rank    int         `json:"rank"`
+	Tid     int         `json:"tid"`
+	Keyword string      `json:"keyword"`
 }
 
 type RankingPeriod string

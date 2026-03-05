@@ -6,23 +6,23 @@ import (
 )
 
 type VideoInfo struct {
-	BVID     string
-	AVID     int64
-	Title    string
-	Desc     string
-	Owner    string
-	OwnerID  int64
-	Duration int
-	View     int
-	Danmaku  int
-	Reply    int
-	Favorite int
-	Coin     int
-	Share    int
-	Like     int
-	PubDate  int64
-	Tags     []string
-	Pic      string
+	BVID     string   `json:"bvid"`
+	AVID     int64    `json:"avid"`
+	Title    string   `json:"title"`
+	Desc     string   `json:"desc"`
+	Owner    string   `json:"owner"`
+	OwnerID  int64    `json:"owner_id"`
+	Duration int      `json:"duration"`
+	View     int      `json:"view"`
+	Danmaku  int      `json:"danmaku"`
+	Reply    int      `json:"reply"`
+	Favorite int      `json:"favorite"`
+	Coin     int      `json:"coin"`
+	Share    int      `json:"share"`
+	Like     int      `json:"like"`
+	PubDate  int64    `json:"pub_date"`
+	Tags     []string `json:"tags"`
+	Pic      string   `json:"pic"`
 }
 
 type LikeResult struct {

@@ -100,17 +100,51 @@
 async function loadTrendingTags() {
     try {
         const response = await fetch('/admin/api/trends/tags?limit=50');
+        if (!response.ok) {
+            const errBody = await response.json().catch(() => ({}));
+            throw new Error(errBody.error || '获取热门标签失败');
+        }
         const data = await response.json();
-        renderTags(data.tags || []);
+        const tags = data.tags || [];
+        if (tags.length > 0) {
+            renderTags(tags);
+            return;
+        }
+        await loadLatestRankingsAsTags();
     } catch (error) {
-        showToast('加载失败: ' + error.message, 'error');
+        try {
+            await loadLatestRankingsAsTags();
+        } catch (fallbackError) {
+            showToast('加载失败: ' + error.message, 'error');
+        }
     }
+}
+
+async function loadLatestRankingsAsTags() {
+    const response = await fetch('/admin/api/trends/latest?limit=50');
+    if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody.error || '获取历史热度失败');
+    }
+    const data = await response.json();
+    const rankings = data.rankings || [];
+    const tags = rankings.map((item, index) => ({
+        name: item.tag_name || item.name || '',
+        hot_value: item.hot_value || 0,
+        rank: item.rank || index + 1,
+        category: item.category || '',
+    }));
+    renderTags(tags);
 }
 
 async function loadVideoRanking() {
     const category = document.getElementById('category-select').value;
     try {
         const response = await fetch(`/admin/api/trends/videos?category=${category}&limit=50`);
+        if (!response.ok) {
+            const errBody = await response.json().catch(() => ({}));
+            throw new Error(errBody.error || '获取视频排行失败');
+        }
         const data = await response.json();
         renderVideos(data.videos || []);
     } catch (error) {
@@ -131,22 +165,25 @@ function renderTags(tags) {
         return;
     }
 
-    container.innerHTML = tags.map((tag, index) => `
-        <div class="tag-item flex items-center justify-between p-4 cursor-pointer" onclick="showTagDetail('${tag.name}')">
+    container.innerHTML = tags.map((tag, index) => {
+        const name = tag.name || tag.tag_name || tag.Name || tag.TagName || '';
+        const hotValue = tag.hot_value ?? tag.hotValue ?? tag.HotValue ?? 0;
+        return `
+        <div class="tag-item flex items-center justify-between p-4 cursor-pointer" onclick="showTagDetail('${name}')">
             <div class="flex items-center space-x-3">
                 <span class="w-8 h-8 rounded-lg ${
                     index < 3 ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-600'
                 } flex items-center justify-center font-bold text-sm">
                     ${index + 1}
                 </span>
-                <span class="text-gray-800">${tag.name}</span>
+                <span class="text-gray-800">${name}</span>
             </div>
             <div class="text-right">
-                <span class="text-sm text-gray-500">${formatNumber(tag.hot_value)}</span>
+                <span class="text-sm text-gray-500">${formatNumber(hotValue)}</span>
                 <span class="text-xs text-gray-400 ml-2">热度</span>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function renderVideos(videos) {
@@ -187,6 +224,10 @@ async function showTagDetail(tagName) {
 
     try {
         const response = await fetch(`/admin/api/trends/tags/${encodeURIComponent(tagName)}?page=1&page_size=10`);
+        if (!response.ok) {
+            const errBody = await response.json().catch(() => ({}));
+            throw new Error(errBody.error || '获取标签详情失败');
+        }
         const data = await response.json();
 
         const container = document.getElementById('tag-videos');
@@ -214,6 +255,10 @@ async function searchTag() {
 
     try {
         const response = await fetch(`/admin/api/trends/search?keyword=${encodeURIComponent(keyword)}`);
+        if (!response.ok) {
+            const errBody = await response.json().catch(() => ({}));
+            throw new Error(errBody.error || '搜索标签失败');
+        }
         const data = await response.json();
         renderTags(data.tags || []);
     } catch (error) {
@@ -224,7 +269,11 @@ async function searchTag() {
 async function syncTrends() {
     showToast('正在同步热度数据...', 'info');
     try {
-        await fetch('/admin/api/trends/sync', { method: 'POST' });
+        const response = await fetch('/admin/api/trends/sync', { method: 'POST' });
+        if (!response.ok) {
+            const errBody = await response.json().catch(() => ({}));
+            throw new Error(errBody.error || '同步失败');
+        }
         showToast('同步完成', 'success');
         loadTrendingTags();
         loadVideoRanking();
