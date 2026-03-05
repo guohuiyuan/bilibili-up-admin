@@ -42,13 +42,31 @@
                     热门标签
                 </h3>
                 <select id="tag-category-select" onchange="loadTrendingTags()" class="px-3 py-1 border border-gray-200 rounded-lg text-sm">
-                    <option value="">全部分区</option>
-                    <option value="游戏">游戏</option>
-                    <option value="生活">生活</option>
-                    <option value="音乐">音乐</option>
-                    <option value="动画">动画</option>
-                    <option value="知识">知识</option>
-                    <option value="科技">科技</option>
+                    <option value="All">全部</option>
+                    <option value="Bangumi">番剧</option>
+                    <option value="GuochuangAnime">国产动画</option>
+                    <option value="Guochuang">国创相关</option>
+                    <option value="Documentary">纪录片</option>
+                    <option value="Douga">动画</option>
+                    <option value="Music">音乐</option>
+                    <option value="Dance">舞蹈</option>
+                    <option value="Game">游戏</option>
+                    <option value="Knowledge">知识</option>
+                    <option value="Technology">科技数码</option>
+                    <option value="Sports">运动</option>
+                    <option value="Car">汽车</option>
+                    <option value="Life">生活</option>
+                    <option value="Food">美食</option>
+                    <option value="Animal">动物圈</option>
+                    <option value="Kichiku">鬼畜</option>
+                    <option value="Fashion">时尚美妆</option>
+                    <option value="Ent">娱乐</option>
+                    <option value="Cinephile">影视</option>
+                    <option value="Movie">电影</option>
+                    <option value="TV">电视剧</option>
+                    <option value="Variety">综艺</option>
+                    <option value="Original">原创</option>
+                    <option value="Rookie">新人</option>
                 </select>
             </div>
         </div>
@@ -69,14 +87,31 @@
                     视频排行
                 </h3>
                 <select id="category-select" onchange="loadVideoRanking()" class="px-3 py-1 border border-gray-200 rounded-lg text-sm">
-                    <option value="">全站</option>
-                    <option value="游戏">游戏</option>
-                    <option value="生活">生活</option>
-                    <option value="音乐">音乐</option>
-                    <option value="动画">动画</option>
-                    <option value="知识">知识</option>
-                    <option value="科技">科技</option>
-                    <option value="美食">美食</option>
+                    <option value="All">全部</option>
+                    <option value="Bangumi">番剧</option>
+                    <option value="GuochuangAnime">国产动画</option>
+                    <option value="Guochuang">国创相关</option>
+                    <option value="Documentary">纪录片</option>
+                    <option value="Douga">动画</option>
+                    <option value="Music">音乐</option>
+                    <option value="Dance">舞蹈</option>
+                    <option value="Game">游戏</option>
+                    <option value="Knowledge">知识</option>
+                    <option value="Technology">科技数码</option>
+                    <option value="Sports">运动</option>
+                    <option value="Car">汽车</option>
+                    <option value="Life">生活</option>
+                    <option value="Food">美食</option>
+                    <option value="Animal">动物圈</option>
+                    <option value="Kichiku">鬼畜</option>
+                    <option value="Fashion">时尚美妆</option>
+                    <option value="Ent">娱乐</option>
+                    <option value="Cinephile">影视</option>
+                    <option value="Movie">电影</option>
+                    <option value="TV">电视剧</option>
+                    <option value="Variety">综艺</option>
+                    <option value="Original">原创</option>
+                    <option value="Rookie">新人</option>
                 </select>
             </div>
         </div>
@@ -192,7 +227,7 @@ function renderTags(tags) {
         const followCount = tag.follow_count ?? tag.followCount ?? tag.FollowCount ?? 0;
         const category = tag.category || tag.Category || '';
         return `
-        <div class="tag-item flex items-center justify-between p-4 cursor-pointer" onclick="showTagDetail('${name}')">
+        <div class="tag-item flex items-center justify-between p-4 cursor-pointer rounded-xl mx-2 my-1 border border-transparent hover:border-amber-200" onclick="showTagDetail('${name}')">
             <div class="flex items-center space-x-3">
                 <span class="w-8 h-8 rounded-lg ${
                     index < 3 ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-600'
@@ -200,7 +235,7 @@ function renderTags(tags) {
                     ${index + 1}
                 </span>
                 <div>
-                    <span class="text-gray-800">${name}</span>
+                    <span class="text-gray-800 font-medium">${name}</span>
                     <div class="text-xs text-gray-400 mt-1">使用 ${formatNumber(useCount)} · 关注 ${formatNumber(followCount)}${category ? ` · ${category}` : ''}</div>
                 </div>
             </div>
@@ -221,23 +256,27 @@ function renderVideos(videos) {
         return;
     }
 
-    container.innerHTML = videos.map((video, index) => `
-        <div class="flex items-start space-x-3 p-4">
+    container.innerHTML = videos.map((video, index) => {
+        const jumpUrl = video.bvid
+            ? `https://www.bilibili.com/video/${video.bvid}`
+            : (video.avid ? `https://www.bilibili.com/video/av${video.avid}` : '#');
+        return `
+        <div class="flex items-start space-x-3 p-4 hover:bg-gray-50 transition rounded-xl mx-2 my-1 border border-transparent hover:border-pink-100">
             <span class="w-8 h-8 rounded-lg ${
                 index < 3 ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-600'
             } flex items-center justify-center font-bold text-sm flex-shrink-0">
                 ${index + 1}
             </span>
             <div class="flex-1 min-w-0">
-                <p class="text-gray-800 truncate">${video.title}</p>
-                <div class="flex items-center space-x-3 mt-1 text-xs text-gray-500">
-                    <span>${video.owner}</span>
+                <a href="${jumpUrl}" target="_blank" rel="noopener noreferrer" class="text-gray-800 hover:text-pink-600 font-medium line-clamp-2 break-words">${video.title}</a>
+                <div class="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-gray-500">
+                    <span class="inline-flex items-center"><i class="ri-user-3-line mr-1"></i>${video.owner || '-'}</span>
                     <span><i class="ri-play-line"></i> ${formatNumber(video.view)}</span>
                     <span><i class="ri-thumb-up-line"></i> ${formatNumber(video.like)}</span>
                 </div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 async function showTagDetail(tagName) {
