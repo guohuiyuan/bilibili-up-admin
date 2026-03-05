@@ -139,8 +139,33 @@
 
 {{ define "scripts" }}
 <script>
+function mapRankTypeToTagCategory(rankType) {
+    const mapping = {
+        Douga: '动画',
+        GuochuangAnime: '动画',
+        Guochuang: '动画',
+        Kichiku: '动画',
+        Music: '音乐',
+        Game: '游戏',
+        Knowledge: '知识',
+        Documentary: '知识',
+        Technology: '科技',
+        Life: '生活',
+        Dance: '生活',
+        Sports: '生活',
+        Car: '生活',
+        Food: '生活',
+        Animal: '生活',
+        Fashion: '生活',
+        Ent: '生活',
+        Cinephile: '生活'
+    };
+    return mapping[rankType] || '';
+}
+
 async function loadTrendingTags() {
-    const category = document.getElementById('tag-category-select')?.value || '';
+    const selected = document.getElementById('tag-category-select')?.value || '';
+    const category = mapRankTypeToTagCategory(selected);
     const query = new URLSearchParams();
     if (category) {
         query.set('category', category);
