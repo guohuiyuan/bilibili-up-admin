@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log"
 
 	"bilibili-up-admin/internal/model"
 	"bilibili-up-admin/internal/repository"
@@ -169,6 +170,21 @@ func (s *AppSettingsService) SaveApp(ctx context.Context, app *AppSettings) erro
 	if err := s.settingRepo.Set(ctx, settingKeyInteract, vInteract); err != nil {
 		return err
 	}
+	log.Printf("[settings.save] llm_default=%q worker=%d queue=%d log_level=%q log_format=%q interact={like:%v coin:%v favorite:%v follow_auto_reply:%v fan_page:%d video_page:%d interval_sec:%d follow_reply_len:%d}",
+		app.LLM.DefaultProvider,
+		app.Task.WorkerCount,
+		app.Task.QueueSize,
+		app.Log.Level,
+		app.Log.Format,
+		app.Interaction.EnableLike,
+		app.Interaction.EnableCoin,
+		app.Interaction.EnableFavorite,
+		app.Interaction.EnableFollowAutoReply,
+		app.Interaction.FanPageSize,
+		app.Interaction.VideoPageSize,
+		app.Interaction.RequestIntervalSeconds,
+		len(app.Interaction.FollowAutoReplyContent),
+	)
 	// 不再保存 app.LLMProviders 到 KV 数据库中，完全由下方的独立接口负责
 	return nil
 }

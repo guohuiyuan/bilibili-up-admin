@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -95,6 +96,7 @@ func (s *MessageService) List(ctx context.Context, senderID int64, replyStatus i
 
 // SyncMessages 同步私信
 func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (*MessageSyncResult, error) {
+	start := time.Now()
 	client, err := s.biliClient()
 	if err != nil {
 		return nil, err
@@ -124,6 +126,7 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 		// 获取聊天记录
 		chat, err := client.GetChatHistory(ctx, session.UserID, 1, 20)
 		if err != nil {
+			log.Printf("[message.sync] chat_history_failed uid=%d err=%v", session.UserID, err)
 			result.SessionErrors++
 			if len(result.ErrorSummaries) < 5 {
 				result.ErrorSummaries = append(result.ErrorSummaries, fmt.Sprintf("uid=%d chat failed: %v", session.UserID, err))
@@ -169,6 +172,7 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 					result.Existing++
 					continue
 				}
+				log.Printf("[message.sync] create_failed msg_id=%d sender_uid=%d err=%v", m.ID, m.SenderID, err)
 				result.InsertErrors++
 				if len(result.ErrorSummaries) < 5 {
 					result.ErrorSummaries = append(result.ErrorSummaries, fmt.Sprintf("msg=%d insert failed: %v", m.ID, err))
@@ -178,6 +182,8 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 			result.Inserted++
 		}
 	}
+
+	log.Printf("[message.sync] done page=%d page_size=%d sessions=%d fetched=%d inserted=%d existing=%d session_errors=%d insert_errors=%d cost_ms=%d", page, pageSize, result.Sessions, result.Fetched, result.Inserted, result.Existing, result.SessionErrors, result.InsertErrors, time.Since(start).Milliseconds())
 
 	return result, nil
 }
@@ -306,10 +312,12 @@ func (s *MessageService) GetUnreadCount(ctx context.Context) (int, error) {
 func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules InteractionRuleSettings) (*FollowAutoReplySummary, error) {
 	summary := &FollowAutoReplySummary{}
 	if s.fanReplyRepo == nil || !rules.EnableFollowAutoReply {
+		log.Printf("[fans.auto_reply] skipped enabled=%v repo_ready=%v", rules.EnableFollowAutoReply, s.fanReplyRepo != nil)
 		return summary, nil
 	}
 	content := strings.TrimSpace(rules.FollowAutoReplyContent)
 	if content == "" {
+		log.Printf("[fans.auto_reply] skipped empty_content")
 		return summary, nil
 	}
 
@@ -331,6 +339,7 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 		return nil, err
 	}
 	bootstrap := recordCount == 0
+	log.Printf("[fans.auto_reply] start fan_page_size=%d interval_sec=%d bootstrap=%v record_count=%d", rules.FanPageSize, rules.RequestIntervalSeconds, bootstrap, recordCount)
 	digest := sha256.Sum256([]byte(content))
 	replyDigest := hex.EncodeToString(digest[:])
 
@@ -348,6 +357,7 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 		for _, fan := range fans {
 			record, err := s.fanReplyRepo.GetByFanUID(ctx, fan.UserID)
 			if err != nil {
+				log.Printf("[fans.auto_reply] lookup_failed uid=%d err=%v", fan.UserID, err)
 				continue
 			}
 
@@ -363,9 +373,11 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 					record.LastError = "seeded on first scan"
 				}
 				if err := s.fanReplyRepo.Create(ctx, record); err != nil {
+					log.Printf("[fans.auto_reply] create_record_failed uid=%d err=%v", fan.UserID, err)
 					continue
 				}
 				summary.NewFans++
+				log.Printf("[fans.auto_reply] discovered uid=%d uname=%q bootstrap=%v", fan.UserID, fan.UserName, bootstrap)
 				if bootstrap {
 					summary.Seeded++
 					continue
@@ -380,6 +392,7 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 			}
 
 			if err := client.SendMessage(ctx, fan.UserID, content); err != nil {
+				log.Printf("[fans.auto_reply] send_failed uid=%d uname=%q err=%v", fan.UserID, fan.UserName, err)
 				record.LastError = err.Error()
 				record.Replied = false
 				record.RepliedAt = nil
@@ -394,10 +407,13 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 			record.RepliedAt = &now
 			record.ReplyDigest = replyDigest
 			summary.Replied++
+			log.Printf("[fans.auto_reply] replied uid=%d uname=%q", fan.UserID, fan.UserName)
 			_ = s.fanReplyRepo.Update(ctx, record)
 			time.Sleep(interval)
 		}
 	}
+
+	log.Printf("[fans.auto_reply] done scanned=%d new=%d replied=%d failed=%d seeded=%d", summary.ScannedFans, summary.NewFans, summary.Replied, summary.Failed, summary.Seeded)
 
 	return summary, nil
 }

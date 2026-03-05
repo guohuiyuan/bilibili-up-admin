@@ -225,7 +225,10 @@ func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager
 		RunOnStart: true,
 		PreHandle:  checkReady,
 		Handle: func(ctx context.Context) error {
-			_, err := services.Trend.SyncTagInfoHotValues(ctx, 50)
+			count, err := services.Trend.SyncTagInfoHotValues(ctx, 50)
+			if err == nil {
+				log.Printf("[polling][trend-taginfo-sync] synced=%d", count)
+			}
 			return err
 		},
 		PostHandle: postHandle,
@@ -238,7 +241,10 @@ func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager
 		RunOnStart: true,
 		PreHandle:  checkReady,
 		Handle: func(ctx context.Context) error {
-			_, err := services.Comment.SyncRecentVideoComments(ctx, 3, 1, 20)
+			result, err := services.Comment.SyncRecentVideoComments(ctx, 3, 1, 20)
+			if err == nil && result != nil {
+				log.Printf("[polling][video-comments-sync] videos=%d inserted=%d video_error=%d", result.Videos, result.Inserted, result.VideoError)
+			}
 			return err
 		},
 		PostHandle: postHandle,
@@ -251,7 +257,10 @@ func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager
 		RunOnStart: true,
 		PreHandle:  checkReady,
 		Handle: func(ctx context.Context) error {
-			_, err := services.Message.SyncMessages(ctx, 1, 20)
+			result, err := services.Message.SyncMessages(ctx, 1, 20)
+			if err == nil && result != nil {
+				log.Printf("[polling][private-messages-sync] sessions=%d fetched=%d inserted=%d existing=%d session_errors=%d insert_errors=%d", result.Sessions, result.Fetched, result.Inserted, result.Existing, result.SessionErrors, result.InsertErrors)
+			}
 			return err
 		},
 		PostHandle: postHandle,
@@ -268,7 +277,10 @@ func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager
 			if err != nil {
 				return err
 			}
-			_, err = services.Interaction.AutoInteractRecentFanVideos(ctx, cfg.Interaction, 20)
+			summary, err := services.Interaction.AutoInteractRecentFanVideos(ctx, cfg.Interaction, 20)
+			if err == nil && summary != nil {
+				log.Printf("[polling][fans-weekly-interact] total=%d like=%d coin=%d favorite=%d", summary.TotalCount, summary.LikedCount, summary.CoinedCount, summary.FavoritedCount)
+			}
 			return err
 		},
 		PostHandle: postHandle,
@@ -285,7 +297,10 @@ func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager
 			if err != nil {
 				return err
 			}
-			_, err = services.Message.AutoReplyNewFollowers(ctx, cfg.Interaction)
+			summary, err := services.Message.AutoReplyNewFollowers(ctx, cfg.Interaction)
+			if err == nil && summary != nil {
+				log.Printf("[polling][fans-follow-auto-reply] scanned=%d new=%d replied=%d failed=%d seeded=%d", summary.ScannedFans, summary.NewFans, summary.Replied, summary.Failed, summary.Seeded)
+			}
 			return err
 		},
 		PostHandle: postHandle,
