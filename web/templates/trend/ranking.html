@@ -40,10 +40,21 @@
     <!-- 热门标签 -->
     <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div class="p-6 border-b border-gray-100">
-            <h3 class="font-semibold text-gray-800 flex items-center">
-                <i class="ri-fire-line text-pink-500 mr-2"></i>
-                热门标签
-            </h3>
+            <div class="flex items-center justify-between">
+                <h3 class="font-semibold text-gray-800 flex items-center">
+                    <i class="ri-fire-line text-pink-500 mr-2"></i>
+                    热门标签
+                </h3>
+                <select id="tag-category-select" onchange="loadTrendingTags()" class="px-3 py-1 border border-gray-200 rounded-lg text-sm">
+                    <option value="">全部分区</option>
+                    <option value="游戏">游戏</option>
+                    <option value="生活">生活</option>
+                    <option value="音乐">音乐</option>
+                    <option value="动画">动画</option>
+                    <option value="知识">知识</option>
+                    <option value="科技">科技</option>
+                </select>
+            </div>
         </div>
         <div id="tag-list" class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
             <div class="p-8 text-center text-gray-400">
@@ -98,8 +109,13 @@
 {{ define "scripts" }}
 <script>
 async function loadTrendingTags() {
+    const category = document.getElementById('tag-category-select')?.value || '';
+    const query = new URLSearchParams({ limit: '50' });
+    if (category) {
+        query.set('category', category);
+    }
     try {
-        const response = await fetch('/admin/api/trends/tags?limit=50');
+        const response = await fetch(`/admin/api/trends/tags?${query.toString()}`);
         if (!response.ok) {
             const errBody = await response.json().catch(() => ({}));
             throw new Error(errBody.error || '获取热门标签失败');
@@ -110,29 +126,38 @@ async function loadTrendingTags() {
             renderTags(tags);
             return;
         }
-        await loadLatestRankingsAsTags();
+        await loadLatestRankingsAsTags(category);
     } catch (error) {
         try {
-            await loadLatestRankingsAsTags();
+            await loadLatestRankingsAsTags(category);
         } catch (fallbackError) {
             showToast('加载失败: ' + error.message, 'error');
         }
     }
 }
 
-async function loadLatestRankingsAsTags() {
-    const response = await fetch('/admin/api/trends/latest?limit=50');
+async function loadLatestRankingsAsTags(category) {
+    const query = new URLSearchParams({ limit: '50' });
+    if (category) {
+        query.set('category', category);
+    }
+    const response = await fetch(`/admin/api/trends/latest?${query.toString()}`);
     if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
         throw new Error(errBody.error || '获取历史热度失败');
     }
     const data = await response.json();
-    const rankings = data.rankings || [];
+    let rankings = data.rankings || [];
+    if (category) {
+        rankings = rankings.filter(item => (item.category || '') === category);
+    }
     const tags = rankings.map((item, index) => ({
         name: item.tag_name || item.name || '',
         hot_value: item.hot_value || 0,
         rank: item.rank || index + 1,
         category: item.category || '',
+        use_count: item.video_count || 0,
+        follow_count: 0,
     }));
     renderTags(tags);
 }
@@ -168,6 +193,9 @@ function renderTags(tags) {
     container.innerHTML = tags.map((tag, index) => {
         const name = tag.name || tag.tag_name || tag.Name || tag.TagName || '';
         const hotValue = tag.hot_value ?? tag.hotValue ?? tag.HotValue ?? 0;
+        const useCount = tag.use_count ?? tag.useCount ?? tag.UseCount ?? 0;
+        const followCount = tag.follow_count ?? tag.followCount ?? tag.FollowCount ?? 0;
+        const category = tag.category || tag.Category || '';
         return `
         <div class="tag-item flex items-center justify-between p-4 cursor-pointer" onclick="showTagDetail('${name}')">
             <div class="flex items-center space-x-3">
@@ -176,7 +204,10 @@ function renderTags(tags) {
                 } flex items-center justify-center font-bold text-sm">
                     ${index + 1}
                 </span>
-                <span class="text-gray-800">${name}</span>
+                <div>
+                    <span class="text-gray-800">${name}</span>
+                    <div class="text-xs text-gray-400 mt-1">使用 ${formatNumber(useCount)} · 关注 ${formatNumber(followCount)}${category ? ` · ${category}` : ''}</div>
+                </div>
             </div>
             <div class="text-right">
                 <span class="text-sm text-gray-500">${formatNumber(hotValue)}</span>

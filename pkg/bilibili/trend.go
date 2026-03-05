@@ -3,6 +3,8 @@ package bilibili
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"sync"
 )
 
 type TagRanking struct {
@@ -16,10 +18,12 @@ type TagRanking struct {
 }
 
 type TrendingTag struct {
-	Name     string `json:"name"`
-	HotValue int64  `json:"hot_value"`
-	Rank     int    `json:"rank"`
-	Category string `json:"category"`
+	Name        string `json:"name"`
+	HotValue    int64  `json:"hot_value"`
+	Rank        int    `json:"rank"`
+	Category    string `json:"category"`
+	UseCount    int64  `json:"use_count"`
+	FollowCount int64  `json:"follow_count"`
 }
 
 type VideoRanking struct {
@@ -41,23 +45,171 @@ func (c *Client) GetTrendingTags(ctx context.Context, limit int) ([]TrendingTag,
 	if err := c.ensureAvailable(); err != nil {
 		return nil, err
 	}
-	tags, err := c.inner.GetHotTags(0)
-	if err != nil {
-		return nil, fmt.Errorf("get trending tags failed: %w", err)
+	zones := trendingZones()
+	return c.getTrendingTagsFromZones(ctx, zones, limit)
+}
+
+func (c *Client) GetTrendingTagsByCategory(ctx context.Context, category string, limit int) ([]TrendingTag, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
+	if category == "" {
+		return c.GetTrendingTags(ctx, limit)
 	}
 
-	result := make([]TrendingTag, 0, len(tags))
-	for i, t := range tags {
-		if limit > 0 && i >= limit {
-			break
-		}
-		result = append(result, TrendingTag{
-			Name:     t.Name,
-			HotValue: t.Hot,
-			Rank:     i + 1,
-		})
+	zone, ok := resolveTrendZone(category)
+	if !ok {
+		return nil, fmt.Errorf("unsupported category: %s", category)
 	}
-	return result, nil
+
+	return c.getTrendingTagsFromZones(ctx, []trendZone{zone}, limit)
+}
+
+type trendZone struct {
+	rid      int32
+	category string
+}
+
+func trendingZones() []trendZone {
+	return []trendZone{
+		{rid: 3, category: "音乐"},
+		{rid: 4, category: "游戏"},
+		{rid: 36, category: "知识"},
+		{rid: 160, category: "生活"},
+		{rid: 188, category: "科技"},
+		{rid: 1, category: "动画"},
+	}
+}
+
+func resolveTrendZone(category string) (trendZone, bool) {
+	for _, zone := range trendingZones() {
+		if zone.category == category {
+			return zone, true
+		}
+	}
+
+	rid, err := strconv.Atoi(category)
+	if err == nil {
+		for _, zone := range trendingZones() {
+			if zone.rid == int32(rid) {
+				return zone, true
+			}
+		}
+		return trendZone{rid: int32(rid), category: fmt.Sprintf("分区%d", rid)}, true
+	}
+
+	return trendZone{}, false
+}
+
+func (c *Client) getTrendingTagsFromZones(ctx context.Context, zones []trendZone, limit int) ([]TrendingTag, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	result := make([]TrendingTag, 0, limit)
+	seenTagIDs := make(map[int64]struct{})
+	seenNames := make(map[string]struct{})
+	var lastErr error
+
+	for _, z := range zones {
+		tags, err := c.inner.GetHotTags(z.rid)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		for _, t := range tags {
+			if t.TagID != 0 {
+				if _, ok := seenTagIDs[t.TagID]; ok {
+					continue
+				}
+			}
+			if t.Name == "" {
+				continue
+			}
+			if _, ok := seenNames[t.Name]; ok {
+				continue
+			}
+
+			if t.TagID != 0 {
+				seenTagIDs[t.TagID] = struct{}{}
+			}
+			seenNames[t.Name] = struct{}{}
+
+			tag := TrendingTag{
+				Name:     t.Name,
+				HotValue: t.Hot,
+				Rank:     len(result) + 1,
+				Category: z.category,
+			}
+			if info, infoErr := c.inner.GetTagInfo(t.Name); infoErr == nil && info != nil {
+				tag.UseCount = info.Count.Use
+				tag.FollowCount = info.Count.Atten
+			}
+			result = append(result, tag)
+
+			if limit > 0 && len(result) >= limit {
+				return result[:limit], nil
+			}
+		}
+	}
+
+	if len(result) == 0 {
+		if lastErr != nil {
+			return nil, fmt.Errorf("get trending tags failed: %w", lastErr)
+		}
+		return nil, fmt.Errorf("get trending tags failed: empty result")
+	}
+
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+
+	return c.enrichTrendingTagsWithInfo(ctx, result, 5), nil
+}
+
+func (c *Client) enrichTrendingTagsWithInfo(ctx context.Context, tags []TrendingTag, maxConcurrency int) []TrendingTag {
+	if len(tags) == 0 {
+		return tags
+	}
+	if maxConcurrency <= 0 {
+		maxConcurrency = 5
+	}
+
+	enriched := make([]TrendingTag, len(tags))
+	copy(enriched, tags)
+
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+
+	for i := range enriched {
+		if ctx != nil {
+			select {
+			case <-ctx.Done():
+				return enriched
+			default:
+			}
+		}
+
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			info, err := c.inner.GetTagInfo(enriched[index].Name)
+			if err != nil || info == nil {
+				return
+			}
+
+			enriched[index].UseCount = info.Count.Use
+			enriched[index].FollowCount = info.Count.Atten
+		}(i)
+	}
+
+	wg.Wait()
+	return enriched
 }
 
 func (c *Client) GetTagRanking(ctx context.Context, tagName string, page, pageSize int) (*TagRanking, error) {

@@ -43,12 +43,12 @@ type TagRankingResult struct {
 }
 
 // GetTrendingTags 获取热门标签
-func (s *TrendService) GetTrendingTags(ctx context.Context, limit int) ([]bilibili.TrendingTag, error) {
+func (s *TrendService) GetTrendingTags(ctx context.Context, category string, limit int) ([]bilibili.TrendingTag, error) {
 	client, err := s.biliClient()
 	if err != nil {
 		return nil, err
 	}
-	return client.GetTrendingTags(ctx, limit)
+	return client.GetTrendingTagsByCategory(ctx, category, limit)
 }
 
 // GetTagDetail 获取标签详情
