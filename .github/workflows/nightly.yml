@@ -50,9 +50,9 @@ jobs:
           # 确保在项目根目录
           pwd
           ls -la
-          # 检查 main.go 是否存在（以确保在项目根可构建）
-          if [ ! -f "./main.go" ]; then
-            echo "::error:: 缺少 main.go，请检查代码提交"
+          # 检查 cmd/server 目录是否存在
+          if [ ! -d "./cmd/server" ]; then
+            echo "::error:: 缺少 cmd/server 目录，请检查代码提交"
             echo "当前目录内容:"
             find . -type f -name "*.go" | head -20
             exit 1
@@ -66,7 +66,7 @@ jobs:
           if $IS_PR ; then echo $PR_PROMPT; fi
           export BINARY_NAME="$BINARY_PREFIX$GOOS_$GOARCH$BINARY_SUFFIX"
           export CGO_ENABLED=0
-          go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" .
+          go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" ./cmd/server
       - name: Upload artifact
         uses: actions/upload-artifact@master
         if: ${{ !github.head_ref }}
