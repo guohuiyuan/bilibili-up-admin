@@ -79,13 +79,15 @@ func (Interaction) TableName() string { return "interactions" }
 
 type TagRanking struct {
 	BaseModel
-	TagName    string    `gorm:"column:tag_name;size:100;index" json:"tag_name"`
-	TagID      int64     `gorm:"column:tag_id" json:"tag_id"`
-	HotValue   int64     `gorm:"column:hot_value;default:0" json:"hot_value"`
-	VideoCount int       `gorm:"column:video_count;default:0" json:"video_count"`
-	Rank       int       `gorm:"column:rank;default:0" json:"rank"`
-	Category   string    `gorm:"column:category;size:50" json:"category"`
-	RecordDate time.Time `gorm:"column:record_date" json:"record_date"`
+	TagName     string    `gorm:"column:tag_name;size:100;index" json:"tag_name"`
+	TagID       int64     `gorm:"column:tag_id" json:"tag_id"`
+	HotValue    int64     `gorm:"column:hot_value;default:0" json:"hot_value"`
+	UseCount    int64     `gorm:"column:use_count;default:0" json:"use_count"`
+	FollowCount int64     `gorm:"column:follow_count;default:0" json:"follow_count"`
+	VideoCount  int       `gorm:"column:video_count;default:0" json:"video_count"`
+	Rank        int       `gorm:"column:rank;default:0" json:"rank"`
+	Category    string    `gorm:"column:category;size:50" json:"category"`
+	RecordDate  time.Time `gorm:"column:record_date" json:"record_date"`
 }
 
 func (TagRanking) TableName() string { return "tag_rankings" }

@@ -214,25 +214,12 @@ func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager
 
 	_ = mgr.Register(polling.Task{
 		Name:       "trend-taginfo-sync",
-		Interval:   10 * time.Minute,
-		Timeout:    90 * time.Second,
+		Interval:   15 * time.Minute,
+		Timeout:    180 * time.Second,
 		RunOnStart: true,
 		PreHandle:  checkReady,
 		Handle: func(ctx context.Context) error {
 			_, err := services.Trend.SyncTagInfoHotValues(ctx, 50)
-			return err
-		},
-		PostHandle: postHandle,
-	})
-
-	_ = mgr.Register(polling.Task{
-		Name:       "trend-tagrank-refresh",
-		Interval:   6 * time.Hour,
-		Timeout:    120 * time.Second,
-		RunOnStart: true,
-		PreHandle:  checkReady,
-		Handle: func(ctx context.Context) error {
-			_, _, err := services.Trend.EnsureLatestTags(ctx, "", 50, service.DefaultTrendCacheTTL)
 			return err
 		},
 		PostHandle: postHandle,

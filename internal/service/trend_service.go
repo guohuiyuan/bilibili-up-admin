@@ -15,8 +15,8 @@ import (
 const DefaultTrendCacheTTL = 6 * time.Hour
 
 const (
-	TagInfoPollMaxPerRun = 20
-	TagInfoPollInterval  = 1200 * time.Millisecond
+	TagInfoPollMaxPerRun = 8
+	TagInfoPollInterval  = 2 * time.Second
 )
 
 // TrendService 热度服务
@@ -84,11 +84,13 @@ func toTrendingTags(rankings []model.TagRanking) []bilibili.TrendingTag {
 	out := make([]bilibili.TrendingTag, 0, len(rankings))
 	for _, row := range rankings {
 		out = append(out, bilibili.TrendingTag{
-			TagID:    row.TagID,
-			Name:     row.TagName,
-			HotValue: row.HotValue,
-			Rank:     row.Rank,
-			Category: row.Category,
+			TagID:       row.TagID,
+			Name:        row.TagName,
+			HotValue:    row.HotValue,
+			UseCount:    row.UseCount,
+			FollowCount: row.FollowCount,
+			Rank:        row.Rank,
+			Category:    row.Category,
 		})
 	}
 	return out
@@ -154,12 +156,14 @@ func (s *TrendService) SaveTagRankings(ctx context.Context, tags []bilibili.Tren
 
 	for i, tag := range tags {
 		rankings = append(rankings, model.TagRanking{
-			TagName:    tag.Name,
-			TagID:      tag.TagID,
-			HotValue:   tag.HotValue,
-			Rank:       i + 1,
-			Category:   tag.Category,
-			RecordDate: now,
+			TagName:     tag.Name,
+			TagID:       tag.TagID,
+			HotValue:    tag.HotValue,
+			UseCount:    tag.UseCount,
+			FollowCount: tag.FollowCount,
+			Rank:        i + 1,
+			Category:    tag.Category,
+			RecordDate:  now,
 		})
 	}
 
@@ -217,49 +221,78 @@ func (s *TrendService) SyncTagInfoHotValues(ctx context.Context, limit int) (int
 	if len(ordered) > limit {
 		ordered = ordered[:limit]
 	}
-	if len(ordered) > TagInfoPollMaxPerRun {
-		ordered = ordered[:TagInfoPollMaxPerRun]
+	refreshIndexes := buildGradualRefreshIndexes(len(ordered), TagInfoPollMaxPerRun)
+	refreshSet := make(map[int]struct{}, len(refreshIndexes))
+	for _, index := range refreshIndexes {
+		refreshSet[index] = struct{}{}
 	}
 
 	tags := make([]bilibili.TrendingTag, 0, len(ordered))
+	refreshed := int(0)
 	for i, row := range ordered {
-		if i > 0 {
-			if ctx == nil {
-				time.Sleep(TagInfoPollInterval)
-			} else {
-				timer := time.NewTimer(TagInfoPollInterval)
-				select {
-				case <-ctx.Done():
-					timer.Stop()
-					return len(tags), ctx.Err()
-				case <-timer.C:
+		tag := bilibili.TrendingTag{
+			TagID:       row.TagID,
+			Name:        row.TagName,
+			HotValue:    row.HotValue,
+			Rank:        row.Rank,
+			Category:    row.Category,
+			UseCount:    row.UseCount,
+			FollowCount: row.FollowCount,
+		}
+
+		if _, ok := refreshSet[i]; ok {
+			if refreshed > 0 {
+				if ctx == nil {
+					time.Sleep(TagInfoPollInterval)
+				} else {
+					timer := time.NewTimer(TagInfoPollInterval)
+					select {
+					case <-ctx.Done():
+						timer.Stop()
+						return refreshed, ctx.Err()
+					case <-timer.C:
+					}
 				}
+			}
+
+			info, infoErr := client.GetTagInfo(ctx, row.TagName)
+			if infoErr == nil {
+				tag.TagID = info.TagID
+				tag.HotValue = info.HotValue
+				tag.UseCount = info.UseCount
+				tag.FollowCount = info.FollowCount
+				refreshed++
 			}
 		}
 
-		info, infoErr := client.GetTagInfo(ctx, row.TagName)
-		if infoErr != nil {
-			continue
-		}
-		tags = append(tags, bilibili.TrendingTag{
-			TagID:       info.TagID,
-			Name:        row.TagName,
-			HotValue:    info.HotValue,
-			Rank:        row.Rank,
-			Category:    row.Category,
-			UseCount:    info.UseCount,
-			FollowCount: info.FollowCount,
-		})
+		tags = append(tags, tag)
 	}
 
 	if len(tags) == 0 {
-		return 0, fmt.Errorf("sync tag info failed: empty result")
+		return 0, fmt.Errorf("sync tag info failed: empty cache")
 	}
 
 	if err := s.SaveTagRankings(ctx, tags); err != nil {
 		return 0, err
 	}
-	return len(tags), nil
+	return refreshed, nil
+}
+
+func buildGradualRefreshIndexes(total, maxPerRun int) []int {
+	if total <= 0 || maxPerRun <= 0 {
+		return nil
+	}
+	if maxPerRun > total {
+		maxPerRun = total
+	}
+
+	window := time.Now().Unix() / 60
+	start := int(window % int64(total))
+	indexes := make([]int, 0, maxPerRun)
+	for i := 0; i < maxPerRun; i++ {
+		indexes = append(indexes, (start+i)%total)
+	}
+	return indexes
 }
 
 // GetHistoricalRankings 获取历史排行
