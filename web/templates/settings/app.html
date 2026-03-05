@@ -56,6 +56,14 @@
                     <input id="interaction-enable-favorite" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-500">
                     <span>启用自动收藏</span>
                 </label>
+                <label class="flex items-center space-x-2 text-sm text-gray-700 md:col-span-2">
+                    <input id="interaction-enable-follow-auto-reply" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-500">
+                    <span>启用新关注粉丝自动回复</span>
+                </label>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">新关注粉丝自动回复内容</label>
+                    <textarea id="interaction-follow-auto-reply-content" rows="3" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="感谢关注！欢迎常来评论区交流～"></textarea>
+                </div>
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700">投币播放阈值</label>
                     <input id="interaction-coin-threshold" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="10000">
@@ -184,6 +192,8 @@ async function loadData() {
         document.getElementById("interaction-enable-like").checked = appData.interaction?.enable_like ?? true;
         document.getElementById("interaction-enable-coin").checked = appData.interaction?.enable_coin ?? true;
         document.getElementById("interaction-enable-favorite").checked = appData.interaction?.enable_favorite ?? false;
+        document.getElementById("interaction-enable-follow-auto-reply").checked = appData.interaction?.enable_follow_auto_reply ?? false;
+        document.getElementById("interaction-follow-auto-reply-content").value = appData.interaction?.follow_auto_reply_content || "感谢关注！欢迎常来评论区交流～";
         document.getElementById("interaction-coin-threshold").value = appData.interaction?.coin_play_threshold || 10000;
         document.getElementById("interaction-favorite-media-id").value = appData.interaction?.favorite_media_id || 0;
         document.getElementById("interaction-fan-page-size").value = appData.interaction?.fan_page_size || 20;
@@ -417,6 +427,8 @@ async function saveGeneralSettings() {
             enable_like: document.getElementById("interaction-enable-like").checked,
             enable_coin: document.getElementById("interaction-enable-coin").checked,
             enable_favorite: document.getElementById("interaction-enable-favorite").checked,
+            enable_follow_auto_reply: document.getElementById("interaction-enable-follow-auto-reply").checked,
+            follow_auto_reply_content: document.getElementById("interaction-follow-auto-reply-content").value.trim(),
             coin_play_threshold: Number(document.getElementById("interaction-coin-threshold").value || 10000),
             favorite_media_id: Number(document.getElementById("interaction-favorite-media-id").value || 0),
             fan_page_size: Number(document.getElementById("interaction-fan-page-size").value || 20),

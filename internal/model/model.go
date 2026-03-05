@@ -182,3 +182,16 @@ type AdminSession struct {
 }
 
 func (AdminSession) TableName() string { return "admin_sessions" }
+
+type FanAutoReplyRecord struct {
+	BaseModel
+	FanUID      int64      `gorm:"column:fan_uid;uniqueIndex;not null" json:"fan_uid"`
+	FanName     string     `gorm:"column:fan_name;size:100" json:"fan_name"`
+	LastSeenAt  *time.Time `gorm:"column:last_seen_at" json:"last_seen_at"`
+	Replied     bool       `gorm:"column:replied;default:false;index" json:"replied"`
+	RepliedAt   *time.Time `gorm:"column:replied_at" json:"replied_at"`
+	LastError   string     `gorm:"column:last_error;type:text" json:"last_error"`
+	ReplyDigest string     `gorm:"column:reply_digest;size:64" json:"reply_digest"`
+}
+
+func (FanAutoReplyRecord) TableName() string { return "fan_auto_reply_records" }

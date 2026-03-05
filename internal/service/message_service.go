@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -15,9 +17,10 @@ import (
 
 // MessageService 私信服务
 type MessageService struct {
-	runtime    *appruntime.Store
-	repo       *repository.MessageRepository
-	llmLogRepo *repository.LLMChatLogRepository
+	runtime      *appruntime.Store
+	repo         *repository.MessageRepository
+	llmLogRepo   *repository.LLMChatLogRepository
+	fanReplyRepo *repository.FanAutoReplyRecordRepository
 }
 
 // NewMessageService 创建私信服务
@@ -25,12 +28,22 @@ func NewMessageService(
 	runtime *appruntime.Store,
 	repo *repository.MessageRepository,
 	llmLogRepo *repository.LLMChatLogRepository,
+	fanReplyRepo *repository.FanAutoReplyRecordRepository,
 ) *MessageService {
 	return &MessageService{
-		runtime:    runtime,
-		repo:       repo,
-		llmLogRepo: llmLogRepo,
+		runtime:      runtime,
+		repo:         repo,
+		llmLogRepo:   llmLogRepo,
+		fanReplyRepo: fanReplyRepo,
 	}
+}
+
+type FollowAutoReplySummary struct {
+	ScannedFans int `json:"scanned_fans"`
+	NewFans     int `json:"new_fans"`
+	Replied     int `json:"replied"`
+	Failed      int `json:"failed"`
+	Seeded      int `json:"seeded"`
 }
 
 func (s *MessageService) biliClient() (*bilibili.Client, error) {
@@ -288,4 +301,103 @@ func (s *MessageService) GetUnreadCount(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	return client.GetUnreadMessageCount(ctx)
+}
+
+func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules InteractionRuleSettings) (*FollowAutoReplySummary, error) {
+	summary := &FollowAutoReplySummary{}
+	if s.fanReplyRepo == nil || !rules.EnableFollowAutoReply {
+		return summary, nil
+	}
+	content := strings.TrimSpace(rules.FollowAutoReplyContent)
+	if content == "" {
+		return summary, nil
+	}
+
+	client, err := s.biliClient()
+	if err != nil {
+		return nil, err
+	}
+
+	if rules.FanPageSize <= 0 {
+		rules.FanPageSize = 20
+	}
+	if rules.RequestIntervalSeconds <= 0 {
+		rules.RequestIntervalSeconds = 3
+	}
+	interval := time.Duration(rules.RequestIntervalSeconds) * time.Second
+
+	recordCount, err := s.fanReplyRepo.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	bootstrap := recordCount == 0
+	digest := sha256.Sum256([]byte(content))
+	replyDigest := hex.EncodeToString(digest[:])
+
+	for page := 1; page <= 3; page++ {
+		fans, err := client.ListFans(ctx, page, rules.FanPageSize)
+		if err != nil {
+			return nil, err
+		}
+		if len(fans) == 0 {
+			break
+		}
+
+		now := time.Now()
+		summary.ScannedFans += len(fans)
+		for _, fan := range fans {
+			record, err := s.fanReplyRepo.GetByFanUID(ctx, fan.UserID)
+			if err != nil {
+				continue
+			}
+
+			if record == nil {
+				record = &model.FanAutoReplyRecord{
+					FanUID:     fan.UserID,
+					FanName:    fan.UserName,
+					LastSeenAt: &now,
+					Replied:    bootstrap,
+				}
+				if bootstrap {
+					record.RepliedAt = &now
+					record.LastError = "seeded on first scan"
+				}
+				if err := s.fanReplyRepo.Create(ctx, record); err != nil {
+					continue
+				}
+				summary.NewFans++
+				if bootstrap {
+					summary.Seeded++
+					continue
+				}
+			}
+
+			record.FanName = fan.UserName
+			record.LastSeenAt = &now
+			if record.Replied && record.ReplyDigest == replyDigest {
+				_ = s.fanReplyRepo.Update(ctx, record)
+				continue
+			}
+
+			if err := client.SendMessage(ctx, fan.UserID, content); err != nil {
+				record.LastError = err.Error()
+				record.Replied = false
+				record.RepliedAt = nil
+				record.ReplyDigest = ""
+				summary.Failed++
+				_ = s.fanReplyRepo.Update(ctx, record)
+				continue
+			}
+
+			record.LastError = ""
+			record.Replied = true
+			record.RepliedAt = &now
+			record.ReplyDigest = replyDigest
+			summary.Replied++
+			_ = s.fanReplyRepo.Update(ctx, record)
+			time.Sleep(interval)
+		}
+	}
+
+	return summary, nil
 }

@@ -56,14 +56,16 @@ type LogSettings struct {
 }
 
 type InteractionRuleSettings struct {
-	EnableLike             bool  `json:"enable_like"`
-	EnableCoin             bool  `json:"enable_coin"`
-	EnableFavorite         bool  `json:"enable_favorite"`
-	CoinPlayThreshold      int64 `json:"coin_play_threshold"`
-	FavoriteMediaID        int64 `json:"favorite_media_id"`
-	FanPageSize            int   `json:"fan_page_size"`
-	VideoPageSize          int   `json:"video_page_size"`
-	RequestIntervalSeconds int   `json:"request_interval_seconds"`
+	EnableLike             bool   `json:"enable_like"`
+	EnableCoin             bool   `json:"enable_coin"`
+	EnableFavorite         bool   `json:"enable_favorite"`
+	EnableFollowAutoReply  bool   `json:"enable_follow_auto_reply"`
+	FollowAutoReplyContent string `json:"follow_auto_reply_content"`
+	CoinPlayThreshold      int64  `json:"coin_play_threshold"`
+	FavoriteMediaID        int64  `json:"favorite_media_id"`
+	FanPageSize            int    `json:"fan_page_size"`
+	VideoPageSize          int    `json:"video_page_size"`
+	RequestIntervalSeconds int    `json:"request_interval_seconds"`
 }
 
 type AppSettings struct {
@@ -121,6 +123,9 @@ func (s *AppSettingsService) Load(ctx context.Context) (*AppSettings, error) {
 	}
 	if app.Interaction.RequestIntervalSeconds <= 0 {
 		app.Interaction.RequestIntervalSeconds = 3
+	}
+	if app.Interaction.FollowAutoReplyContent == "" {
+		app.Interaction.FollowAutoReplyContent = "感谢关注！欢迎常来评论区交流～"
 	}
 
 	// 2. [核心改变]：从独立的 llm_providers 实体表中提取模型配置

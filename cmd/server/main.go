@@ -158,6 +158,7 @@ func initDatabase() (*gorm.DB, error) {
 		&model.User{},
 		&model.AdminUser{},
 		&model.AdminSession{},
+		&model.FanAutoReplyRecord{},
 		&model.Comment{},
 		&model.Message{},
 		&model.Interaction{},
@@ -268,6 +269,23 @@ func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager
 				return err
 			}
 			_, err = services.Interaction.AutoInteractRecentFanVideos(ctx, cfg.Interaction, 20)
+			return err
+		},
+		PostHandle: postHandle,
+	})
+
+	_ = mgr.Register(polling.Task{
+		Name:       "fans-follow-auto-reply",
+		Interval:   2 * time.Minute,
+		Timeout:    90 * time.Second,
+		RunOnStart: true,
+		PreHandle:  checkReady,
+		Handle: func(ctx context.Context) error {
+			cfg, err := services.Settings.Load(ctx)
+			if err != nil {
+				return err
+			}
+			_, err = services.Message.AutoReplyNewFollowers(ctx, cfg.Interaction)
 			return err
 		},
 		PostHandle: postHandle,
@@ -395,6 +413,7 @@ type Repositories struct {
 	LLMProvider  *repository.LLMProviderRepository // 新增这一行
 	AdminUser    *repository.AdminUserRepository
 	AdminSession *repository.AdminSessionRepository
+	FanAutoReply *repository.FanAutoReplyRecordRepository
 }
 
 func initRepositories(db *gorm.DB) *Repositories {
@@ -408,6 +427,7 @@ func initRepositories(db *gorm.DB) *Repositories {
 		LLMProvider:  repository.NewLLMProviderRepository(db), // 新增这一行
 		AdminUser:    repository.NewAdminUserRepository(db),
 		AdminSession: repository.NewAdminSessionRepository(db),
+		FanAutoReply: repository.NewFanAutoReplyRecordRepository(db),
 	}
 }
 
@@ -424,7 +444,7 @@ type Services struct {
 func initServices(runtime *appruntime.Store, settings *service.AppSettingsService, repos *Repositories) *Services {
 	return &Services{
 		Comment:     service.NewCommentService(runtime, repos.Comment, repos.LLMChatLog),
-		Message:     service.NewMessageService(runtime, repos.Message, repos.LLMChatLog),
+		Message:     service.NewMessageService(runtime, repos.Message, repos.LLMChatLog, repos.FanAutoReply),
 		Interaction: service.NewInteractionService(runtime, repos.Interaction),
 		Trend:       service.NewTrendService(runtime, repos.TagRanking),
 		LLM:         service.NewLLMService(runtime, repos.LLMChatLog),

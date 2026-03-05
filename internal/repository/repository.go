@@ -578,6 +578,40 @@ func (r *AdminSessionRepository) Update(ctx context.Context, session *model.Admi
 	return r.db.WithContext(ctx).Save(session).Error
 }
 
+type FanAutoReplyRecordRepository struct {
+	db *gorm.DB
+}
+
+func NewFanAutoReplyRecordRepository(db *gorm.DB) *FanAutoReplyRecordRepository {
+	return &FanAutoReplyRecordRepository{db: db}
+}
+
+func (r *FanAutoReplyRecordRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.FanAutoReplyRecord{}).Count(&count).Error
+	return count, err
+}
+
+func (r *FanAutoReplyRecordRepository) GetByFanUID(ctx context.Context, fanUID int64) (*model.FanAutoReplyRecord, error) {
+	var record model.FanAutoReplyRecord
+	err := r.db.WithContext(ctx).Where("fan_uid = ?", fanUID).First(&record).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (r *FanAutoReplyRecordRepository) Create(ctx context.Context, record *model.FanAutoReplyRecord) error {
+	return r.db.WithContext(ctx).Create(record).Error
+}
+
+func (r *FanAutoReplyRecordRepository) Update(ctx context.Context, record *model.FanAutoReplyRecord) error {
+	return r.db.WithContext(ctx).Save(record).Error
+}
+
 func (r *LLMProviderRepository) List(ctx context.Context) ([]model.LLMProvider, error) {
 	var list []model.LLMProvider
 	err := r.db.WithContext(ctx).Find(&list).Error
