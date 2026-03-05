@@ -50,6 +50,7 @@ type Message struct {
 	SenderID     int64      `gorm:"column:sender_uid;index;not null" json:"sender_uid"`
 	SenderName   string     `gorm:"column:sender_name;size:100" json:"sender_name"`
 	SenderFace   string     `gorm:"column:sender_face;size:500" json:"sender_face"`
+	IsFromSelf   bool       `gorm:"column:is_from_self;default:false;index" json:"is_from_self"`
 	Content      string     `gorm:"column:content;type:text;not null" json:"content"`
 	MsgType      int        `gorm:"column:msg_type;default:1" json:"msg_type"`
 	ReplyStatus  int        `gorm:"column:reply_status;default:0;index" json:"reply_status"` // 0=未回复, 1=已回复, 2=忽略

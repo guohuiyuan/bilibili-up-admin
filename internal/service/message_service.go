@@ -86,6 +86,17 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 	if err != nil {
 		return nil, err
 	}
+
+	selfUID := int64(0)
+	if cfg := client.GetConfig(); cfg != nil {
+		selfUID = cfg.UserID
+	}
+	if selfUID == 0 {
+		if user, userErr := client.GetUserInfo(ctx); userErr == nil {
+			selfUID = user.Mid
+		}
+	}
+
 	list, err := client.GetMessages(ctx, page, pageSize)
 	if err != nil {
 		return nil, fmt.Errorf("get messages failed: %w", err)
@@ -115,12 +126,18 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 				continue
 			}
 
+			isFromSelf := selfUID > 0 && m.SenderID == selfUID
+
 			senderName := m.SenderName
 			if senderName == "" {
 				senderName = session.UserName
 			}
 			if senderName == "" {
-				senderName = fmt.Sprintf("用户%d", m.SenderID)
+				if isFromSelf {
+					senderName = "我"
+				} else {
+					senderName = fmt.Sprintf("用户%d", m.SenderID)
+				}
 			}
 
 			message := &model.Message{
@@ -128,8 +145,9 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 				SenderID:    m.SenderID,
 				SenderName:  senderName,
 				SenderFace:  session.UserFace,
+				IsFromSelf:  isFromSelf,
 				Content:     m.Content,
-				ReplyStatus: 0,
+				ReplyStatus: map[bool]int{true: 1, false: 0}[isFromSelf],
 				MessageTime: &[]time.Time{time.Unix(m.Time, 0)}[0],
 			}
 
@@ -252,6 +270,7 @@ func (s *MessageService) ManualReply(ctx context.Context, messageID int64, sende
 	return s.repo.Create(ctx, &model.Message{
 		MessageID:    messageID,
 		SenderID:     senderID,
+		IsFromSelf:   true,
 		ReplyStatus:  1,
 		ReplyContent: content,
 	})
