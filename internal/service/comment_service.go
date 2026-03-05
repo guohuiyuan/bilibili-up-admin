@@ -13,6 +13,8 @@ import (
 	"bilibili-up-admin/pkg/llm"
 )
 
+const commentPollInterval = 2 * time.Second
+
 // CommentService 评论服务
 type CommentService struct {
 	runtime    *appruntime.Store
@@ -145,13 +147,13 @@ func isDuplicateCommentError(err error) bool {
 // SyncRecentVideoComments 同步近期投稿视频评论（用于轮询）
 func (s *CommentService) SyncRecentVideoComments(ctx context.Context, videoCount, page, pageSize int) (*CommentSyncResult, error) {
 	if videoCount <= 0 {
-		videoCount = 5
+		videoCount = 3
 	}
 	if page <= 0 {
 		page = 1
 	}
 	if pageSize <= 0 {
-		pageSize = 30
+		pageSize = 20
 	}
 
 	videos, err := s.GetMyVideos(ctx, 1, videoCount)
@@ -160,7 +162,17 @@ func (s *CommentService) SyncRecentVideoComments(ctx context.Context, videoCount
 	}
 
 	result := &CommentSyncResult{Videos: len(videos.List.VList)}
-	for _, v := range videos.List.VList {
+	for i, v := range videos.List.VList {
+		if i > 0 {
+			timer := time.NewTimer(commentPollInterval)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return result, ctx.Err()
+			case <-timer.C:
+			}
+		}
+
 		inserted, syncErr := s.SyncFromVideo(ctx, v.BVID, page, pageSize)
 		if syncErr != nil {
 			result.VideoError++

@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"sync"
+	"time"
 )
+
+const tagInfoMinInterval = 1200 * time.Millisecond
 
 type TagRanking struct {
 	TagName    string      `json:"tag_name"`
@@ -18,6 +20,7 @@ type TagRanking struct {
 }
 
 type TrendingTag struct {
+	TagID       int64  `json:"tag_id"`
 	Name        string `json:"name"`
 	HotValue    int64  `json:"hot_value"`
 	Rank        int    `json:"rank"`
@@ -40,6 +43,32 @@ const (
 	RankingWeekly  RankingPeriod = "week"
 	RankingMonthly RankingPeriod = "month"
 )
+
+type TagInfo struct {
+	TagID       int64 `json:"tag_id"`
+	HotValue    int64 `json:"hot_value"`
+	UseCount    int64 `json:"use_count"`
+	FollowCount int64 `json:"follow_count"`
+}
+
+func (c *Client) GetTagInfo(ctx context.Context, tagName string) (*TagInfo, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
+	info, err := c.inner.GetTagInfo(tagName)
+	if err != nil {
+		return nil, fmt.Errorf("get tag info failed: %w", err)
+	}
+	if info == nil {
+		return nil, fmt.Errorf("get tag info failed: empty result")
+	}
+	return &TagInfo{
+		TagID:       info.TagID,
+		HotValue:    info.Hot,
+		UseCount:    info.Count.Use,
+		FollowCount: info.Count.Atten,
+	}, nil
+}
 
 func (c *Client) GetTrendingTags(ctx context.Context, limit int) ([]TrendingTag, error) {
 	if err := c.ensureAvailable(); err != nil {
@@ -137,14 +166,11 @@ func (c *Client) getTrendingTagsFromZones(ctx context.Context, zones []trendZone
 			seenNames[t.Name] = struct{}{}
 
 			tag := TrendingTag{
+				TagID:    t.TagID,
 				Name:     t.Name,
 				HotValue: t.Hot,
 				Rank:     len(result) + 1,
 				Category: z.category,
-			}
-			if info, infoErr := c.inner.GetTagInfo(t.Name); infoErr == nil && info != nil {
-				tag.UseCount = info.Count.Use
-				tag.FollowCount = info.Count.Atten
 			}
 			result = append(result, tag)
 
@@ -172,16 +198,9 @@ func (c *Client) enrichTrendingTagsWithInfo(ctx context.Context, tags []Trending
 	if len(tags) == 0 {
 		return tags
 	}
-	if maxConcurrency <= 0 {
-		maxConcurrency = 5
-	}
 
 	enriched := make([]TrendingTag, len(tags))
 	copy(enriched, tags)
-
-	sem := make(chan struct{}, maxConcurrency)
-	var wg sync.WaitGroup
-
 	for i := range enriched {
 		if ctx != nil {
 			select {
@@ -191,24 +210,30 @@ func (c *Client) enrichTrendingTagsWithInfo(ctx context.Context, tags []Trending
 			}
 		}
 
-		wg.Add(1)
-		go func(index int) {
-			defer wg.Done()
-
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			info, err := c.inner.GetTagInfo(enriched[index].Name)
-			if err != nil || info == nil {
-				return
+		if i > 0 {
+			if ctx == nil {
+				time.Sleep(tagInfoMinInterval)
+			} else {
+				timer := time.NewTimer(tagInfoMinInterval)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return enriched
+				case <-timer.C:
+				}
 			}
+		}
 
-			enriched[index].UseCount = info.Count.Use
-			enriched[index].FollowCount = info.Count.Atten
-		}(i)
+		info, err := c.inner.GetTagInfo(enriched[i].Name)
+		if err != nil || info == nil {
+			continue
+		}
+
+		enriched[i].TagID = info.TagID
+		enriched[i].HotValue = info.Hot
+		enriched[i].UseCount = info.Count.Use
+		enriched[i].FollowCount = info.Count.Atten
 	}
-
-	wg.Wait()
 	return enriched
 }
 

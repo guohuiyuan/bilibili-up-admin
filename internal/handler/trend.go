@@ -1,11 +1,9 @@
 package handler
 
 import (
+	"bilibili-up-admin/internal/service"
 	"net/http"
 	"strconv"
-	"time"
-
-	"bilibili-up-admin/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,7 +23,7 @@ func (h *TrendHandler) TrendingTags(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	category := c.Query("category")
 
-	tags, err := h.svc.GetTrendingTagsSmart(c.Request.Context(), category, limit, 30*time.Minute)
+	tags, err := h.svc.GetTrendingTagsFromDB(c.Request.Context(), category, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

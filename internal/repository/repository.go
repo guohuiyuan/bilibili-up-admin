@@ -300,15 +300,18 @@ func (r *TagRankingRepository) GetLatest(ctx context.Context, limit int) ([]mode
 func (r *TagRankingRepository) GetLatestByCategory(ctx context.Context, category string, limit int) ([]model.TagRanking, error) {
 	var rankings []model.TagRanking
 	query := r.db.WithContext(ctx).Model(&model.TagRanking{})
+	subQuery := r.db.WithContext(ctx).Model(&model.TagRanking{})
 	if category != "" {
 		query = query.Where("category = ?", category)
+		subQuery = subQuery.Where("category = ?", category)
 	}
 
-	err := query.
-		Where("record_date = (?)", query.Select("MAX(record_date)")).
-		Order("rank ASC").
-		Limit(limit).
-		Find(&rankings).Error
+	query = query.Where("record_date = (?)", subQuery.Select("MAX(record_date)")).Order("rank ASC")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	err := query.Find(&rankings).Error
 	return rankings, err
 }
 
