@@ -9,10 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"bilibili-up-admin/config"
 	"bilibili-up-admin/internal/handler"
 	"bilibili-up-admin/internal/model"
+	"bilibili-up-admin/internal/polling"
 	"bilibili-up-admin/internal/repository"
 	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/internal/service"
@@ -61,7 +63,8 @@ func main() {
 	defer zapLogger.Sync()
 
 	services := initServices(runtimeStore, settingsSvc, repos)
-	handlers := initHandlers(services, settingsSvc, runtimeStore)
+	pollingManager := initPolling(runtimeStore, services)
+	handlers := initHandlers(services, settingsSvc, runtimeStore, pollingManager)
 	router := initRouter(handlers, config.GlobalConfig.Server.Mode)
 
 	addr := fmt.Sprintf(":%d", config.GlobalConfig.Server.Port)
@@ -73,6 +76,14 @@ func main() {
 	fmt.Printf("========================================================\n\n")
 
 	zapLogger.Info("server starting", zap.String("addr", addr), zap.String("url", localURL))
+	pollingManager.SetLogger(func(format string, args ...any) {
+		zapLogger.Sugar().Infof(format, args...)
+	})
+	if err := pollingManager.Start(context.Background()); err != nil {
+		zapLogger.Fatal("start polling manager failed", zap.Error(err))
+	}
+	defer pollingManager.Stop(context.Background())
+
 	if err := router.Run(addr); err != nil {
 		zapLogger.Fatal("server start failed", zap.Error(err))
 	}
@@ -136,6 +147,10 @@ func initDatabase() (*gorm.DB, error) {
 		return nil, fmt.Errorf("open database failed: %w", err)
 	}
 
+	if err := configureSQLiteConcurrency(db, dbConfig.Driver); err != nil {
+		return nil, err
+	}
+
 	if err := db.AutoMigrate(
 		&model.User{},
 		&model.Comment{},
@@ -151,6 +166,92 @@ func initDatabase() (*gorm.DB, error) {
 	}
 
 	return db, nil
+}
+
+func configureSQLiteConcurrency(db *gorm.DB, driver string) error {
+	if driver != "" && driver != "sqlite" {
+		return nil
+	}
+
+	pragmas := []string{
+		"PRAGMA journal_mode=WAL;",
+		"PRAGMA synchronous=NORMAL;",
+		"PRAGMA busy_timeout=5000;",
+		"PRAGMA wal_autocheckpoint=1000;",
+		"PRAGMA temp_store=MEMORY;",
+	}
+	for _, stmt := range pragmas {
+		if err := db.Exec(stmt).Error; err != nil {
+			return fmt.Errorf("apply sqlite pragma failed (%s): %w", stmt, err)
+		}
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("get sql db failed: %w", err)
+	}
+	sqlDB.SetMaxOpenConns(64)
+	sqlDB.SetMaxIdleConns(32)
+	sqlDB.SetConnMaxLifetime(0)
+	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
+
+	return nil
+}
+
+func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager {
+	mgr := polling.NewManager()
+
+	checkReady := func(_ context.Context) error {
+		if runtime == nil || runtime.BilibiliClient() == nil {
+			return polling.ErrSkipTask
+		}
+		return nil
+	}
+
+	postHandle := func(_ context.Context, runErr error) error {
+		return runErr
+	}
+
+	_ = mgr.Register(polling.Task{
+		Name:       "trend-tags-sync",
+		Interval:   30 * time.Minute,
+		Timeout:    90 * time.Second,
+		RunOnStart: true,
+		PreHandle:  checkReady,
+		Handle: func(ctx context.Context) error {
+			_, _, err := services.Trend.EnsureLatestTags(ctx, "", 50, service.DefaultTrendCacheTTL)
+			return err
+		},
+		PostHandle: postHandle,
+	})
+
+	_ = mgr.Register(polling.Task{
+		Name:       "video-comments-sync",
+		Interval:   2 * time.Minute,
+		Timeout:    90 * time.Second,
+		RunOnStart: true,
+		PreHandle:  checkReady,
+		Handle: func(ctx context.Context) error {
+			_, err := services.Comment.SyncRecentVideoComments(ctx, 5, 1, 30)
+			return err
+		},
+		PostHandle: postHandle,
+	})
+
+	_ = mgr.Register(polling.Task{
+		Name:       "private-messages-sync",
+		Interval:   1 * time.Minute,
+		Timeout:    90 * time.Second,
+		RunOnStart: true,
+		PreHandle:  checkReady,
+		Handle: func(ctx context.Context) error {
+			_, err := services.Message.SyncMessages(ctx, 1, 20)
+			return err
+		},
+		PostHandle: postHandle,
+	})
+
+	return mgr
 }
 
 func ensureDir(dir string) error {
@@ -305,24 +406,26 @@ func initServices(runtime *appruntime.Store, settings *service.AppSettingsServic
 }
 
 type Handlers struct {
-	Page        *handler.PageHandler
-	Comment     *handler.CommentHandler
-	Message     *handler.MessageHandler
-	Interaction *handler.InteractionHandler
-	Trend       *handler.TrendHandler
-	LLM         *handler.LLMHandler
-	Settings    *handler.SettingsHandler
+	Page          *handler.PageHandler
+	Comment       *handler.CommentHandler
+	Message       *handler.MessageHandler
+	Interaction   *handler.InteractionHandler
+	Trend         *handler.TrendHandler
+	LLM           *handler.LLMHandler
+	Settings      *handler.SettingsHandler
+	Observability *handler.ObservabilityHandler
 }
 
-func initHandlers(services *Services, settings *service.AppSettingsService, runtime *appruntime.Store) *Handlers {
+func initHandlers(services *Services, settings *service.AppSettingsService, runtime *appruntime.Store, pollingManager *polling.Manager) *Handlers {
 	return &Handlers{
-		Page:        handler.NewPageHandler(),
-		Comment:     handler.NewCommentHandler(services.Comment),
-		Message:     handler.NewMessageHandler(services.Message),
-		Interaction: handler.NewInteractionHandler(services.Interaction),
-		Trend:       handler.NewTrendHandler(services.Trend),
-		LLM:         handler.NewLLMHandler(services.LLM),
-		Settings:    handler.NewSettingsHandler(settings, runtime),
+		Page:          handler.NewPageHandler(),
+		Comment:       handler.NewCommentHandler(services.Comment),
+		Message:       handler.NewMessageHandler(services.Message),
+		Interaction:   handler.NewInteractionHandler(services.Interaction),
+		Trend:         handler.NewTrendHandler(services.Trend),
+		LLM:           handler.NewLLMHandler(services.LLM),
+		Settings:      handler.NewSettingsHandler(settings, runtime),
+		Observability: handler.NewObservabilityHandler(pollingManager),
 	}
 }
 
@@ -361,6 +464,8 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 
 		api := admin.Group("/api")
 		{
+			api.GET("/observability/polling", h.Observability.PollingStats)
+
 			api.GET("/comments", h.Comment.List)
 			api.POST("/comments/sync", h.Comment.Sync)
 			api.GET("/comments/my-videos", h.Comment.GetMyVideos)

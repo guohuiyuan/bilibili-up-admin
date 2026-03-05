@@ -53,6 +53,39 @@
             <div class="text-center text-gray-400 py-8"><i class="ri-loader-4-line animate-spin text-2xl"></i><p>加载中...</p></div>
         </div>
     </section>
+
+    <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-gray-100 pb-4">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800">轮询可观测性</h3>
+                <p class="mt-1 text-xs text-gray-500">展示标签、评论、私信轮询任务的运行状态与统计信息。</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span id="polling-overview" class="text-xs text-gray-500">加载中...</span>
+                <button type="button" onclick="loadPollingStats().catch(err => showToast(err.message, 'error'))" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-pink-300 hover:text-pink-500 transition">
+                    <i class="ri-refresh-line mr-1"></i>刷新
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
+                        <th class="py-2 pr-4">任务</th>
+                        <th class="py-2 pr-4">状态</th>
+                        <th class="py-2 pr-4">成功/失败/跳过</th>
+                        <th class="py-2 pr-4">最近耗时</th>
+                        <th class="py-2 pr-4">最近执行</th>
+                        <th class="py-2 pr-4">下次执行</th>
+                        <th class="py-2 pr-4">最近错误</th>
+                    </tr>
+                </thead>
+                <tbody id="polling-stats-body">
+                    <tr><td colspan="7" class="py-6 text-center text-gray-400">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 </div>
 
 <div id="add-provider-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center">
@@ -82,6 +115,7 @@
 <script>
 let availableChannels = [];
 let currentProviders = {};
+let pollingStatsTimer = null;
 
 // 动态兼容有无 /admin 前缀
 function getApiPrefix() {
@@ -124,6 +158,71 @@ async function loadData() {
     } catch(err) {
         showToast('加载失败: ' + err.message, 'error');
     }
+}
+
+function formatDateTime(value) {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    return d.toLocaleString();
+}
+
+function escapeHtml(value) {
+    const text = value == null ? '' : String(value);
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function renderPollingStats(data) {
+    const body = document.getElementById('polling-stats-body');
+    const overview = document.getElementById('polling-overview');
+    const tasks = data?.tasks || [];
+    overview.textContent = `状态: ${data?.started ? '运行中' : '未启动'} · 任务数: ${tasks.length}`;
+
+    if (tasks.length === 0) {
+        body.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400">暂无轮询任务</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = tasks.map(task => {
+        const statusText = task.running ? '运行中' : '空闲';
+        const statusClass = task.running ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-gray-600 bg-gray-50 border-gray-200';
+        const hasFailure = (task.failure_count || 0) > 0;
+        const rowClass = hasFailure ? 'bg-red-50/60 border-red-100' : 'border-gray-50';
+        const lastError = (task.last_error || '').trim();
+        const errorCell = lastError
+            ? `<details class="group max-w-xl">
+                    <summary class="cursor-pointer text-red-500 hover:text-red-600 list-none">
+                        <span class="inline-flex items-center text-xs"><i class="ri-alert-line mr-1"></i>展开错误详情</span>
+                    </summary>
+                    <pre class="mt-2 max-h-28 overflow-auto whitespace-pre-wrap rounded-md border border-red-100 bg-red-50 p-2 text-xs text-red-600">${escapeHtml(lastError)}</pre>
+               </details>`
+            : '-';
+        return `
+            <tr class="border-b align-top ${rowClass}">
+                <td class="py-3 pr-4">
+                    <div class="font-medium text-gray-800">${task.name || '-'}</div>
+                    <div class="text-xs text-gray-400">间隔 ${task.interval_second || 0}s · 超时 ${task.timeout_second || 0}s</div>
+                </td>
+                <td class="py-3 pr-4">
+                    <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs ${statusClass}">${statusText}</span>
+                </td>
+                <td class="py-3 pr-4 text-gray-700">${task.success_count || 0} / ${task.failure_count || 0} / ${task.skip_count || 0}</td>
+                <td class="py-3 pr-4 text-gray-700">${task.last_duration_ms || 0} ms</td>
+                <td class="py-3 pr-4 text-gray-500">${formatDateTime(task.last_finished_at)}</td>
+                <td class="py-3 pr-4 text-gray-500">${formatDateTime(task.next_run_at)}</td>
+                <td class="py-3 pr-4 text-xs text-red-500 break-all">${errorCell}</td>
+            </tr>`;
+    }).join('');
+}
+
+async function loadPollingStats() {
+    const data = await api(`${getApiPrefix()}/api/observability/polling`);
+    renderPollingStats(data);
 }
 
 // 渲染大模型列表卡片
@@ -288,6 +387,21 @@ async function saveGeneralSettings() {
 document.addEventListener("DOMContentLoaded", () => {
     loadChannels(); // 先获取渠道拉取下拉条
     loadData().catch(err => showToast("初始化失败: " + err.message, "error"));
+
+    loadPollingStats().catch(err => {
+        document.getElementById('polling-overview').textContent = '轮询状态加载失败';
+        document.getElementById('polling-stats-body').innerHTML = `<tr><td colspan="7" class="py-6 text-center text-red-400">${err.message}</td></tr>`;
+    });
+    pollingStatsTimer = setInterval(() => {
+        loadPollingStats().catch(() => {});
+    }, 10000);
+});
+
+window.addEventListener('beforeunload', () => {
+    if (pollingStatsTimer) {
+        clearInterval(pollingStatsTimer);
+        pollingStatsTimer = null;
+    }
 });
 </script>
 {{ end }}

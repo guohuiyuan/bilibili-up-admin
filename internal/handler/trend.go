@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"bilibili-up-admin/internal/service"
 
@@ -24,7 +25,7 @@ func (h *TrendHandler) TrendingTags(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	category := c.Query("category")
 
-	tags, err := h.svc.GetTrendingTags(c.Request.Context(), category, limit)
+	tags, err := h.svc.GetTrendingTagsSmart(c.Request.Context(), category, limit, 30*time.Minute)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

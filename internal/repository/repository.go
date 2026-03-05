@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -293,6 +294,39 @@ func (r *TagRankingRepository) GetLatest(ctx context.Context, limit int) ([]mode
 		Limit(limit).
 		Find(&rankings).Error
 	return rankings, err
+}
+
+// GetLatestByCategory 获取分类下最新一批排行
+func (r *TagRankingRepository) GetLatestByCategory(ctx context.Context, category string, limit int) ([]model.TagRanking, error) {
+	var rankings []model.TagRanking
+	query := r.db.WithContext(ctx).Model(&model.TagRanking{})
+	if category != "" {
+		query = query.Where("category = ?", category)
+	}
+
+	err := query.
+		Where("record_date = (?)", query.Select("MAX(record_date)")).
+		Order("rank ASC").
+		Limit(limit).
+		Find(&rankings).Error
+	return rankings, err
+}
+
+// LatestRecordAt 获取分类最新记录时间
+func (r *TagRankingRepository) LatestRecordAt(ctx context.Context, category string) (*time.Time, error) {
+	query := r.db.WithContext(ctx).Model(&model.TagRanking{})
+	if category != "" {
+		query = query.Where("category = ?", category)
+	}
+
+	var latest sql.NullTime
+	if err := query.Select("MAX(record_date)").Scan(&latest).Error; err != nil {
+		return nil, err
+	}
+	if !latest.Valid {
+		return nil, nil
+	}
+	return &latest.Time, nil
 }
 
 // LLMChatLogRepository 大模型对话日志仓库

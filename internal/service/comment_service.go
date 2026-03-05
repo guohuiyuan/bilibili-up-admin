@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"bilibili-up-admin/internal/model"
@@ -70,6 +71,12 @@ type MyVideoItem struct {
 	Created int64  `json:"created"`
 }
 
+type CommentSyncResult struct {
+	Inserted   int `json:"inserted"`
+	Videos     int `json:"videos"`
+	VideoError int `json:"video_error"`
+}
+
 // List 获取评论列表
 func (s *CommentService) List(ctx context.Context, videoBVID string, replyStatus int, page, pageSize int) (*CommentListResult, error) {
 	comments, total, err := s.repo.List(ctx, videoBVID, replyStatus, page, pageSize)
@@ -116,12 +123,53 @@ func (s *CommentService) SyncFromVideo(ctx context.Context, bvID string, page, p
 		}
 
 		if err := s.repo.Create(ctx, comment); err != nil {
+			if isDuplicateCommentError(err) {
+				continue
+			}
 			continue
 		}
 		count++
 	}
 
 	return count, nil
+}
+
+func isDuplicateCommentError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique") || strings.Contains(msg, "duplicate")
+}
+
+// SyncRecentVideoComments 同步近期投稿视频评论（用于轮询）
+func (s *CommentService) SyncRecentVideoComments(ctx context.Context, videoCount, page, pageSize int) (*CommentSyncResult, error) {
+	if videoCount <= 0 {
+		videoCount = 5
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 30
+	}
+
+	videos, err := s.GetMyVideos(ctx, 1, videoCount)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &CommentSyncResult{Videos: len(videos.List.VList)}
+	for _, v := range videos.List.VList {
+		inserted, syncErr := s.SyncFromVideo(ctx, v.BVID, page, pageSize)
+		if syncErr != nil {
+			result.VideoError++
+			continue
+		}
+		result.Inserted += inserted
+	}
+
+	return result, nil
 }
 
 // AIReply 使用AI生成回复

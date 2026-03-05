@@ -11,6 +11,8 @@ import (
 	"bilibili-up-admin/pkg/bilibili"
 )
 
+const DefaultTrendCacheTTL = 30 * time.Minute
+
 // TrendService 热度服务
 type TrendService struct {
 	runtime *appruntime.Store
@@ -49,6 +51,59 @@ func (s *TrendService) GetTrendingTags(ctx context.Context, category string, lim
 		return nil, err
 	}
 	return client.GetTrendingTagsByCategory(ctx, category, limit)
+}
+
+// GetTrendingTagsSmart 优先读取缓存，不存在或过期时回源并刷新
+func (s *TrendService) GetTrendingTagsSmart(ctx context.Context, category string, limit int, ttl time.Duration) ([]bilibili.TrendingTag, error) {
+	rankings, _, err := s.EnsureLatestTags(ctx, category, limit, ttl)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]bilibili.TrendingTag, 0, len(rankings))
+	for _, row := range rankings {
+		out = append(out, bilibili.TrendingTag{
+			Name:     row.TagName,
+			HotValue: row.HotValue,
+			Rank:     row.Rank,
+			Category: row.Category,
+		})
+	}
+	return out, nil
+}
+
+// EnsureLatestTags 确保缓存可用，必要时刷新；返回缓存内容与是否发生刷新
+func (s *TrendService) EnsureLatestTags(ctx context.Context, category string, limit int, ttl time.Duration) ([]model.TagRanking, bool, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if ttl <= 0 {
+		ttl = DefaultTrendCacheTTL
+	}
+
+	latestAt, err := s.repo.LatestRecordAt(ctx, category)
+	if err == nil && latestAt != nil && time.Since(*latestAt) <= ttl {
+		cached, listErr := s.repo.GetLatestByCategory(ctx, category, limit)
+		if listErr == nil && len(cached) > 0 {
+			return cached, false, nil
+		}
+	}
+
+	tags, fetchErr := s.GetTrendingTags(ctx, category, limit)
+	if fetchErr != nil {
+		cached, listErr := s.repo.GetLatestByCategory(ctx, category, limit)
+		if listErr == nil && len(cached) > 0 {
+			return cached, false, nil
+		}
+		return nil, false, fetchErr
+	}
+	if saveErr := s.SaveTagRankings(ctx, tags); saveErr != nil {
+		return nil, false, saveErr
+	}
+	cached, err := s.repo.GetLatestByCategory(ctx, category, limit)
+	if err != nil {
+		return nil, true, err
+	}
+	return cached, true, nil
 }
 
 // GetTagDetail 获取标签详情
@@ -162,16 +217,9 @@ func (s *TrendService) GetVideoInfo(ctx context.Context, bvID string) (*bilibili
 
 // DailySync 每日同步热度数据
 func (s *TrendService) DailySync(ctx context.Context) error {
-	// 获取热门标签
-	client, err := s.biliClient()
+	_, _, err := s.EnsureLatestTags(ctx, "", 50, 0)
 	if err != nil {
-		return err
+		return fmt.Errorf("daily sync trending tags failed: %w", err)
 	}
-	tags, err := client.GetTrendingTags(ctx, 50)
-	if err != nil {
-		return fmt.Errorf("get trending tags failed: %w", err)
-	}
-
-	// 保存到数据库
-	return s.SaveTagRankings(ctx, tags)
+	return nil
 }
