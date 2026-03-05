@@ -7,123 +7,116 @@ import (
 )
 
 type BaseModel struct {
-	ID        uint           `gorm:"primarykey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID        uint           `gorm:"primarykey;column:id" json:"id"`
+	CreatedAt time.Time      `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index;column:deleted_at" json:"-"`
 }
 
 type User struct {
 	BaseModel
-	BiliUID     int64      `gorm:"uniqueIndex;not null" json:"bili_uid"`
-	BiliName    string     `gorm:"size:100" json:"bili_name"`
-	BiliFace    string     `gorm:"size:500" json:"bili_face"`
-	SESSData    string     `gorm:"size:500" json:"-"`
-	BiliJct     string     `gorm:"size:100" json:"-"`
-	IsLoggedIn  bool       `gorm:"default:false" json:"is_logged_in"`
-	LastLoginAt *time.Time `json:"last_login_at"`
+	BiliUID     int64      `gorm:"column:bili_uid;uniqueIndex;not null" json:"bili_uid"`
+	BiliName    string     `gorm:"column:bili_name;size:100" json:"bili_name"`
+	BiliFace    string     `gorm:"column:bili_face;size:500" json:"bili_face"`
+	SESSData    string     `gorm:"column:sess_data;size:500" json:"-"`
+	BiliJct     string     `gorm:"column:bili_jct;size:100" json:"-"`
+	IsLoggedIn  bool       `gorm:"column:is_logged_in;default:false" json:"is_logged_in"`
+	LastLoginAt *time.Time `gorm:"column:last_login_at" json:"last_login_at"`
 }
 
 func (User) TableName() string { return "users" }
 
 type Comment struct {
 	BaseModel
-	CommentID    int64     `gorm:"uniqueIndex;not null" json:"comment_id"`
-	VideoBVID    string    `gorm:"size:20;index;not null" json:"video_bvid"`
-	VideoAID     int64     `json:"video_aid"`
-	Content      string    `gorm:"type:text;not null" json:"content"`
-	AuthorID     int64     `gorm:"index" json:"author_id"`
-	AuthorName   string    `gorm:"size:100" json:"author_name"`
-	ReplyID      int64     `gorm:"default:0" json:"reply_id"`
-	ReplyStatus  int       `gorm:"default:0" json:"reply_status"`
-	ReplyContent string    `gorm:"type:text" json:"reply_content"`
-	IsAIReply    bool      `gorm:"default:false" json:"is_ai_reply"`
-	CommentTime  time.Time `json:"comment_time"`
+	CommentID    int64      `gorm:"column:comment_id;uniqueIndex;not null" json:"comment_id"`
+	VideoBVID    string     `gorm:"column:video_bvid;size:20;index;not null" json:"video_bvid"`
+	VideoAID     int64      `gorm:"column:video_aid" json:"video_aid"`
+	Content      string     `gorm:"column:content;type:text;not null" json:"content"`
+	AuthorName   string     `gorm:"column:author_name;size:100" json:"author_name"`
+	AuthorFace   string     `gorm:"column:author_face;size:500" json:"author_face"`
+	AuthorMid    int64      `gorm:"column:author_mid" json:"author_mid"`
+	LikeCount    int        `gorm:"column:like_count;default:0" json:"like_count"`
+	ReplyStatus  int        `gorm:"column:reply_status;default:0;index" json:"reply_status"` // 0=未回复, 1=已回复, 2=忽略
+	IsAIReply    bool       `gorm:"column:is_ai_reply;default:false" json:"is_ai_reply"`
+	ReplyContent string     `gorm:"column:reply_content;type:text" json:"reply_content"`
+	CommentTime  *time.Time `gorm:"column:comment_time" json:"comment_time"`
 }
 
 func (Comment) TableName() string { return "comments" }
 
 type Message struct {
 	BaseModel
-	MessageID    int64     `gorm:"uniqueIndex;not null" json:"message_id"`
-	SenderID     int64     `gorm:"index;not null" json:"sender_id"`
-	SenderName   string    `gorm:"size:100" json:"sender_name"`
-	Content      string    `gorm:"type:text;not null" json:"content"`
-	ReplyStatus  int       `gorm:"default:0" json:"reply_status"`
-	ReplyContent string    `gorm:"type:text" json:"reply_content"`
-	IsAIReply    bool      `gorm:"default:false" json:"is_ai_reply"`
-	IsRead       bool      `gorm:"default:false" json:"is_read"`
-	MessageTime  time.Time `json:"message_time"`
+	MessageID    int64      `gorm:"column:message_id;uniqueIndex;not null" json:"message_id"`
+	SenderUID    int64      `gorm:"column:sender_uid;index;not null" json:"sender_uid"`
+	SenderName   string     `gorm:"column:sender_name;size:100" json:"sender_name"`
+	SenderFace   string     `gorm:"column:sender_face;size:500" json:"sender_face"`
+	Content      string     `gorm:"column:content;type:text;not null" json:"content"`
+	MsgType      int        `gorm:"column:msg_type;default:1" json:"msg_type"`
+	ReplyStatus  int        `gorm:"column:reply_status;default:0;index" json:"reply_status"` // 0=未回复, 1=已回复, 2=忽略
+	IsAIReply    bool       `gorm:"column:is_ai_reply;default:false" json:"is_ai_reply"`
+	ReplyContent string     `gorm:"column:reply_content;type:text" json:"reply_content"`
+	MessageTime  *time.Time `gorm:"column:message_time" json:"message_time"`
 }
 
 func (Message) TableName() string { return "messages" }
 
 type Interaction struct {
 	BaseModel
-	VideoBVID    string    `gorm:"size:20;index;not null" json:"video_bvid"`
-	VideoTitle   string    `gorm:"size:500" json:"video_title"`
-	VideoOwnerID int64     `gorm:"index" json:"video_owner_id"`
-	VideoOwner   string    `gorm:"size:100" json:"video_owner"`
-	ActionType   string    `gorm:"size:20;index;not null" json:"action_type"`
-	CoinCount    int       `gorm:"default:0" json:"coin_count"`
-	Success      bool      `gorm:"default:true" json:"success"`
-	ErrorMessage string    `gorm:"type:text" json:"error_message"`
-	ActionTime   time.Time `json:"action_time"`
+	VideoBVID  string `gorm:"column:video_bvid;size:20;index" json:"video_bvid"`
+	VideoAID   int64  `gorm:"column:video_aid" json:"video_aid"`
+	ActionType string `gorm:"column:action_type;size:20;index" json:"action_type"` // like, coin, favorite, triple
+	CoinCount  int    `gorm:"column:coin_count;default:0" json:"coin_count"`
 }
 
 func (Interaction) TableName() string { return "interactions" }
 
 type TagRanking struct {
 	BaseModel
-	TagName    string    `gorm:"size:100;uniqueIndex;not null" json:"tag_name"`
-	TagID      int64     `json:"tag_id"`
-	HotValue   int64     `json:"hot_value"`
-	VideoCount int       `json:"video_count"`
-	Rank       int       `json:"rank"`
-	Category   string    `gorm:"size:50" json:"category"`
-	RecordDate time.Time `gorm:"index" json:"record_date"`
+	TagName    string `gorm:"column:tag_name;size:100;index" json:"tag_name"`
+	TagID      int64  `gorm:"column:tag_id" json:"tag_id"`
+	ViewCount  int64  `gorm:"column:view_count;default:0" json:"view_count"`
+	UseCount   int64  `gorm:"column:use_count;default:0" json:"use_count"`
+	AttenCount int64  `gorm:"column:atten_count;default:0" json:"atten_count"`
 }
 
 func (TagRanking) TableName() string { return "tag_rankings" }
 
 type LLMChatLog struct {
 	BaseModel
-	Provider      string `gorm:"size:50;index" json:"provider"`
-	Model         string `gorm:"size:100" json:"model"`
-	InputType     string `gorm:"size:20;index" json:"input_type"`
-	InputID       int64  `gorm:"index" json:"input_id"`
-	InputContent  string `gorm:"type:text" json:"input_content"`
-	OutputContent string `gorm:"type:text" json:"output_content"`
-	PromptTokens  int    `json:"prompt_tokens"`
-	OutputTokens  int    `json:"output_tokens"`
-	TotalTokens   int    `json:"total_tokens"`
-	Success       bool   `gorm:"default:true" json:"success"`
-	ErrorMessage  string `gorm:"type:text" json:"error_message"`
-	Duration      int64  `json:"duration"`
+	Provider     string `gorm:"column:provider;size:50;index" json:"provider"`
+	Model        string `gorm:"column:model;size:100" json:"model"`
+	Prompt       string `gorm:"column:prompt;type:text" json:"prompt"`
+	Response     string `gorm:"column:response;type:text" json:"response"`
+	PromptTokens int    `gorm:"column:prompt_tokens" json:"prompt_tokens"`
+	OutputTokens int    `gorm:"column:output_tokens" json:"output_tokens"`
+	TotalTokens  int    `gorm:"column:total_tokens" json:"total_tokens"`
+	Success      bool   `gorm:"column:success;default:true" json:"success"`
+	ErrorMessage string `gorm:"column:error_message;type:text" json:"error_message"`
+	Duration     int64  `gorm:"column:duration" json:"duration"`
 }
 
 func (LLMChatLog) TableName() string { return "llm_chat_logs" }
 
 type Setting struct {
 	BaseModel
-	Key   string `gorm:"uniqueIndex;size:100;not null" json:"key"`
-	Value string `gorm:"type:text" json:"value"`
+	Key   string `gorm:"column:key;uniqueIndex;size:100;not null" json:"key"`
+	Value string `gorm:"column:value;type:text" json:"value"`
 }
 
 func (Setting) TableName() string { return "settings" }
 
 type Task struct {
 	BaseModel
-	TaskType   string     `gorm:"size:50;index;not null" json:"task_type"`
-	TargetID   int64      `gorm:"index" json:"target_id"`
-	TargetData string     `gorm:"type:text" json:"target_data"`
-	Status     int        `gorm:"default:0;index" json:"status"`
-	Result     string     `gorm:"type:text" json:"result"`
-	RetryCount int        `gorm:"default:0" json:"retry_count"`
-	MaxRetry   int        `gorm:"default:3" json:"max_retry"`
-	RunAt      *time.Time `json:"run_at"`
-	StartedAt  *time.Time `json:"started_at"`
-	FinishedAt *time.Time `json:"finished_at"`
+	TaskType   string     `gorm:"column:task_type;size:50;index;not null" json:"task_type"`
+	TargetID   int64      `gorm:"column:target_id;index" json:"target_id"`
+	TargetData string     `gorm:"column:target_data;type:text" json:"target_data"`
+	Status     int        `gorm:"column:status;default:0;index" json:"status"`
+	Result     string     `gorm:"column:result;type:text" json:"result"`
+	RetryCount int        `gorm:"column:retry_count;default:0" json:"retry_count"`
+	MaxRetry   int        `gorm:"column:max_retry;default:3" json:"max_retry"`
+	RunAt      *time.Time `gorm:"column:run_at" json:"run_at"`
+	StartedAt  *time.Time `gorm:"column:started_at" json:"started_at"`
+	FinishedAt *time.Time `gorm:"column:finished_at" json:"finished_at"`
 }
 
 func (Task) TableName() string { return "tasks" }
@@ -145,14 +138,14 @@ const (
 
 type LLMProvider struct {
 	BaseModel
-	Name        string  `gorm:"uniqueIndex;size:100;not null" json:"name"`
-	Provider    string  `gorm:"size:50;not null" json:"provider"`
-	APIKey      string  `gorm:"size:255" json:"api_key"`
-	BaseURL     string  `gorm:"size:255" json:"base_url"`
-	Model       string  `gorm:"size:100" json:"model"`
-	MaxTokens   int     `gorm:"default:1000" json:"max_tokens"`
-	Temperature float64 `gorm:"type:decimal(5,2);default:0.7" json:"temperature"`
-	Enabled     bool    `gorm:"default:true" json:"enabled"`
+	Name        string  `gorm:"column:name;uniqueIndex;size:100;not null" json:"name"`
+	Provider    string  `gorm:"column:provider;size:50;not null" json:"provider"`
+	APIKey      string  `gorm:"column:api_key;size:255" json:"api_key"`
+	BaseURL     string  `gorm:"column:base_url;size:255" json:"base_url"`
+	Model       string  `gorm:"column:model;size:100" json:"model"`
+	MaxTokens   int     `gorm:"column:max_tokens;default:1000" json:"max_tokens"`
+	Temperature float64 `gorm:"column:temperature;type:decimal(5,2);default:0.7" json:"temperature"`
+	Enabled     bool    `gorm:"column:enabled;default:true" json:"enabled"`
 }
 
 func (LLMProvider) TableName() string { return "llm_providers" }
