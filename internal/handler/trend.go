@@ -20,7 +20,7 @@ func NewTrendHandler(svc *service.TrendService) *TrendHandler {
 
 // TrendingTags 获取热门标签
 func (h *TrendHandler) TrendingTags(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "0"))
 	category := c.Query("category")
 
 	tags, err := h.svc.GetTrendingTagsFromDB(c.Request.Context(), category, limit)

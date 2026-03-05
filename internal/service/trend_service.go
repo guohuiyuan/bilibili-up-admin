@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"bilibili-up-admin/internal/model"
@@ -23,6 +24,9 @@ const (
 type TrendService struct {
 	runtime *appruntime.Store
 	repo    *repository.TagRankingRepository
+
+	cacheMu    sync.RWMutex
+	latestTags []model.TagRanking
 }
 
 // NewTrendService 创建热度服务
@@ -70,14 +74,44 @@ func (s *TrendService) GetTrendingTagsSmart(ctx context.Context, category string
 
 // GetTrendingTagsFromDB 仅从数据库读取最新标签，不触发远程请求
 func (s *TrendService) GetTrendingTagsFromDB(ctx context.Context, category string, limit int) ([]bilibili.TrendingTag, error) {
-	if limit <= 0 {
-		limit = 50
-	}
-	rankings, err := s.repo.GetLatestByCategory(ctx, category, limit)
-	if err != nil {
-		return nil, err
-	}
+	_ = ctx
+	rankings := s.getLatestTagsFromMemory(category, limit)
 	return toTrendingTags(rankings), nil
+}
+
+func (s *TrendService) setLatestTagsToMemory(rankings []model.TagRanking) {
+	if len(rankings) == 0 {
+		return
+	}
+	cloned := make([]model.TagRanking, len(rankings))
+	copy(cloned, rankings)
+
+	s.cacheMu.Lock()
+	s.latestTags = cloned
+	s.cacheMu.Unlock()
+}
+
+func (s *TrendService) getLatestTagsFromMemory(category string, limit int) []model.TagRanking {
+	s.cacheMu.RLock()
+	defer s.cacheMu.RUnlock()
+	if len(s.latestTags) == 0 {
+		return nil
+	}
+	capacity := len(s.latestTags)
+	if limit > 0 && limit < capacity {
+		capacity = limit
+	}
+	out := make([]model.TagRanking, 0, capacity)
+	for _, row := range s.latestTags {
+		if category != "" && row.Category != category {
+			continue
+		}
+		out = append(out, row)
+		if limit > 0 && len(out) >= limit {
+			break
+		}
+	}
+	return out
 }
 
 func toTrendingTags(rankings []model.TagRanking) []bilibili.TrendingTag {
@@ -166,6 +200,8 @@ func (s *TrendService) SaveTagRankings(ctx context.Context, tags []bilibili.Tren
 			RecordDate:  now,
 		})
 	}
+
+	s.setLatestTagsToMemory(rankings)
 
 	return s.repo.BatchCreate(ctx, rankings)
 }

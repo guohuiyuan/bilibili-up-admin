@@ -110,7 +110,7 @@
 <script>
 async function loadTrendingTags() {
     const category = document.getElementById('tag-category-select')?.value || '';
-    const query = new URLSearchParams({ limit: '50' });
+    const query = new URLSearchParams();
     if (category) {
         query.set('category', category);
     }
@@ -137,7 +137,7 @@ async function loadTrendingTags() {
 }
 
 async function loadLatestRankingsAsTags(category) {
-    const query = new URLSearchParams({ limit: '50' });
+    const query = new URLSearchParams();
     if (category) {
         query.set('category', category);
     }
