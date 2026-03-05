@@ -114,6 +114,11 @@ func (r *MessageRepository) Create(ctx context.Context, message *model.Message) 
 	return r.db.WithContext(ctx).Create(message).Error
 }
 
+// Update 更新私信记录
+func (r *MessageRepository) Update(ctx context.Context, message *model.Message) error {
+	return r.db.WithContext(ctx).Save(message).Error
+}
+
 // GetByMessageID 根据B站消息ID获取
 func (r *MessageRepository) GetByMessageID(ctx context.Context, messageID int64) (*model.Message, error) {
 	var message model.Message
@@ -160,6 +165,18 @@ func (r *MessageRepository) GetUnreplied(ctx context.Context, limit int) ([]mode
 		Limit(limit).
 		Find(&messages).Error
 	return messages, err
+}
+
+// UpdateReplyStatus 更新私信回复状态
+func (r *MessageRepository) UpdateReplyStatus(ctx context.Context, messageID int64, status int, replyContent string, isAIReply bool) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Message{}).
+		Where("message_id = ?", messageID).
+		Updates(map[string]interface{}{
+			"reply_status":  status,
+			"reply_content": replyContent,
+			"is_ai_reply":   isAIReply,
+		}).Error
 }
 
 // InteractionRepository 互动记录仓库

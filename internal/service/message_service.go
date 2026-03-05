@@ -94,10 +94,19 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 				continue
 			}
 
+			senderName := m.SenderName
+			if senderName == "" {
+				senderName = session.UserName
+			}
+			if senderName == "" {
+				senderName = fmt.Sprintf("用户%d", m.SenderID)
+			}
+
 			message := &model.Message{
 				MessageID:   m.ID,
-				SenderUID:   m.SenderID,
-				SenderName:  m.SenderName,
+				SenderID:    m.SenderID,
+				SenderName:  senderName,
+				SenderFace:  session.UserFace,
 				Content:     m.Content,
 				ReplyStatus: 0,
 				MessageTime: &[]time.Time{time.Unix(m.Time, 0)}[0],
@@ -171,16 +180,16 @@ func (s *MessageService) AIReply(ctx context.Context, messageID int64) (string, 
 	if err != nil {
 		return "", err
 	}
-	err = client.SendMessage(ctx, message.SenderUID, resp.Content)
+	err = client.SendMessage(ctx, message.SenderID, resp.Content)
 	if err != nil {
 		return "", fmt.Errorf("send message failed: %w", err)
 	}
 
 	// 更新状态
-	message.ReplyStatus = 1
-	message.ReplyContent = resp.Content
-	message.IsAIReply = true
-	s.repo.Create(ctx, message)
+	err = s.repo.UpdateReplyStatus(ctx, messageID, 1, resp.Content, true)
+	if err != nil {
+		return "", fmt.Errorf("update message status failed: %w", err)
+	}
 
 	return resp.Content, nil
 }
@@ -198,9 +207,14 @@ func (s *MessageService) ManualReply(ctx context.Context, messageID int64, sende
 	}
 
 	// 更新状态
+	if err := s.repo.UpdateReplyStatus(ctx, messageID, 1, content, false); err == nil {
+		return nil
+	}
+
+	// 兜底：如果该消息尚未入库，则补一条最小记录
 	return s.repo.Create(ctx, &model.Message{
 		MessageID:    messageID,
-		SenderUID:    senderID,
+		SenderID:     senderID,
 		ReplyStatus:  1,
 		ReplyContent: content,
 	})
@@ -208,12 +222,7 @@ func (s *MessageService) ManualReply(ctx context.Context, messageID int64, sende
 
 // Ignore 忽略私信
 func (s *MessageService) Ignore(ctx context.Context, messageID int64) error {
-	message, err := s.repo.GetByMessageID(ctx, messageID)
-	if err != nil {
-		return err
-	}
-	message.ReplyStatus = 2
-	return s.repo.Create(ctx, message)
+	return s.repo.UpdateReplyStatus(ctx, messageID, 2, "", false)
 }
 
 // GetUnreadCount 获取未读数量

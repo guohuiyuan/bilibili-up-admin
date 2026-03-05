@@ -76,13 +76,14 @@ async function loadMessages() {
     const status = document.getElementById('filter-status').value;
     
     try {
-        const response = await fetch(`/admin/api/messages?reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
-        const data = await response.json();
+        const data = await api(`/admin/api/messages?reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
         
         renderMessages(data.messages || []);
         document.getElementById('total-count').textContent = `共 ${data.total || 0} 条私信`;
+        return data;
     } catch (error) {
         showToast('加载失败: ' + error.message, 'error');
+        return null;
     }
 }
 
@@ -150,10 +151,10 @@ function renderMessages(messages) {
 async function syncMessages() {
     showToast('正在同步私信...', 'info');
     try {
-        const response = await fetch('/admin/api/messages/sync', { method: 'POST' });
-        const data = await response.json();
-        showToast(`同步完成，新增 ${data.count} 条私信`, 'success');
-        loadMessages();
+        const data = await api('/admin/api/messages/sync', { method: 'POST' });
+        const latest = await loadMessages();
+        const total = latest?.total || 0;
+        showToast(`同步完成：新增 ${data.count || 0} 条，当前共 ${total} 条私信`, 'success');
     } catch (error) {
         showToast('同步失败: ' + error.message, 'error');
     }
@@ -162,8 +163,7 @@ async function syncMessages() {
 async function aiReply(messageId) {
     showToast('正在生成AI回复...', 'info');
     try {
-        const response = await fetch(`/admin/api/messages/${messageId}/ai-reply`, { method: 'POST' });
-        const data = await response.json();
+        await api(`/admin/api/messages/${messageId}/ai-reply`, { method: 'POST' });
         showToast('回复成功', 'success');
         loadMessages();
     } catch (error) {
@@ -175,10 +175,9 @@ function manualReply(messageId, senderId) {
     const content = prompt('请输入回复内容:');
     if (!content) return;
     
-    fetch(`/admin/api/messages/${messageId}/reply`, {
+    api(`/admin/api/messages/${messageId}/reply`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender_id: senderId, content })
+        body: { sender_id: senderId, content }
     }).then(() => {
         showToast('回复成功', 'success');
         loadMessages();
@@ -191,28 +190,12 @@ async function ignore(messageId) {
     if (!confirm('确定忽略此私信?')) return;
     
     try {
-        await fetch(`/admin/api/messages/${messageId}/ignore`, { method: 'POST' });
+        await api(`/admin/api/messages/${messageId}/ignore`, { method: 'POST' });
         showToast('已忽略', 'success');
         loadMessages();
     } catch (error) {
         showToast('操作失败: ' + error.message, 'error');
     }
-}
-
-function formatTime(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleString('zh-CN');
-}
-
-function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
-        type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-    }`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
 }
 
 loadMessages();
