@@ -218,12 +218,12 @@ func (c *Client) GetFansVideos(ctx context.Context, page, pageSize int) ([]FansV
 		for _, v := range videos {
 			item.Videos = append(item.Videos, VideoInfo{
 				BVID:     v.BVID,
-				AVID:     v.AID,
+				AVID:     0,
 				Title:    v.Title,
 				Duration: 0,
-				View:     int(v.Stat.View),
-				Like:     int(v.Stat.Like),
-				Coin:     int(v.Stat.Coin),
+				View:     int(v.Play),
+				Like:     0,
+				Coin:     0,
 				Pic:      v.Pic,
 			})
 		}

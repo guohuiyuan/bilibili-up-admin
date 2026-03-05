@@ -271,29 +271,24 @@ func (s *CommentService) GetMyVideos(ctx context.Context, page, pageSize int) (*
 	result := &MyVideoListResult{}
 	result.List.VList = make([]MyVideoItem, 0, len(videos.List.VList))
 	for _, video := range videos.List.VList {
-		duration := 0
-		if len(video.Pages) > 0 {
-			duration = video.Pages[0].Duration
+		created := video.Created
+		if created == 0 {
+			created = video.PubDate
+		}
+		length := video.Length
+		if length == "" {
+			length = "00:00"
 		}
 		result.List.VList = append(result.List.VList, MyVideoItem{
 			BVID:    video.BVID,
 			Title:   video.Title,
 			Pic:     video.Pic,
-			Length:  formatDuration(duration),
-			Play:    video.Stat.View,
-			Comment: video.Stat.Reply,
-			Created: video.PubDate,
+			Length:  length,
+			Play:    int64(video.Play),
+			Comment: int64(video.Comment),
+			Created: created,
 		})
 	}
 
 	return result, nil
-}
-
-func formatDuration(seconds int) string {
-	if seconds <= 0 {
-		return "00:00"
-	}
-	mins := seconds / 60
-	secs := seconds % 60
-	return fmt.Sprintf("%02d:%02d", mins, secs)
 }
