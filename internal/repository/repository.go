@@ -136,7 +136,7 @@ func (r *MessageRepository) List(ctx context.Context, senderID int64, replyStatu
 
 	query := r.db.WithContext(ctx).Model(&model.Message{})
 	if senderID > 0 {
-		query = query.Where("sender_id = ?", senderID)
+		query = query.Where("sender_uid = ?", senderID)
 	}
 	if replyStatus >= 0 {
 		query = query.Where("reply_status = ?", replyStatus)

@@ -132,7 +132,7 @@ function renderMessages(messages) {
                                 <i class="ri-robot-line"></i>
                                 <span>AI回复</span>
                             </button>
-                            <button onclick="manualReply(${m.message_id}, ${m.sender_id})" class="text-gray-500 hover:text-gray-600 text-sm flex items-center space-x-1">
+                            <button onclick="manualReply(${m.message_id}, ${m.sender_uid})" class="text-gray-500 hover:text-gray-600 text-sm flex items-center space-x-1">
                                 <i class="ri-edit-line"></i>
                                 <span>手动回复</span>
                             </button>
@@ -154,7 +154,12 @@ async function syncMessages() {
         const data = await api('/admin/api/messages/sync', { method: 'POST' });
         const latest = await loadMessages();
         const total = latest?.total || 0;
-        showToast(`同步完成：新增 ${data.count || 0} 条，当前共 ${total} 条私信`, 'success');
+        const stats = data.stats || {};
+        if ((data.count || 0) === 0) {
+            showToast(`同步完成：新增 0 条（会话 ${stats.sessions || 0}，抓取 ${stats.fetched || 0}，已存在 ${stats.existing || 0}，写入失败 ${stats.insert_errors || 0}）`, 'info');
+        } else {
+            showToast(`同步完成：新增 ${data.count || 0} 条，当前共 ${total} 条私信`, 'success');
+        }
     } catch (error) {
         showToast('同步失败: ' + error.message, 'error');
     }
@@ -177,7 +182,7 @@ function manualReply(messageId, senderId) {
     
     api(`/admin/api/messages/${messageId}/reply`, {
         method: 'POST',
-        body: { sender_id: senderId, content }
+        body: { sender_uid: senderId, content }
     }).then(() => {
         showToast('回复成功', 'success');
         loadMessages();

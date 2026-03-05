@@ -47,7 +47,7 @@ func (Comment) TableName() string { return "comments" }
 type Message struct {
 	BaseModel
 	MessageID    int64      `gorm:"column:message_id;uniqueIndex;not null" json:"message_id"`
-	SenderID     int64      `gorm:"column:sender_id;index;not null" json:"sender_id"`
+	SenderID     int64      `gorm:"column:sender_uid;index;not null" json:"sender_uid"`
 	SenderName   string     `gorm:"column:sender_name;size:100" json:"sender_name"`
 	SenderFace   string     `gorm:"column:sender_face;size:500" json:"sender_face"`
 	Content      string     `gorm:"column:content;type:text;not null" json:"content"`

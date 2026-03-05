@@ -21,7 +21,7 @@ func NewMessageHandler(svc *service.MessageService) *MessageHandler {
 
 // List 获取私信列表
 func (h *MessageHandler) List(c *gin.Context) {
-	senderID, _ := strconv.ParseInt(c.Query("sender_id"), 10, 64)
+	senderID, _ := strconv.ParseInt(c.Query("sender_uid"), 10, 64)
 	replyStatus, _ := strconv.Atoi(c.DefaultQuery("reply_status", "-1"))
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -40,7 +40,7 @@ func (h *MessageHandler) Sync(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	count, err := h.svc.SyncMessages(c.Request.Context(), page, pageSize)
+	result, err := h.svc.SyncMessages(c.Request.Context(), page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -48,7 +48,8 @@ func (h *MessageHandler) Sync(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "同步成功",
-		"count":   count,
+		"count":   result.Inserted,
+		"stats":   result,
 	})
 }
 
@@ -81,7 +82,7 @@ func (h *MessageHandler) ManualReply(c *gin.Context) {
 	}
 
 	var req struct {
-		SenderID int64  `json:"sender_id" binding:"required"`
+		SenderID int64  `json:"sender_uid" binding:"required"`
 		Content  string `json:"content" binding:"required"`
 	}
 

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"bilibili-up-admin/internal/model"
@@ -54,6 +55,16 @@ type MessageListResult struct {
 	PageSize int             `json:"page_size"`
 }
 
+type MessageSyncResult struct {
+	Inserted       int      `json:"inserted"`
+	Sessions       int      `json:"sessions"`
+	Fetched        int      `json:"fetched"`
+	Existing       int      `json:"existing"`
+	SessionErrors  int      `json:"session_errors"`
+	InsertErrors   int      `json:"insert_errors"`
+	ErrorSummaries []string `json:"error_summaries,omitempty"`
+}
+
 // List 获取私信列表
 func (s *MessageService) List(ctx context.Context, senderID int64, replyStatus int, page, pageSize int) (*MessageListResult, error) {
 	messages, total, err := s.repo.List(ctx, senderID, replyStatus, page, pageSize)
@@ -70,27 +81,37 @@ func (s *MessageService) List(ctx context.Context, senderID int64, replyStatus i
 }
 
 // SyncMessages 同步私信
-func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (int, error) {
+func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (*MessageSyncResult, error) {
 	client, err := s.biliClient()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	list, err := client.GetMessages(ctx, page, pageSize)
 	if err != nil {
-		return 0, fmt.Errorf("get messages failed: %w", err)
+		return nil, fmt.Errorf("get messages failed: %w", err)
 	}
 
-	count := 0
+	result := &MessageSyncResult{
+		Sessions:       len(list.Sessions),
+		ErrorSummaries: make([]string, 0, 5),
+	}
+
 	for _, session := range list.Sessions {
 		// 获取聊天记录
 		chat, err := client.GetChatHistory(ctx, session.UserID, 1, 20)
 		if err != nil {
+			result.SessionErrors++
+			if len(result.ErrorSummaries) < 5 {
+				result.ErrorSummaries = append(result.ErrorSummaries, fmt.Sprintf("uid=%d chat failed: %v", session.UserID, err))
+			}
 			continue
 		}
+		result.Fetched += len(chat.Messages)
 
 		for _, m := range chat.Messages {
 			existing, _ := s.repo.GetByMessageID(ctx, m.ID)
 			if existing != nil {
+				result.Existing++
 				continue
 			}
 
@@ -113,13 +134,29 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 			}
 
 			if err := s.repo.Create(ctx, message); err != nil {
+				if isDuplicateMessageError(err) {
+					result.Existing++
+					continue
+				}
+				result.InsertErrors++
+				if len(result.ErrorSummaries) < 5 {
+					result.ErrorSummaries = append(result.ErrorSummaries, fmt.Sprintf("msg=%d insert failed: %v", m.ID, err))
+				}
 				continue
 			}
-			count++
+			result.Inserted++
 		}
 	}
 
-	return count, nil
+	return result, nil
+}
+
+func isDuplicateMessageError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique") || strings.Contains(msg, "duplicate")
 }
 
 // AIReply 使用AI生成回复
