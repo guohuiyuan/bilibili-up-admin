@@ -134,27 +134,67 @@ func (c *Client) getTrendingTagsFromZones(ctx context.Context, zones []trendZone
 	if limit <= 0 {
 		limit = 50
 	}
+	if len(zones) == 0 {
+		return nil, fmt.Errorf("get trending tags failed: empty zones")
+	}
 
 	result := make([]TrendingTag, 0, limit)
 	seenTagIDs := make(map[int64]struct{})
 	seenNames := make(map[string]struct{})
 	var lastErr error
 
-	for _, z := range zones {
+	tagsByZone := make([][]struct {
+		TagID int64
+		Name  string
+		Hot   int64
+	}, len(zones))
+
+	for i, z := range zones {
 		tags, err := c.inner.GetHotTags(z.rid)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-
+		zoneTags := make([]struct {
+			TagID int64
+			Name  string
+			Hot   int64
+		}, 0, len(tags))
 		for _, t := range tags {
+			zoneTags = append(zoneTags, struct {
+				TagID int64
+				Name  string
+				Hot   int64
+			}{TagID: t.TagID, Name: t.Name, Hot: t.Hot})
+		}
+		tagsByZone[i] = zoneTags
+	}
+
+	baseQuota := limit / len(zones)
+	extraQuota := limit % len(zones)
+
+	zoneCursors := make([]int, len(zones))
+	for i, z := range zones {
+		quota := baseQuota
+		if i < extraQuota {
+			quota++
+		}
+		if quota <= 0 {
+			continue
+		}
+
+		added := 0
+		for zoneCursors[i] < len(tagsByZone[i]) {
+			t := tagsByZone[i][zoneCursors[i]]
+			zoneCursors[i]++
+
+			if t.Name == "" {
+				continue
+			}
 			if t.TagID != 0 {
 				if _, ok := seenTagIDs[t.TagID]; ok {
 					continue
 				}
-			}
-			if t.Name == "" {
-				continue
 			}
 			if _, ok := seenNames[t.Name]; ok {
 				continue
@@ -165,18 +205,65 @@ func (c *Client) getTrendingTagsFromZones(ctx context.Context, zones []trendZone
 			}
 			seenNames[t.Name] = struct{}{}
 
-			tag := TrendingTag{
+			result = append(result, TrendingTag{
 				TagID:    t.TagID,
 				Name:     t.Name,
 				HotValue: t.Hot,
 				Rank:     len(result) + 1,
 				Category: z.category,
-			}
-			result = append(result, tag)
+			})
+			added++
 
-			if limit > 0 && len(result) >= limit {
-				return result[:limit], nil
+			if len(result) >= limit || added >= quota {
+				break
 			}
+		}
+		if len(result) >= limit {
+			break
+		}
+	}
+
+	for len(result) < limit {
+		addedInRound := 0
+		for i, z := range zones {
+			for zoneCursors[i] < len(tagsByZone[i]) {
+				t := tagsByZone[i][zoneCursors[i]]
+				zoneCursors[i]++
+
+				if t.Name == "" {
+					continue
+				}
+				if t.TagID != 0 {
+					if _, ok := seenTagIDs[t.TagID]; ok {
+						continue
+					}
+				}
+				if _, ok := seenNames[t.Name]; ok {
+					continue
+				}
+
+				if t.TagID != 0 {
+					seenTagIDs[t.TagID] = struct{}{}
+				}
+				seenNames[t.Name] = struct{}{}
+
+				result = append(result, TrendingTag{
+					TagID:    t.TagID,
+					Name:     t.Name,
+					HotValue: t.Hot,
+					Rank:     len(result) + 1,
+					Category: z.category,
+				})
+				addedInRound++
+				break
+			}
+
+			if len(result) >= limit {
+				break
+			}
+		}
+		if addedInRound == 0 {
+			break
 		}
 	}
 
