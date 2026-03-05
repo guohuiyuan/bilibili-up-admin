@@ -20,7 +20,7 @@
 
 {{ define "content" }}
 <div class="mb-8">
-    <h2 class="text-2xl font-bold text-gray-800">仪表盘</h2>
+    <h2 class="text-2xl font-bold text-gray-800 flex items-center"><i class="ri-dashboard-3-line text-pink-500 mr-2"></i>仪表盘</h2>
     <p class="text-gray-500 mt-1">欢迎回来，查看今日运营数据及 AI 模型运行状态</p>
 </div>
 
@@ -29,10 +29,8 @@
         <div class="flex items-center justify-between relative z-10">
             <div>
                 <p class="text-gray-500 text-sm font-medium">今日评论</p>
-                <p class="text-3xl font-bold text-gray-800 mt-2">128</p>
-                <p class="text-pink-500 text-sm mt-2 font-medium">
-                    <i class="ri-arrow-up-line"></i> 12.5%
-                </p>
+                <p id="stat-comments" class="text-3xl font-bold text-gray-800 mt-2">-</p>
+                <p class="text-pink-500 text-sm mt-2 font-medium">实时统计</p>
             </div>
             <div class="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-md">
                 <i class="ri-chat-3-line text-white text-2xl"></i>
@@ -44,10 +42,8 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm font-medium">今日私信</p>
-                <p class="text-3xl font-bold text-gray-800 mt-2">36</p>
-                <p class="text-pink-500 text-sm mt-2 font-medium">
-                    <i class="ri-arrow-up-line"></i> 8.3%
-                </p>
+                <p id="stat-messages" class="text-3xl font-bold text-gray-800 mt-2">-</p>
+                <p class="text-pink-500 text-sm mt-2 font-medium">实时统计</p>
             </div>
             <div class="w-14 h-14 rounded-2xl gradient-blue flex items-center justify-center shadow-md">
                 <i class="ri-mail-line text-white text-2xl"></i>
@@ -59,10 +55,8 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm font-medium">今日互动</p>
-                <p class="text-3xl font-bold text-gray-800 mt-2">256</p>
-                <p class="text-pink-500 text-sm mt-2 font-medium">
-                    <i class="ri-arrow-up-line"></i> 15.2%
-                </p>
+                <p id="stat-interactions" class="text-3xl font-bold text-gray-800 mt-2">-</p>
+                <p class="text-pink-500 text-sm mt-2 font-medium">近30天</p>
             </div>
             <div class="w-14 h-14 rounded-2xl gradient-teal flex items-center justify-center shadow-md">
                 <i class="ri-thumb-up-line text-white text-2xl"></i>
@@ -74,9 +68,9 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-500 text-sm font-medium">AI回复</p>
-                <p class="text-3xl font-bold text-gray-800 mt-2">89</p>
+                <p id="stat-ai-replies" class="text-3xl font-bold text-gray-800 mt-2">-</p>
                 <p class="text-gray-500 text-sm mt-2 font-medium">
-                    <i class="ri-robot-line"></i> 全自动处理
+                    <i class="ri-robot-line"></i> 近7天成功调用
                 </p>
             </div>
             <div class="w-14 h-14 rounded-2xl gradient-purple flex items-center justify-center shadow-md">
@@ -90,21 +84,21 @@
     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
         <h3 class="font-semibold text-gray-800 mb-5 flex items-center"><i class="ri-flashlight-line text-pink-500 mr-2"></i>快捷操作</h3>
         <div class="grid grid-cols-2 gap-4 flex-1">
-            <button onclick="syncComments()" class="flex flex-col items-center justify-center space-y-2 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-xl p-5 transition border border-pink-100 shadow-sm">
-                <i class="ri-refresh-line text-2xl"></i>
-                <span class="font-medium">同步评论</span>
+            <button onclick="window.location.href='/admin/comments'" class="flex flex-col items-center justify-center space-y-2 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-xl p-5 transition border border-pink-100 shadow-sm">
+                <i class="ri-chat-3-line text-2xl"></i>
+                <span class="font-medium">评论管理</span>
             </button>
-            <button onclick="syncMessages()" class="flex flex-col items-center justify-center space-y-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl p-5 transition border border-blue-100 shadow-sm">
-                <i class="ri-mail-download-line text-2xl"></i>
-                <span class="font-medium">同步私信</span>
+            <button onclick="window.location.href='/admin/messages'" class="flex flex-col items-center justify-center space-y-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl p-5 transition border border-blue-100 shadow-sm">
+                <i class="ri-mail-line text-2xl"></i>
+                <span class="font-medium">私信管理</span>
             </button>
-            <button onclick="batchAIReply()" class="flex flex-col items-center justify-center space-y-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl p-5 transition border border-purple-100 shadow-sm">
-                <i class="ri-robot-line text-2xl"></i>
-                <span class="font-medium">批量AI回复</span>
+            <button onclick="window.location.href='/admin/interaction'" class="flex flex-col items-center justify-center space-y-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl p-5 transition border border-purple-100 shadow-sm">
+                <i class="ri-thumb-up-line text-2xl"></i>
+                <span class="font-medium">互动管理</span>
             </button>
-            <button onclick="interactFans()" class="flex flex-col items-center justify-center space-y-2 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-xl p-5 transition border border-teal-100 shadow-sm">
-                <i class="ri-heart-line text-2xl"></i>
-                <span class="font-medium">互动粉丝</span>
+            <button onclick="window.location.href='/admin/trends'" class="flex flex-col items-center justify-center space-y-2 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-xl p-5 transition border border-teal-100 shadow-sm">
+                <i class="ri-fire-line text-2xl"></i>
+                <span class="font-medium">热度分析</span>
             </button>
         </div>
     </div>
@@ -140,7 +134,7 @@
                     <span class="font-medium text-gray-800">系统提示</span>
                     <span class="text-xs text-gray-400">刚刚</span>
                 </div>
-                <p class="text-gray-600 mt-1 text-sm">暂未拉取评论记录，请点击上方“同步评论”。</p>
+                <p class="text-gray-600 mt-1 text-sm">后台轮询已启用，正在等待最新评论数据。</p>
             </div>
         </div>
     </div>
@@ -154,11 +148,63 @@ function getApiPrefix() {
     return window.location.pathname.startsWith('/admin') ? '/admin' : '';
 }
 
-// 占位函数：原本页面的按钮
-async function syncComments() { showToast("正在同步...", "info"); }
-async function syncMessages() { showToast("正在同步...", "info"); }
-async function batchAIReply() { showToast("正在执行...", "info"); }
-async function interactFans() { showToast("正在执行...", "info"); }
+function safeNum(val) {
+    const n = Number(val || 0);
+    return Number.isFinite(n) ? n : 0;
+}
+
+async function loadDashboardStats() {
+    const prefix = getApiPrefix();
+    const [comments, messages, interactions, llmStats] = await Promise.all([
+        api(`${prefix}/api/comments?page=1&page_size=1`),
+        api(`${prefix}/api/messages?page=1&page_size=1`),
+        api(`${prefix}/api/interactions/stats?days=30`),
+        api(`${prefix}/api/llm/stats`),
+    ]);
+
+    const interactionTotal = safeNum(interactions.like) + safeNum(interactions.coin) + safeNum(interactions.favorite);
+    document.getElementById('stat-comments').textContent = formatNumber(comments.total || 0);
+    document.getElementById('stat-messages').textContent = formatNumber(messages.total || 0);
+    document.getElementById('stat-interactions').textContent = formatNumber(interactionTotal);
+    document.getElementById('stat-ai-replies').textContent = formatNumber(llmStats.success_count || 0);
+}
+
+async function loadRecentComments() {
+    const prefix = getApiPrefix();
+    const data = await api(`${prefix}/api/comments?page=1&page_size=5`);
+    const comments = data.comments || [];
+    const container = document.getElementById('recent-comments');
+    if (!comments.length) {
+        container.innerHTML = `
+        <div class="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <div class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
+                <i class="ri-information-line text-pink-500"></i>
+            </div>
+            <div class="flex-1">
+                <div class="flex items-center justify-between">
+                    <span class="font-medium text-gray-800">系统提示</span>
+                    <span class="text-xs text-gray-400">刚刚</span>
+                </div>
+                <p class="text-gray-600 mt-1 text-sm">后台轮询已启用，暂无最新评论。</p>
+            </div>
+        </div>`;
+        return;
+    }
+
+    container.innerHTML = comments.map(item => `
+    <div class="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+        <div class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
+            <i class="ri-user-smile-line text-pink-500"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+                <span class="font-medium text-gray-800 truncate">${item.author_name || '用户'}</span>
+                <span class="text-xs text-gray-400">${formatTime(item.comment_time) || '-'}</span>
+            </div>
+            <p class="text-gray-600 mt-1 text-sm truncate">${item.content || ''}</p>
+        </div>
+    </div>`).join('');
+}
 
 // --- 真正的模型状态核心逻辑 ---
 
@@ -287,7 +333,11 @@ async function testAllLLM() {
 
 // 页面加载完成后，自动拉取真实状态
 document.addEventListener('DOMContentLoaded', () => {
-    loadLLMStatus();
+    const refreshAll = async () => {
+        await Promise.allSettled([loadDashboardStats(), loadRecentComments(), loadLLMStatus()]);
+    };
+    refreshAll();
+    setInterval(refreshAll, 60 * 1000);
 });
 </script>
 {{ end }}

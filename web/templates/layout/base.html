@@ -7,7 +7,7 @@
     <title>{{ .title }}</title>
     <link rel="icon" type="image/png" href="/admin/static/img/logo.png">
     <link rel="shortcut icon" type="image/png" href="/admin/static/img/logo.png">
-    <link rel="stylesheet" href="/admin/static/style.css">
+    <link rel="stylesheet" href="/admin/static/css/style.css">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
@@ -24,12 +24,19 @@
     {{ block "head" . }}{{ end }}
 </head>
 <body class="bg-gray-50 text-gray-900">
+    {{ if .auth_layout }}
+    <main class="min-h-screen flex items-center justify-center p-6">
+        <div class="w-full max-w-md">
+            {{ block "content" . }}{{ end }}
+        </div>
+    </main>
+    {{ else }}
     <div class="min-h-screen flex">
         <aside class="w-64 bg-white border-r border-gray-200 flex-shrink-0">
             <div class="p-6 border-b border-gray-100">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white">
-                        <i class="ri-bilibili-fill text-xl"></i>
+                    <div class="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white overflow-hidden">
+                        <img src="/admin/static/img/logo.png" alt="B站运营后台" class="w-8 h-8 object-contain">
                     </div>
                     <div>
                         <div class="font-semibold text-gray-800">B站运营后台</div>
@@ -39,7 +46,7 @@
             </div>
             <nav class="py-4">
                 <a href="/admin/" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "B站UP主运营管理平台" }}active{{ end }}">
-                    <i class="ri-home-4-line"></i><span class="ml-3">首页</span>
+                    <i class="ri-home-5-line"></i><span class="ml-3">首页</span>
                 </a>
                 <a href="/admin/comments" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "评论管理" }}active{{ end }}">
                     <i class="ri-chat-3-line"></i><span class="ml-3">评论</span>
@@ -59,15 +66,33 @@
                 <a href="/admin/settings/bilibili" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "B站配置" }}active{{ end }}">
                     <i class="ri-qr-code-line"></i><span class="ml-3">B站配置</span>
                 </a>
+                <a href="/admin/account/password" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "修改密码" }}active{{ end }}">
+                    <i class="ri-lock-password-line"></i><span class="ml-3">账号安全</span>
+                </a>
             </nav>
         </aside>
         <main class="flex-1 overflow-y-auto">
-            <div class="p-8">
+            <div class="p-8 space-y-4">
+                <div class="flex justify-end">
+                    <button onclick="logoutAdmin()" class="inline-flex items-center px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600">
+                        <i class="ri-logout-box-r-line mr-1"></i>退出登录
+                    </button>
+                </div>
                 {{ block "content" . }}{{ end }}
             </div>
         </main>
     </div>
+    {{ end }}
     <script src="/admin/static/js/app.js"></script>
+    <script>
+    async function logoutAdmin() {
+        try {
+            await api('/admin/api/auth/logout', { method: 'POST' });
+        } catch (error) {
+        }
+        window.location.href = '/admin/login';
+    }
+    </script>
     {{ block "scripts" . }}{{ end }}
 </body>
 </html>

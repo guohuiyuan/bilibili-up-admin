@@ -12,6 +12,14 @@ func NewPageHandler() *PageHandler {
 	return &PageHandler{}
 }
 
+func (h *PageHandler) Login(c *gin.Context) {
+	c.HTML(http.StatusOK, "auth/login.html", gin.H{"title": "管理员登录", "auth_layout": true})
+}
+
+func (h *PageHandler) Password(c *gin.Context) {
+	c.HTML(http.StatusOK, "auth/password.html", gin.H{"title": "修改密码"})
+}
+
 func (h *PageHandler) Index(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", gin.H{"title": "B站UP主运营管理平台"})
 }

@@ -162,3 +162,23 @@ type LLMProvider struct {
 }
 
 func (LLMProvider) TableName() string { return "llm_providers" }
+
+type AdminUser struct {
+	BaseModel
+	Username           string     `gorm:"column:username;uniqueIndex;size:64;not null" json:"username"`
+	PasswordHash       string     `gorm:"column:password_hash;size:255;not null" json:"-"`
+	MustChangePassword bool       `gorm:"column:must_change_password;default:true" json:"must_change_password"`
+	LastLoginAt        *time.Time `gorm:"column:last_login_at" json:"last_login_at"`
+}
+
+func (AdminUser) TableName() string { return "admin_users" }
+
+type AdminSession struct {
+	BaseModel
+	AdminUserID uint       `gorm:"column:admin_user_id;index;not null" json:"admin_user_id"`
+	TokenHash   string     `gorm:"column:token_hash;uniqueIndex;size:128;not null" json:"-"`
+	ExpiresAt   time.Time  `gorm:"column:expires_at;index;not null" json:"expires_at"`
+	LastSeenAt  *time.Time `gorm:"column:last_seen_at" json:"last_seen_at"`
+}
+
+func (AdminSession) TableName() string { return "admin_sessions" }

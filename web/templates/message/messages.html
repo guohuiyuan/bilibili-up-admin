@@ -14,13 +14,7 @@
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-2xl font-bold text-gray-800">私信管理</h2>
-            <p class="text-gray-500 mt-1">管理和回复粉丝私信</p>
-        </div>
-        <div class="flex space-x-3">
-            <button onclick="syncMessages()" class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition">
-                <i class="ri-refresh-line"></i>
-                <span>同步私信</span>
-            </button>
+            <p class="text-gray-500 mt-1">管理和回复粉丝私信，私信由后台轮询自动更新</p>
         </div>
     </div>
 </div>
@@ -154,23 +148,6 @@ function renderMessages(messages) {
     }).join('');
 }
 
-async function syncMessages() {
-    showToast('正在同步私信...', 'info');
-    try {
-        const data = await api('/admin/api/messages/sync', { method: 'POST' });
-        const latest = await loadMessages();
-        const total = latest?.total || 0;
-        const stats = data.stats || {};
-        if ((data.count || 0) === 0) {
-            showToast(`同步完成：新增 0 条（会话 ${stats.sessions || 0}，抓取 ${stats.fetched || 0}，已存在 ${stats.existing || 0}，写入失败 ${stats.insert_errors || 0}）`, 'info');
-        } else {
-            showToast(`同步完成：新增 ${data.count || 0} 条，当前共 ${total} 条私信`, 'success');
-        }
-    } catch (error) {
-        showToast('同步失败: ' + error.message, 'error');
-    }
-}
-
 async function aiReply(messageId) {
     showToast('正在生成AI回复...', 'info');
     try {
@@ -209,6 +186,9 @@ async function ignore(messageId) {
     }
 }
 
-loadMessages();
+document.addEventListener('DOMContentLoaded', () => {
+    loadMessages();
+    setInterval(loadMessages, 30 * 1000);
+});
 </script>
 {{ end }}

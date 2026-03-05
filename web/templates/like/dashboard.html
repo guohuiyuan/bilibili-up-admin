@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-2xl font-bold text-gray-800">互动管理</h2>
-            <p class="mt-1 text-sm text-pink-600">选择粉丝与投稿，执行点赞/投币/收藏/三连，并同步真实互动数据。</p>
+            <p class="mt-1 text-sm text-pink-600">选择粉丝与投稿，执行点赞/投币/收藏/三连，真实互动数据自动轮询更新。</p>
         </div>
         <div class="flex items-center gap-2">
             <button type="button" onclick="loadOperationStats().catch(err => showToast(err.message, 'error'))" class="rounded-xl border border-pink-200 bg-white px-4 py-2 text-sm text-pink-600 hover:bg-pink-50 transition">
@@ -60,7 +60,7 @@
         </section>
 
         <section class="rounded-2xl border border-pink-100 bg-white shadow-sm p-5 space-y-4">
-            <div class="font-semibold text-gray-800">3. 执行互动与同步</div>
+            <div class="font-semibold text-gray-800">3. 执行互动</div>
             <div id="selected-video-box" class="rounded-xl border border-pink-200 bg-pink-50/40 p-4 text-sm text-gray-500">请先选择投稿</div>
             <div class="grid grid-cols-4 gap-2">
                 <button onclick="actLike()" class="rounded-lg bg-pink-100 text-pink-700 py-2 hover:bg-pink-200 transition">点赞</button>
@@ -68,8 +68,6 @@
                 <button onclick="actFavorite()" class="rounded-lg bg-fuchsia-100 text-fuchsia-700 py-2 hover:bg-fuchsia-200 transition">收藏</button>
                 <button onclick="actTriple()" class="rounded-lg bg-purple-100 text-purple-700 py-2 hover:bg-purple-200 transition">三连</button>
             </div>
-            <button onclick="syncEngagement()" class="w-full rounded-lg bg-pink-500 text-white py-2 hover:bg-pink-600 transition">同步真实点赞/投币/收藏/硬币</button>
-
             <div class="grid grid-cols-2 gap-2">
                 <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">视频点赞：<span id="eng-like">-</span></div>
                 <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">视频投币：<span id="eng-coin">-</span></div>
@@ -99,6 +97,7 @@ let videoPageSize = 10;
 let selectedFan = null;
 let selectedVideo = null;
 let favoriteMediaID = 0;
+let engagementPollTimer = null;
 
 function fmt(n) {
     if (n == null) return '-';
@@ -175,6 +174,21 @@ function selectVideo(bvid) {
     selectedVideo = videoItems.find(item => item.bvid === bvid) || null;
     renderFanVideos();
     renderSelectedVideo();
+    refreshSelectedVideoEngagement();
+}
+
+function startEngagementPolling() {
+    if (engagementPollTimer) {
+        clearInterval(engagementPollTimer);
+    }
+    engagementPollTimer = setInterval(refreshSelectedVideoEngagement, 15 * 1000);
+}
+
+function refreshSelectedVideoEngagement() {
+    if (!selectedVideo) {
+        return;
+    }
+    syncEngagement().catch(err => showToast(err.message, 'error'));
 }
 
 async function loadInteractionDefaults() {
@@ -300,6 +314,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadInteractionDefaults()
         .then(() => Promise.all([loadOperationStats(), loadFansPage()]))
         .catch(err => showToast(err.message, 'error'));
+    startEngagementPolling();
+    setInterval(() => {
+        loadOperationStats().catch(err => showToast(err.message, 'error'));
+    }, 60 * 1000);
 });
 </script>
 {{ end }}

@@ -17,13 +17,9 @@
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-2xl font-bold text-gray-800">评论管理</h2>
-            <p class="text-gray-500 mt-1">管理和回复视频评论，支持一键拉取投稿数据</p>
+            <p class="text-gray-500 mt-1">管理和回复视频评论，评论由后台轮询自动更新</p>
         </div>
         <div class="flex space-x-3">
-            <button onclick="syncComments()" class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition text-gray-700 shadow-sm">
-                <i class="ri-refresh-line text-pink-500"></i>
-                <span>同步评论</span>
-            </button>
             <button onclick="batchAIReply()" class="flex items-center space-x-2 px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition shadow-sm">
                 <i class="ri-robot-line"></i>
                 <span>批量AI回复</span>
@@ -81,7 +77,7 @@
     <div class="bg-white rounded-2xl w-[900px] max-w-[95vw] max-h-[85vh] flex flex-col shadow-xl">
         <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
             <h3 class="text-lg font-bold text-gray-800 flex items-center">
-                <i class="ri-bilibili-line text-pink-500 mr-2 text-xl"></i>选择要同步的投稿
+                <i class="ri-bilibili-line text-pink-500 mr-2 text-xl"></i>选择投稿进行筛选
             </h3>
             <button onclick="Modal.hide('video-selector-modal')" class="text-gray-400 hover:text-pink-500 transition">
                 <i class="ri-close-line text-2xl"></i>
@@ -147,7 +143,8 @@ async function openVideoSelector() {
 function selectVideo(bvid) {
     document.getElementById('filter-bvid').value = bvid;
     Modal.hide('video-selector-modal');
-    syncComments(bvid); // 选中后直接触发同步
+    currentPage = 1;
+    loadComments();
 }
 
 function formatShortDate(ts) {
@@ -171,29 +168,6 @@ async function loadComments() {
     } catch (error) {
         showToast('加载评论失败: ' + error.message, 'error');
         return null;
-    }
-}
-
-// 支持直接传入 bvid 进行同步
-async function syncComments(directBvid) {
-    const bvid = directBvid || document.getElementById('filter-bvid').value || prompt('请输入视频BV号:');
-    if (!bvid) return;
-    
-    document.getElementById('filter-bvid').value = bvid;
-    showToast(`正在拉取视频 ${bvid} 的评论...`, 'info');
-    
-    try {
-        // 改用 api 函数封装
-        const data = await api(`${getApiPrefix()}/api/comments/sync`, {
-            method: 'POST',
-            body: { video_bvid: bvid, page: 1, page_size: 50 } // 每次同步拉取前50条最新评论
-        });
-        currentPage = 1;
-        const latest = await loadComments();
-        const total = latest?.total || 0;
-        showToast(`拉取完成：本次新增 ${data.count || 0} 条，当前共 ${total} 条`, 'success');
-    } catch (error) {
-        showToast('同步失败: ' + error.message, 'error');
     }
 }
 
@@ -328,6 +302,9 @@ async function batchAIReply() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', loadComments);
+document.addEventListener('DOMContentLoaded', () => {
+    loadComments();
+    setInterval(loadComments, 60 * 1000);
+});
 </script>
 {{ end }}

@@ -63,6 +63,9 @@ func main() {
 	defer zapLogger.Sync()
 
 	services := initServices(runtimeStore, settingsSvc, repos)
+	if err := services.Auth.EnsureDefaultAdmin(context.Background()); err != nil {
+		log.Fatalf("init default admin failed: %v", err)
+	}
 	pollingManager := initPolling(runtimeStore, services)
 	handlers := initHandlers(services, settingsSvc, runtimeStore, pollingManager)
 	router := initRouter(handlers, config.GlobalConfig.Server.Mode)
@@ -153,6 +156,8 @@ func initDatabase() (*gorm.DB, error) {
 
 	if err := db.AutoMigrate(
 		&model.User{},
+		&model.AdminUser{},
+		&model.AdminSession{},
 		&model.Comment{},
 		&model.Message{},
 		&model.Interaction{},
@@ -388,6 +393,8 @@ type Repositories struct {
 	LLMChatLog  *repository.LLMChatLogRepository
 	Setting     *repository.SettingRepository
 	LLMProvider *repository.LLMProviderRepository // 新增这一行
+	AdminUser   *repository.AdminUserRepository
+	AdminSession *repository.AdminSessionRepository
 }
 
 func initRepositories(db *gorm.DB) *Repositories {
@@ -399,6 +406,8 @@ func initRepositories(db *gorm.DB) *Repositories {
 		LLMChatLog:  repository.NewLLMChatLogRepository(db),
 		Setting:     repository.NewSettingRepository(db),
 		LLMProvider: repository.NewLLMProviderRepository(db), // 新增这一行
+		AdminUser:   repository.NewAdminUserRepository(db),
+		AdminSession: repository.NewAdminSessionRepository(db),
 	}
 }
 
@@ -409,6 +418,7 @@ type Services struct {
 	Trend       *service.TrendService
 	LLM         *service.LLMService
 	Settings    *service.AppSettingsService
+	Auth        *service.AuthService
 }
 
 func initServices(runtime *appruntime.Store, settings *service.AppSettingsService, repos *Repositories) *Services {
@@ -419,6 +429,7 @@ func initServices(runtime *appruntime.Store, settings *service.AppSettingsServic
 		Trend:       service.NewTrendService(runtime, repos.TagRanking),
 		LLM:         service.NewLLMService(runtime, repos.LLMChatLog),
 		Settings:    settings,
+		Auth:        service.NewAuthService(repos.AdminUser, repos.AdminSession),
 	}
 }
 
@@ -431,6 +442,7 @@ type Handlers struct {
 	LLM           *handler.LLMHandler
 	Settings      *handler.SettingsHandler
 	Observability *handler.ObservabilityHandler
+	Auth          *handler.AuthHandler
 }
 
 func initHandlers(services *Services, settings *service.AppSettingsService, runtime *appruntime.Store, pollingManager *polling.Manager) *Handlers {
@@ -443,6 +455,7 @@ func initHandlers(services *Services, settings *service.AppSettingsService, runt
 		LLM:           handler.NewLLMHandler(services.LLM),
 		Settings:      handler.NewSettingsHandler(settings, runtime),
 		Observability: handler.NewObservabilityHandler(pollingManager),
+		Auth:          handler.NewAuthHandler(services.Auth),
 	}
 }
 
@@ -463,7 +476,7 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 
 	// 根目录重定向至统一前缀
 	router.GET("/", func(c *gin.Context) {
-		c.Redirect(http.StatusFound, "/admin/")
+		c.Redirect(http.StatusFound, "/admin/login")
 	})
 
 	// 统一前缀路由组
@@ -471,17 +484,32 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 	{
 		admin.Static("/static", "web/static")
 
-		admin.GET("/", h.Page.Index)
-		admin.GET("/comments", h.Page.Comments)
-		admin.GET("/messages", h.Page.Messages)
-		admin.GET("/interaction", h.Page.Interaction)
-		admin.GET("/trends", h.Page.Trends)
-		admin.GET("/settings", h.Page.Settings)
-		admin.GET("/settings/bilibili", h.Page.Bilibili)
+		admin.GET("/login", h.Page.Login)
 
-		api := admin.Group("/api")
+		publicAPI := admin.Group("/api")
 		{
-			api.GET("/observability/polling", h.Observability.PollingStats)
+			publicAPI.POST("/auth/login", h.Auth.Login)
+		}
+
+		authz := admin.Group("")
+		authz.Use(handler.AdminAuthRequired(h.Auth.Service()), handler.RequirePasswordChanged())
+		{
+			authz.GET("/", h.Page.Index)
+			authz.GET("/comments", h.Page.Comments)
+			authz.GET("/messages", h.Page.Messages)
+			authz.GET("/interaction", h.Page.Interaction)
+			authz.GET("/trends", h.Page.Trends)
+			authz.GET("/settings", h.Page.Settings)
+			authz.GET("/settings/bilibili", h.Page.Bilibili)
+			authz.GET("/account/password", h.Page.Password)
+
+			api := authz.Group("/api")
+			{
+				api.POST("/auth/logout", h.Auth.Logout)
+				api.GET("/auth/me", h.Auth.Me)
+				api.POST("/auth/change-password", h.Auth.ChangePassword)
+
+				api.GET("/observability/polling", h.Observability.PollingStats)
 
 			api.GET("/comments", h.Comment.List)
 			api.POST("/comments/sync", h.Comment.Sync)
@@ -540,9 +568,10 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 			api.POST("/settings/bilibili/qrcode", h.Settings.GenerateBilibiliQRCode)
 			api.GET("/settings/bilibili/qrcode/poll", h.Settings.PollBilibiliQRCode)
 
-			api.GET("/health", func(c *gin.Context) {
-				c.JSON(200, gin.H{"status": "ok"})
-			})
+				api.GET("/health", func(c *gin.Context) {
+					c.JSON(200, gin.H{"status": "ok"})
+				})
+			}
 		}
 	}
 

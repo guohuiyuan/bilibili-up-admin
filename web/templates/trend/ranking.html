@@ -14,12 +14,8 @@
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-2xl font-bold text-gray-800">热度分析</h2>
-            <p class="text-gray-500 mt-1">查看B站热门标签和视频排行</p>
+            <p class="text-gray-500 mt-1">查看B站热门标签和视频排行（后台轮询自动更新）</p>
         </div>
-        <button onclick="syncTrends()" class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition">
-            <i class="ri-refresh-line"></i>
-            <span>同步数据</span>
-        </button>
     </div>
 </div>
 
@@ -292,22 +288,6 @@ async function searchTag() {
     }
 }
 
-async function syncTrends() {
-    showToast('正在同步热度数据...', 'info');
-    try {
-        const response = await fetch('/admin/api/trends/sync', { method: 'POST' });
-        if (!response.ok) {
-            const errBody = await response.json().catch(() => ({}));
-            throw new Error(errBody.error || '同步失败');
-        }
-        showToast('同步完成', 'success');
-        loadTrendingTags();
-        loadVideoRanking();
-    } catch (error) {
-        showToast('同步失败: ' + error.message, 'error');
-    }
-}
-
 function formatNumber(num) {
     if (!num) return '0';
     if (num >= 10000) {
@@ -328,5 +308,9 @@ function showToast(message, type) {
 
 loadTrendingTags();
 loadVideoRanking();
+setInterval(() => {
+    loadTrendingTags();
+    loadVideoRanking();
+}, 2 * 60 * 1000);
 </script>
 {{ end }}

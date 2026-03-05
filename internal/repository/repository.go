@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"bilibili-up-admin/internal/model"
@@ -487,6 +488,94 @@ type LLMProviderRepository struct {
 
 func NewLLMProviderRepository(db *gorm.DB) *LLMProviderRepository {
 	return &LLMProviderRepository{db: db}
+}
+
+type AdminUserRepository struct {
+	db *gorm.DB
+}
+
+func NewAdminUserRepository(db *gorm.DB) *AdminUserRepository {
+	return &AdminUserRepository{db: db}
+}
+
+func (r *AdminUserRepository) Create(ctx context.Context, user *model.AdminUser) error {
+	return r.db.WithContext(ctx).Create(user).Error
+}
+
+func (r *AdminUserRepository) First(ctx context.Context) (*model.AdminUser, error) {
+	var user model.AdminUser
+	err := r.db.WithContext(ctx).Order("id ASC").First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *AdminUserRepository) GetByUsername(ctx context.Context, username string) (*model.AdminUser, error) {
+	var user model.AdminUser
+	err := r.db.WithContext(ctx).Where("username = ?", username).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *AdminUserRepository) GetByID(ctx context.Context, id uint) (*model.AdminUser, error) {
+	var user model.AdminUser
+	err := r.db.WithContext(ctx).First(&user, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *AdminUserRepository) Update(ctx context.Context, user *model.AdminUser) error {
+	return r.db.WithContext(ctx).Save(user).Error
+}
+
+type AdminSessionRepository struct {
+	db *gorm.DB
+}
+
+func NewAdminSessionRepository(db *gorm.DB) *AdminSessionRepository {
+	return &AdminSessionRepository{db: db}
+}
+
+func (r *AdminSessionRepository) Create(ctx context.Context, session *model.AdminSession) error {
+	return r.db.WithContext(ctx).Create(session).Error
+}
+
+func (r *AdminSessionRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*model.AdminSession, error) {
+	var session model.AdminSession
+	err := r.db.WithContext(ctx).Where("token_hash = ?", tokenHash).First(&session).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+func (r *AdminSessionRepository) DeleteByTokenHash(ctx context.Context, tokenHash string) error {
+	return r.db.WithContext(ctx).Where("token_hash = ?", tokenHash).Delete(&model.AdminSession{}).Error
+}
+
+func (r *AdminSessionRepository) DeleteExpired(ctx context.Context) error {
+	return r.db.WithContext(ctx).Where("expires_at <= ?", time.Now()).Delete(&model.AdminSession{}).Error
+}
+
+func (r *AdminSessionRepository) Update(ctx context.Context, session *model.AdminSession) error {
+	return r.db.WithContext(ctx).Save(session).Error
 }
 
 func (r *LLMProviderRepository) List(ctx context.Context) ([]model.LLMProvider, error) {
