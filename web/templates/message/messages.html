@@ -99,7 +99,7 @@
             </div>
             <div class="rounded-2xl bg-gray-50 border border-gray-100 px-4 py-3 text-sm text-gray-500">
                 <div class="text-xs text-gray-400 mb-1">说明</div>
-                右侧会话视图按发信人聚合，优先服务“大模型辅助回复”的上下文阅读。
+                右侧按会话对象聚合，消息气泡按“对方在左、自己在右”展示。
             </div>
             <div class="ml-auto text-sm text-gray-400">
                 <span id="total-count">共 0 条私信</span>
@@ -112,7 +112,7 @@
             <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div>
                     <div class="text-sm font-semibold text-gray-800">最近消息</div>
-                    <div class="text-xs text-gray-400 mt-1">按发信人聚合显示</div>
+                    <div class="text-xs text-gray-400 mt-1">按聊天对象聚合显示</div>
                 </div>
                 <div class="text-xs text-gray-400">会话</div>
             </div>
@@ -240,7 +240,7 @@ function groupConversations(messages) {
     for (const item of messages) {
         const conversationId = item.conversation_uid || item.conversation_id || 0;
         const fallbackSenderId = item.sender_uid || item.sender_id || item.SenderID || 0;
-        const sessionId = conversationId || fallbackSenderId;
+        const sessionId = conversationId || (!item.is_from_self ? fallbackSenderId : 0);
         if (!sessionId) {
             continue;
         }
@@ -265,6 +265,65 @@ function groupConversations(messages) {
         session.pending = session.messages.filter(m => !m.is_from_self && m.reply_status === 0).length;
         return session;
     }).sort((a, b) => new Date(b.latest?.message_time || 0).getTime() - new Date(a.latest?.message_time || 0).getTime());
+}
+
+function formatAbsoluteTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hour = `${date.getHours()}`.padStart(2, '0');
+    const minute = `${date.getMinutes()}`.padStart(2, '0');
+    return `${month}-${day} ${hour}:${minute}`;
+}
+
+function hasPersistedReply(session, sourceMessage) {
+    return session.messages.some(item => {
+        if (!item.is_from_self) {
+            return false;
+        }
+        if ((item.content || '').trim() !== (sourceMessage.reply_content || '').trim()) {
+            return false;
+        }
+        const itemTime = new Date(item.message_time || 0).getTime();
+        const sourceTime = new Date(sourceMessage.message_time || 0).getTime();
+        return itemTime >= sourceTime;
+    });
+}
+
+function buildThreadTimeline(session) {
+    const timeline = [];
+    for (const item of session.messages) {
+        timeline.push({
+            type: item.is_from_self ? 'self' : 'incoming',
+            messageId: item.message_id,
+            senderName: item.sender_name || (item.is_from_self ? '我' : session.conversationName),
+            senderFace: item.sender_face || (item.is_from_self ? '' : session.conversationFace),
+            content: item.content || '',
+            messageTime: item.message_time,
+            replyStatus: item.reply_status,
+            isAIReply: item.is_ai_reply,
+            source: item,
+            synthetic: false
+        });
+
+        if (!item.is_from_self && item.reply_content && !hasPersistedReply(session, item)) {
+            timeline.push({
+                type: 'self',
+                messageId: `${item.message_id}-reply-record`,
+                senderName: '我',
+                senderFace: '',
+                content: item.reply_content,
+                messageTime: item.message_time,
+                replyStatus: 1,
+                isAIReply: item.is_ai_reply,
+                source: item,
+                synthetic: true
+            });
+        }
+    }
+    return timeline.sort((a, b) => new Date(a.messageTime || 0).getTime() - new Date(b.messageTime || 0).getTime());
 }
 
 async function loadMessages() {
@@ -380,28 +439,25 @@ function renderThread(session) {
         </div>
     `;
 
-    document.getElementById('thread-body').innerHTML = session.messages.map(item => {
-        const fromSelf = !!item.is_from_self;
+    const timeline = buildThreadTimeline(session);
+    document.getElementById('thread-body').innerHTML = timeline.map(entry => {
+        const fromSelf = entry.type === 'self';
+        const item = entry.source;
         const pending = item.reply_status === 0;
+        const timeLabel = formatAbsoluteTime(entry.messageTime);
         return `
             <div class="thread-message mb-6 flex ${fromSelf ? 'justify-end' : 'items-start space-x-4'}">
-                ${fromSelf ? '' : `<div class="flex-shrink-0">${avatarHtml(item.sender_name || session.conversationName, item.sender_face || session.conversationFace)}</div>`}
+                ${fromSelf ? '' : `<div class="flex-shrink-0">${avatarHtml(entry.senderName || session.conversationName, entry.senderFace || session.conversationFace)}</div>`}
                 <div class="min-w-0 max-w-[78%] ${fromSelf ? 'ml-auto' : ''}">
                     <div class="${fromSelf ? 'thread-self' : 'thread-incoming'} rounded-[22px] px-5 py-4 shadow-sm">
                         <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400 mb-2">
-                            <span class="font-medium text-gray-700">${escapeHtml(item.sender_name || (fromSelf ? '我' : session.conversationName))}</span>
-                            <span>${formatTime(item.message_time)}</span>
-                            ${fromSelf ? '<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">我发出的</span>' : pending ? '<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">待回复</span>' : item.reply_status === 2 ? '<span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-gray-500 border border-gray-100">已忽略</span>' : '<span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-green-600 border border-green-100">已回复</span>'}
-                            ${item.is_ai_reply ? '<span class="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-purple-600 border border-purple-100">AI</span>' : ''}
+                            <span class="font-medium text-gray-700">${escapeHtml(entry.senderName || (fromSelf ? '我' : session.conversationName))}</span>
+                            <span>${timeLabel || formatTime(entry.messageTime)}</span>
+                            ${fromSelf ? `<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">${entry.synthetic ? '回复记录' : '我发出的'}</span>` : pending ? '<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">待回复</span>' : item.reply_status === 2 ? '<span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-gray-500 border border-gray-100">已忽略</span>' : '<span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-green-600 border border-green-100">已回复</span>'}
+                            ${entry.isAIReply ? '<span class="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-purple-600 border border-purple-100">AI</span>' : ''}
                         </div>
-                        <div class="text-[15px] leading-7 text-gray-700 whitespace-pre-wrap break-words">${escapeHtml(item.content || '')}</div>
+                        <div class="text-[15px] leading-7 text-gray-700 whitespace-pre-wrap break-words">${escapeHtml(entry.content || '')}</div>
                     </div>
-                    ${item.reply_content && !fromSelf ? `
-                        <div class="thread-reply mt-3 ml-10 rounded-[20px] px-5 py-4 shadow-sm">
-                            <div class="text-xs text-pink-400 mb-2">你的回复</div>
-                            <div class="text-[15px] leading-7 text-gray-700 whitespace-pre-wrap break-words">${escapeHtml(item.reply_content)}</div>
-                        </div>
-                    ` : ''}
                     ${!fromSelf && pending ? `
                         <div class="mt-3 ml-10 flex flex-wrap items-center gap-3 text-sm">
                             <button onclick="aiReply(${item.message_id})" class="inline-flex items-center rounded-full bg-pink-50 px-3 py-1.5 text-pink-600 border border-pink-100 hover:bg-pink-100 transition"><i class="ri-robot-2-line mr-1"></i>AI 回复</button>
@@ -410,7 +466,7 @@ function renderThread(session) {
                         </div>
                     ` : ''}
                 </div>
-                ${fromSelf ? `<div class="flex-shrink-0 ml-4">${avatarHtml(item.sender_name || '我', item.sender_face || '', 'w-12 h-12')}</div>` : ''}
+                ${fromSelf ? `<div class="flex-shrink-0 ml-4">${avatarHtml(entry.senderName || '我', entry.senderFace || '', 'w-12 h-12')}</div>` : ''}
             </div>
         `;
     }).join('');
