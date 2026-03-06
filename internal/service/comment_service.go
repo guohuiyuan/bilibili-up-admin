@@ -62,6 +62,9 @@ type MyVideoListResult struct {
 	List struct {
 		VList []MyVideoItem `json:"vlist"`
 	} `json:"list"`
+	Page     int  `json:"page"`
+	PageSize int  `json:"page_size"`
+	HasMore  bool `json:"has_more"`
 }
 
 type MyVideoItem struct {
@@ -337,6 +340,13 @@ func (s *CommentService) BatchAIReply(ctx context.Context, limit int) (int, erro
 
 // GetMyVideos 获取当前登录用户的投稿列表
 func (s *CommentService) GetMyVideos(ctx context.Context, page, pageSize int) (*MyVideoListResult, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 30
+	}
+
 	client, err := s.biliClient()
 	if err != nil {
 		return nil, err
@@ -356,6 +366,9 @@ func (s *CommentService) GetMyVideos(ctx context.Context, page, pageSize int) (*
 
 	result := &MyVideoListResult{}
 	result.List.VList = make([]MyVideoItem, 0, len(videos.List.VList))
+	result.Page = page
+	result.PageSize = pageSize
+	result.HasMore = len(videos.List.VList) >= pageSize
 	for _, video := range videos.List.VList {
 		created := video.Created
 		if created == 0 {

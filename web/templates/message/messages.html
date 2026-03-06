@@ -14,9 +14,9 @@
 }
 
 .message-panel,
-.conversation-list,
 .thread-pane,
-.thread-toolbar {
+.thread-toolbar,
+.picker-panel {
     background: var(--msg-panel);
     border: 1px solid var(--msg-line);
     box-shadow: 0 18px 40px rgba(15, 23, 42, 0.04);
@@ -49,13 +49,22 @@
     border: 1px solid #ffd5e3;
 }
 
-.thread-reply {
-    background: linear-gradient(180deg, #fff5f8, #fffdfd);
-    border: 1px solid #ffdce7;
-}
-
 .thread-empty-art {
     color: #b6c2d2;
+}
+
+.thread-actions-sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+}
+
+@media (min-width: 1280px) {
+    .thread-pane-sticky {
+        position: sticky;
+        top: 1.5rem;
+        height: calc(100vh - 10rem);
+    }
 }
 
 @keyframes fadeInUp {
@@ -73,13 +82,13 @@
 
 {{ define "content" }}
 <div class="message-shell -mx-8 -mt-4 px-8 pt-6 pb-10">
-    <div class="mb-6 flex items-center justify-between">
+    <div class="mb-6 flex items-center justify-between gap-4">
         <div>
-            <div class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs text-gray-500 border border-gray-200">
+            <div class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
                 <i class="ri-mail-unread-line mr-2 text-pink-500"></i>私信工作台
             </div>
             <h2 class="mt-3 text-3xl font-bold text-gray-900">私信箱</h2>
-            <p class="mt-2 text-sm text-gray-500">尽量贴近 B 站消息页的“会话列表 + 对话阅读”结构，方便后续接入大模型回复链路。</p>
+            <p class="mt-2 text-sm text-gray-500">当前会话固定展示，最新消息改为弹出选择框，支持翻页切换。</p>
         </div>
         <button onclick="loadMessages()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">
             <i class="ri-refresh-line mr-1"></i>刷新消息
@@ -87,9 +96,9 @@
     </div>
 
     <div class="thread-toolbar rounded-3xl p-5 mb-5">
-        <div class="flex flex-wrap gap-4 items-end">
+        <div class="flex flex-wrap items-end gap-4">
             <div class="w-56">
-                <label class="block text-xs font-medium tracking-wide text-gray-400 mb-2">消息状态</label>
+                <label class="mb-2 block text-xs font-medium tracking-wide text-gray-400">消息状态</label>
                 <select id="filter-status" class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200">
                     <option value="-1">全部消息</option>
                     <option value="0">待回复</option>
@@ -97,35 +106,47 @@
                     <option value="2">已忽略</option>
                 </select>
             </div>
-            <div class="rounded-2xl bg-gray-50 border border-gray-100 px-4 py-3 text-sm text-gray-500">
-                <div class="text-xs text-gray-400 mb-1">说明</div>
-                右侧按会话对象聚合，消息气泡按“对方在左、自己在右”展示。
+            <div class="message-panel rounded-3xl px-4 py-3 text-sm text-gray-500">
+                <div class="text-xs text-gray-400">当前会话</div>
+                <div id="conversation-current" class="mt-1 font-medium text-gray-800">未选择</div>
             </div>
-            <div class="ml-auto text-sm text-gray-400">
-                <span id="total-count">共 0 条私信</span>
+            <div class="message-panel rounded-3xl px-4 py-3 text-sm text-gray-500">
+                <div class="text-xs text-gray-400">统计</div>
+                <div id="total-count" class="mt-1 font-medium text-gray-800">共 0 条私信</div>
             </div>
+            <button onclick="openConversationPicker()" class="rounded-full bg-gray-900 px-5 py-2 text-sm text-white hover:bg-black transition">
+                <i class="ri-chat-3-line mr-1"></i>选择会话
+            </button>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-5 items-start">
-        <div class="conversation-list rounded-3xl overflow-hidden">
-            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <div>
-                    <div class="text-sm font-semibold text-gray-800">最近消息</div>
-                    <div class="text-xs text-gray-400 mt-1">按聊天对象聚合显示</div>
-                </div>
-                <div class="text-xs text-gray-400">会话</div>
-            </div>
-            <div id="message-sidebar" class="max-h-[72vh] overflow-y-auto divide-y divide-gray-100"></div>
-            <div class="px-5 py-4 border-t border-gray-100 bg-gray-50 flex justify-center">
-                <div id="pagination" class="flex space-x-2"></div>
-            </div>
-        </div>
+    <div class="thread-pane thread-pane-sticky rounded-3xl overflow-hidden min-h-[72vh] flex flex-col">
+        <div id="thread-header" class="px-6 py-5 border-b border-gray-100 bg-white"></div>
+        <div id="thread-body" class="flex-1 overflow-y-auto bg-[#fafbfd] p-6"></div>
+        <div id="thread-actions" class="thread-actions-sticky px-6 py-4 border-t border-gray-100 bg-white/95 backdrop-blur"></div>
+    </div>
+</div>
 
-        <div class="thread-pane rounded-3xl overflow-hidden min-h-[72vh] flex flex-col">
-            <div id="thread-header" class="px-6 py-5 border-b border-gray-100 bg-white"></div>
-            <div id="thread-body" class="flex-1 overflow-y-auto bg-[#fafbfd] p-6"></div>
-            <div id="thread-actions" class="px-6 py-4 border-t border-gray-100 bg-white"></div>
+<div id="conversation-picker-modal" class="fixed inset-0 z-40 hidden overflow-y-auto bg-black/45 px-4 py-8">
+    <div class="mx-auto flex min-h-full max-w-3xl items-center justify-center">
+        <div class="picker-panel flex max-h-[85vh] min-h-0 w-full flex-col overflow-hidden rounded-[28px]">
+            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                <div>
+                    <div class="text-lg font-semibold text-gray-900">选择私信会话</div>
+                    <div class="mt-1 text-sm text-gray-400">按当前筛选结果展示，每次可翻到下一页继续选。</div>
+                </div>
+                <button type="button" onclick="closeConversationPicker()" class="text-gray-400 hover:text-pink-500 transition">
+                    <i class="ri-close-line text-2xl"></i>
+                </button>
+            </div>
+            <div id="conversation-picker-list" class="min-h-0 flex-1 overflow-y-auto divide-y divide-gray-100 bg-[#fafbfd]"></div>
+            <div class="flex items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4">
+                <div id="conversation-picker-page" class="text-sm text-gray-500">第 1 页</div>
+                <div class="flex items-center gap-3">
+                    <button onclick="prevConversationPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">上一页</button>
+                    <button onclick="nextConversationPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">下一页</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -192,7 +213,6 @@
         </div>
     </div>
 </div>
-
 {{ end }}
 
 {{ define "scripts" }}
@@ -201,6 +221,8 @@
 let currentPage = 1;
 const pageSize = 40;
 let currentMessages = [];
+let currentSessions = [];
+let totalMessages = 0;
 let activeConversationId = null;
 
 function escapeHtml(value) {
@@ -219,8 +241,19 @@ function formatTime(value) {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     if (diff < 60 * 1000) return '刚刚';
-    if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}分钟前`;
-    if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))}小时前`;
+    if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))} 分钟前`;
+    if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))} 小时前`;
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hour = `${date.getHours()}`.padStart(2, '0');
+    const minute = `${date.getMinutes()}`.padStart(2, '0');
+    return `${month}-${day} ${hour}:${minute}`;
+}
+
+function formatAbsoluteTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
     const month = `${date.getMonth() + 1}`.padStart(2, '0');
     const day = `${date.getDate()}`.padStart(2, '0');
     const hour = `${date.getHours()}`.padStart(2, '0');
@@ -241,9 +274,8 @@ function groupConversations(messages) {
         const conversationId = item.conversation_uid || item.conversation_id || 0;
         const fallbackSenderId = item.sender_uid || item.sender_id || item.SenderID || 0;
         const sessionId = conversationId || (!item.is_from_self ? fallbackSenderId : 0);
-        if (!sessionId) {
-            continue;
-        }
+        if (!sessionId) continue;
+
         const existing = conversationMap.get(sessionId) || {
             conversationId: sessionId,
             conversationName: item.conversation_name || item.sender_name || '用户',
@@ -259,6 +291,7 @@ function groupConversations(messages) {
         }
         conversationMap.set(sessionId, existing);
     }
+
     return Array.from(conversationMap.values()).map(session => {
         session.messages.sort((a, b) => new Date(a.message_time).getTime() - new Date(b.message_time).getTime());
         session.latest = session.messages[session.messages.length - 1] || null;
@@ -267,25 +300,10 @@ function groupConversations(messages) {
     }).sort((a, b) => new Date(b.latest?.message_time || 0).getTime() - new Date(a.latest?.message_time || 0).getTime());
 }
 
-function formatAbsoluteTime(value) {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const month = `${date.getMonth() + 1}`.padStart(2, '0');
-    const day = `${date.getDate()}`.padStart(2, '0');
-    const hour = `${date.getHours()}`.padStart(2, '0');
-    const minute = `${date.getMinutes()}`.padStart(2, '0');
-    return `${month}-${day} ${hour}:${minute}`;
-}
-
 function hasPersistedReply(session, sourceMessage) {
     return session.messages.some(item => {
-        if (!item.is_from_self) {
-            return false;
-        }
-        if ((item.content || '').trim() !== (sourceMessage.reply_content || '').trim()) {
-            return false;
-        }
+        if (!item.is_from_self) return false;
+        if ((item.content || '').trim() !== (sourceMessage.reply_content || '').trim()) return false;
         const itemTime = new Date(item.message_time || 0).getTime();
         const sourceTime = new Date(sourceMessage.message_time || 0).getTime();
         return itemTime >= sourceTime;
@@ -323,18 +341,20 @@ function buildThreadTimeline(session) {
             });
         }
     }
+
     return timeline.sort((a, b) => new Date(a.messageTime || 0).getTime() - new Date(b.messageTime || 0).getTime());
 }
 
 async function loadMessages() {
     const status = document.getElementById('filter-status').value;
-
     try {
         const data = await api(`/admin/api/messages?reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
         currentMessages = data.messages || [];
-        document.getElementById('total-count').textContent = `共 ${data.total || 0} 条私信`;
-        renderMessageWorkspace(currentMessages);
-        renderPagination(data.total || 0);
+        totalMessages = data.total || 0;
+        currentSessions = groupConversations(currentMessages);
+        document.getElementById('total-count').textContent = `共 ${totalMessages} 条私信`;
+        renderConversationPicker();
+        renderMessageWorkspace();
         return data;
     } catch (error) {
         showToast('加载失败: ' + error.message, 'error');
@@ -342,47 +362,48 @@ async function loadMessages() {
     }
 }
 
-function renderMessageWorkspace(messages) {
-    const sessions = groupConversations(messages);
-    renderSidebar(sessions);
-    if (sessions.length === 0) {
+function renderMessageWorkspace() {
+    if (!currentSessions.length) {
         activeConversationId = null;
         renderEmptyThread();
         return;
     }
-    if (!sessions.some(item => item.conversationId === activeConversationId)) {
-        activeConversationId = sessions[0].conversationId;
+    if (!currentSessions.some(item => item.conversationId === activeConversationId)) {
+        activeConversationId = currentSessions[0].conversationId;
     }
-    renderThread(sessions.find(item => item.conversationId === activeConversationId));
+    renderThread(currentSessions.find(item => item.conversationId === activeConversationId));
 }
 
-function renderSidebar(sessions) {
-    const container = document.getElementById('message-sidebar');
-    if (sessions.length === 0) {
+function renderConversationPicker() {
+    const container = document.getElementById('conversation-picker-list');
+    document.getElementById('conversation-picker-page').textContent = `第 ${currentPage} 页`;
+
+    if (!currentSessions.length) {
         container.innerHTML = `
             <div class="p-10 text-center text-gray-400">
                 <i class="ri-mail-forbid-line text-5xl"></i>
-                <p class="mt-3">暂无可展示的会话</p>
+                <p class="mt-3">当前页没有可选会话</p>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = sessions.map(session => {
+    container.innerHTML = currentSessions.map(session => {
         const latest = session.latest || {};
         const preview = latest.content || latest.reply_content || '暂无消息内容';
+        const active = session.conversationId === activeConversationId;
         return `
-            <button onclick="openConversation(${session.conversationId})" class="conversation-item ${session.conversationId === activeConversationId ? 'active' : ''} w-full text-left px-5 py-4 border-l-4 ${session.conversationId === activeConversationId ? 'border-pink-400' : 'border-transparent'}">
-                <div class="flex items-start space-x-3">
-                    <div class="flex-shrink-0">${avatarHtml(session.conversationName, session.conversationFace)}</div>
+            <button onclick="selectConversation(${session.conversationId})" class="conversation-item ${active ? 'active' : ''} w-full border-l-4 ${active ? 'border-pink-400' : 'border-transparent'} px-6 py-4 text-left">
+                <div class="flex items-start gap-3">
+                    <div class="shrink-0">${avatarHtml(session.conversationName, session.conversationFace)}</div>
                     <div class="min-w-0 flex-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="font-medium text-gray-900 truncate">${escapeHtml(session.conversationName)}</div>
-                            <div class="text-xs text-gray-400 whitespace-nowrap">${formatTime(latest.message_time)}</div>
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="truncate text-sm font-semibold text-gray-900">${escapeHtml(session.conversationName)}</div>
+                            <div class="text-xs text-gray-400">${formatTime(latest.message_time)}</div>
                         </div>
-                        <div class="mt-1 text-sm text-gray-500 truncate">${escapeHtml(preview)}</div>
+                        <div class="mt-1 truncate text-sm text-gray-500">${escapeHtml(preview)}</div>
                         <div class="mt-2 flex items-center gap-2 text-xs">
-                            ${session.pending > 0 ? `<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">待回复 ${session.pending}</span>` : '<span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-gray-500 border border-gray-100">已处理</span>'}
+                            ${session.pending > 0 ? `<span class="rounded-full border border-pink-100 bg-pink-50 px-2 py-0.5 text-pink-600">待回复 ${session.pending}</span>` : '<span class="rounded-full border border-gray-100 bg-gray-50 px-2 py-0.5 text-gray-500">已处理</span>'}
                             <span class="text-gray-400">${session.messages.length} 条</span>
                         </div>
                     </div>
@@ -393,17 +414,21 @@ function renderSidebar(sessions) {
 }
 
 function renderEmptyThread() {
+    document.getElementById('conversation-current').textContent = '未选择';
     document.getElementById('thread-header').innerHTML = `
-        <div>
-            <div class="text-lg font-semibold text-gray-800">选择一个会话</div>
-            <div class="text-sm text-gray-400 mt-1">左侧选择最近消息后，在这里处理回复。</div>
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <div class="text-lg font-semibold text-gray-800">选择一个会话</div>
+                <div class="mt-1 text-sm text-gray-400">点击上方“选择会话”打开弹出列表。</div>
+            </div>
+            <button onclick="openConversationPicker()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">打开会话列表</button>
         </div>
     `;
     document.getElementById('thread-body').innerHTML = `
-        <div class="h-full min-h-[420px] flex flex-col items-center justify-center text-center">
-            <div class="thread-empty-art text-8xl leading-none">◔ ◡ ◔</div>
-            <div class="mt-6 text-lg text-gray-400">快找小伙伴聊天吧</div>
-            <div class="mt-2 text-sm text-gray-300">当前筛选条件下没有可阅读的会话。</div>
+        <div class="flex h-full min-h-[420px] flex-col items-center justify-center text-center">
+            <div class="thread-empty-art text-8xl leading-none">◌◌◌</div>
+            <div class="mt-6 text-lg text-gray-400">还没有选中会话</div>
+            <div class="mt-2 text-sm text-gray-300">从弹出选择框里选一个私信会话继续处理。</div>
         </div>
     `;
     document.getElementById('thread-actions').innerHTML = `
@@ -411,9 +436,31 @@ function renderEmptyThread() {
     `;
 }
 
-function openConversation(conversationId) {
+function openConversationPicker() {
+    Modal.show('conversation-picker-modal');
+}
+
+function closeConversationPicker() {
+    Modal.hide('conversation-picker-modal');
+}
+
+function selectConversation(conversationId) {
     activeConversationId = conversationId;
-    renderMessageWorkspace(currentMessages);
+    renderConversationPicker();
+    renderMessageWorkspace();
+    closeConversationPicker();
+}
+
+function prevConversationPage() {
+    if (currentPage <= 1) return;
+    currentPage -= 1;
+    loadMessages();
+}
+
+function nextConversationPage() {
+    if (currentMessages.length < pageSize) return;
+    currentPage += 1;
+    loadMessages();
 }
 
 function renderThread(session) {
@@ -423,18 +470,22 @@ function renderThread(session) {
     }
 
     const latest = session.latest || {};
+    document.getElementById('conversation-current').textContent = session.conversationName || '未命名会话';
     document.getElementById('thread-header').innerHTML = `
         <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center space-x-4 min-w-0">
+            <div class="flex min-w-0 items-center space-x-4">
                 ${avatarHtml(session.conversationName, session.conversationFace, 'w-14 h-14')}
                 <div class="min-w-0">
-                    <div class="text-lg font-semibold text-gray-900 truncate">${escapeHtml(session.conversationName)}</div>
+                    <div class="truncate text-lg font-semibold text-gray-900">${escapeHtml(session.conversationName)}</div>
                     <div class="mt-1 text-sm text-gray-400">最近消息 ${formatTime(latest.message_time)}</div>
                 </div>
             </div>
-            <div class="text-right text-xs text-gray-400">
-                <div>会话内消息 ${session.messages.length} 条</div>
-                <div class="mt-1">待回复 ${session.pending} 条</div>
+            <div class="flex items-center gap-3">
+                <div class="text-right text-xs text-gray-400">
+                    <div>会话内消息 ${session.messages.length} 条</div>
+                    <div class="mt-1">待回复 ${session.pending} 条</div>
+                </div>
+                <button onclick="openConversationPicker()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">切换会话</button>
             </div>
         </div>
     `;
@@ -447,26 +498,26 @@ function renderThread(session) {
         const timeLabel = formatAbsoluteTime(entry.messageTime);
         return `
             <div class="thread-message mb-6 flex ${fromSelf ? 'justify-end' : 'items-start space-x-4'}">
-                ${fromSelf ? '' : `<div class="flex-shrink-0">${avatarHtml(entry.senderName || session.conversationName, entry.senderFace || session.conversationFace)}</div>`}
+                ${fromSelf ? '' : `<div class="shrink-0">${avatarHtml(entry.senderName || session.conversationName, entry.senderFace || session.conversationFace)}</div>`}
                 <div class="min-w-0 max-w-[78%] ${fromSelf ? 'ml-auto' : ''}">
                     <div class="${fromSelf ? 'thread-self' : 'thread-incoming'} rounded-[22px] px-5 py-4 shadow-sm">
-                        <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400 mb-2">
+                        <div class="mb-2 flex flex-wrap items-center gap-2 text-xs text-gray-400">
                             <span class="font-medium text-gray-700">${escapeHtml(entry.senderName || (fromSelf ? '我' : session.conversationName))}</span>
                             <span>${timeLabel || formatTime(entry.messageTime)}</span>
-                            ${fromSelf ? `<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">${entry.synthetic ? '回复记录' : '我发出的'}</span>` : pending ? '<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">待回复</span>' : item.reply_status === 2 ? '<span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-gray-500 border border-gray-100">已忽略</span>' : '<span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-green-600 border border-green-100">已回复</span>'}
-                            ${entry.isAIReply ? '<span class="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-purple-600 border border-purple-100">AI</span>' : ''}
+                            ${fromSelf ? `<span class="rounded-full border border-pink-100 bg-pink-50 px-2 py-0.5 text-pink-600">${entry.synthetic ? '回复记录' : '我发出的'}</span>` : pending ? '<span class="rounded-full border border-pink-100 bg-pink-50 px-2 py-0.5 text-pink-600">待回复</span>' : item.reply_status === 2 ? '<span class="rounded-full border border-gray-100 bg-gray-50 px-2 py-0.5 text-gray-500">已忽略</span>' : '<span class="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-green-600">已回复</span>'}
+                            ${entry.isAIReply ? '<span class="rounded-full border border-purple-100 bg-purple-50 px-2 py-0.5 text-purple-600">AI</span>' : ''}
                         </div>
-                        <div class="text-[15px] leading-7 text-gray-700 whitespace-pre-wrap break-words">${escapeHtml(entry.content || '')}</div>
+                        <div class="whitespace-pre-wrap break-words text-[15px] leading-7 text-gray-700">${escapeHtml(entry.content || '')}</div>
                     </div>
                     ${!fromSelf && pending ? `
                         <div class="mt-3 ml-10 flex flex-wrap items-center gap-3 text-sm">
-                            <button onclick="aiReply(${item.message_id})" class="inline-flex items-center rounded-full bg-pink-50 px-3 py-1.5 text-pink-600 border border-pink-100 hover:bg-pink-100 transition"><i class="ri-robot-2-line mr-1"></i>AI 回复</button>
-                            <button onclick="manualReply(${item.message_id}, ${session.conversationId})" class="inline-flex items-center rounded-full bg-white px-3 py-1.5 text-gray-600 border border-gray-200 hover:border-pink-200 hover:text-pink-500 transition"><i class="ri-edit-line mr-1"></i>手动回复</button>
-                            <button onclick="ignore(${item.message_id})" class="inline-flex items-center rounded-full bg-white px-3 py-1.5 text-gray-500 border border-gray-200 hover:border-gray-300 transition"><i class="ri-eye-off-line mr-1"></i>忽略</button>
+                            <button onclick="aiReply(${item.message_id})" class="inline-flex items-center rounded-full border border-pink-100 bg-pink-50 px-3 py-1.5 text-pink-600 hover:bg-pink-100 transition"><i class="ri-robot-2-line mr-1"></i>AI 回复</button>
+                            <button onclick="manualReply(${item.message_id}, ${session.conversationId})" class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-600 hover:border-pink-200 hover:text-pink-500 transition"><i class="ri-edit-line mr-1"></i>手动回复</button>
+                            <button onclick="ignore(${item.message_id})" class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-500 hover:border-gray-300 transition"><i class="ri-eye-off-line mr-1"></i>忽略</button>
                         </div>
                     ` : ''}
                 </div>
-                ${fromSelf ? `<div class="flex-shrink-0 ml-4">${avatarHtml(entry.senderName || '我', entry.senderFace || '', 'w-12 h-12')}</div>` : ''}
+                ${fromSelf ? `<div class="shrink-0 ml-4">${avatarHtml(entry.senderName || '我', entry.senderFace || '', 'w-12 h-12')}</div>` : ''}
             </div>
         `;
     }).join('');
@@ -475,8 +526,8 @@ function renderThread(session) {
     document.getElementById('thread-actions').innerHTML = pendingItem ? `
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <div class="text-sm font-medium text-gray-800">选中会话存在待处理消息</div>
-                <div class="text-xs text-gray-400 mt-1">你可以直接用 AI 回复或手动修订，适合后续沉淀成模型示例。</div>
+                <div class="text-sm font-medium text-gray-800">当前会话存在待处理消息</div>
+                <div class="mt-1 text-xs text-gray-400">可以直接调用 AI 生成草稿，也可以手动修改后发送。</div>
             </div>
             <div class="flex items-center gap-3">
                 <button onclick="aiReply(${pendingItem.message_id})" class="rounded-full bg-pink-500 px-4 py-2 text-sm text-white hover:bg-pink-600 transition">AI 回复最近一条</button>
@@ -487,45 +538,15 @@ function renderThread(session) {
         <div class="flex items-center justify-between gap-4">
             <div>
                 <div class="text-sm font-medium text-gray-800">当前会话已处理完成</div>
-                <div class="text-xs text-gray-400 mt-1">如果要做风格校准，可以继续观察对方最新表述。</div>
+                <div class="mt-1 text-xs text-gray-400">如需切换对象，直接打开会话选择框即可。</div>
             </div>
-            <button onclick="loadMessages()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">刷新会话</button>
+            <button onclick="openConversationPicker()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">切换会话</button>
         </div>
     `;
 }
 
-function renderPagination(total) {
-    const totalPages = Math.ceil(total / pageSize);
-    const container = document.getElementById('pagination');
-    if (totalPages <= 1) {
-        container.innerHTML = '';
-        return;
-    }
-    let html = '';
-    for (let i = 1; i <= totalPages && i <= 5; i++) {
-        html += `<button onclick="goToPage(${i})" class="w-9 h-9 flex items-center justify-center rounded-full text-sm transition ${i === currentPage ? 'bg-pink-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-500'}">${i}</button>`;
-    }
-    container.innerHTML = html;
-}
-
-function goToPage(page) {
-    currentPage = page;
-    loadMessages();
-}
-
-async function aiReply(messageId) {
-    showToast('正在生成AI回复...', 'info');
-    try {
-        await api(`/admin/api/messages/${messageId}/ai-reply`, { method: 'POST' });
-        showToast('回复成功', 'success');
-        loadMessages();
-    } catch (error) {
-        showToast('回复失败: ' + error.message, 'error');
-    }
-}
-
 function manualReply(messageId, senderId) {
-    const content = prompt('请输入回复内容:');
+    const content = prompt('请输入回复内容');
     if (!content) return;
 
     api(`/admin/api/messages/${messageId}/reply`, {
@@ -540,7 +561,7 @@ function manualReply(messageId, senderId) {
 }
 
 async function ignore(messageId) {
-    if (!confirm('确定忽略此私信?')) return;
+    if (!confirm('确定忽略这条私信吗？')) return;
 
     try {
         await api(`/admin/api/messages/${messageId}/ignore`, { method: 'POST' });
@@ -565,6 +586,10 @@ document.addEventListener('DOMContentLoaded', () => {
         onSent: () => loadMessages()
     });
     window.messageReplyWorkspace = window.__replyWorkspaceInstances.message;
+    document.getElementById('filter-status').addEventListener('change', () => {
+        currentPage = 1;
+        loadMessages();
+    });
     loadMessages();
     setInterval(loadMessages, 60 * 1000);
 });

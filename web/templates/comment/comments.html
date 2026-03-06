@@ -73,6 +73,14 @@
     color: #7b818a;
     border-color: #e6eaf0;
 }
+
+.selector-item {
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.selector-item:hover {
+    background: linear-gradient(90deg, rgba(251, 114, 153, 0.05), rgba(255, 255, 255, 0));
+}
 </style>
 {{ end }}
 
@@ -181,18 +189,26 @@
     </div>
 </div>
 
-<div id="video-selector-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center">
-    <div class="bg-white rounded-[28px] w-[960px] max-w-[95vw] max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-            <h3 class="text-lg font-bold text-gray-800 flex items-center">
-                <i class="ri-bilibili-line text-pink-500 mr-2 text-xl"></i>选择投稿进行筛选
-            </h3>
-            <button onclick="Modal.hide('video-selector-modal')" class="text-gray-400 hover:text-pink-500 transition">
-                <i class="ri-close-line text-2xl"></i>
-            </button>
-        </div>
-        <div class="p-5 overflow-y-auto flex-1">
-            <div id="my-videos-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></div>
+<div id="video-selector-modal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/45 px-4 py-8">
+    <div class="mx-auto flex min-h-full max-w-4xl items-center justify-center">
+        <div class="video-selector-panel flex max-h-[85vh] min-h-0 w-full flex-col overflow-hidden rounded-[28px]">
+            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-white">
+                <div>
+                    <div class="text-lg font-semibold text-gray-900">选择投稿进行筛选</div>
+                    <div class="mt-1 text-sm text-gray-400">按投稿分页展示，选中后立即带入评论筛选。</div>
+                </div>
+                <button onclick="closeVideoSelector()" class="text-gray-400 hover:text-pink-500 transition">
+                    <i class="ri-close-line text-2xl"></i>
+                </button>
+            </div>
+            <div id="my-videos-list" class="min-h-0 flex-1 overflow-y-auto divide-y divide-gray-100 bg-[#fafbfd]"></div>
+            <div class="flex items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4">
+                <div id="my-videos-page" class="text-sm text-gray-500">第 1 页</div>
+                <div class="flex items-center gap-3">
+                    <button onclick="prevVideoSelectorPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">上一页</button>
+                    <button onclick="nextVideoSelectorPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">下一页</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -267,6 +283,10 @@
 <script>
 let currentPage = 1;
 const pageSize = 20;
+let myVideosPage = 1;
+const myVideosPageSize = 20;
+let myVideos = [];
+let myVideosHasMore = false;
 
 function getApiPrefix() {
     return window.location.pathname.startsWith('/admin') ? '/admin' : '';
@@ -325,47 +345,98 @@ function updateCommentSummary(comments, total) {
     document.getElementById('total-count').textContent = `共 ${total || 0} 条`;
 }
 
-async function openVideoSelector() {
-    Modal.show('video-selector-modal');
+function renderMyVideos() {
     const container = document.getElementById('my-videos-list');
-    container.innerHTML = '<div class="col-span-full text-center py-12"><i class="ri-loader-4-line animate-spin text-4xl text-pink-400"></i><p class="mt-3 text-gray-500">正在拉取投稿列表...</p></div>';
+    document.getElementById('my-videos-page').textContent = `第 ${myVideosPage} 页`;
+
+    if (!myVideos.length) {
+        container.innerHTML = `
+            <div class="p-12 text-center text-gray-400">
+                <i class="ri-video-line text-5xl"></i>
+                <p class="mt-3">当前页没有可选投稿</p>
+            </div>
+        `;
+        return;
+    }
+
+    const activeBvid = document.getElementById('filter-bvid').value;
+    container.innerHTML = myVideos.map(video => {
+        const active = activeBvid === video.bvid;
+        const cover = video.pic && video.pic.startsWith('http') ? video.pic : `https:${video.pic || ''}`;
+        return `
+            <button class="selector-item w-full border-l-4 px-6 py-4 text-left ${active ? 'border-pink-400 bg-pink-50/60' : 'border-transparent bg-transparent'}" onclick="selectVideo('${video.bvid}')">
+                <div class="flex items-start gap-4">
+                    <div class="h-20 w-36 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
+                        ${cover ? `<img src="${escapeHtml(cover)}" class="h-full w-full object-cover" referrerpolicy="no-referrer">` : '<div class="flex h-full items-center justify-center text-gray-300"><i class="ri-video-line text-3xl"></i></div>'}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="truncate text-sm font-semibold text-gray-900">${escapeHtml(video.title || video.bvid)}</div>
+                                <div class="mt-1 text-xs text-gray-500">${escapeHtml(video.bvid)}</div>
+                            </div>
+                            <span class="rounded-full px-2.5 py-1 text-xs ${active ? 'border border-pink-100 bg-pink-50 text-pink-600' : 'border border-gray-100 bg-white text-gray-500'}">${active ? '当前筛选' : '选择'}</span>
+                        </div>
+                        <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                            <span class="inline-flex items-center"><i class="ri-play-circle-line mr-1"></i>${formatNumber(video.play)}</span>
+                            <span class="inline-flex items-center"><i class="ri-message-2-line mr-1"></i>${formatNumber(video.comment)}</span>
+                            <span>${formatShortDate(video.created)}</span>
+                            <span>${escapeHtml(video.length || '00:00')}</span>
+                        </div>
+                    </div>
+                </div>
+            </button>
+        `;
+    }).join('');
+}
+
+async function loadMyVideosPage() {
+    const container = document.getElementById('my-videos-list');
+    container.innerHTML = '<div class="p-12 text-center text-gray-400"><i class="ri-loader-4-line animate-spin text-4xl text-pink-400"></i><p class="mt-3 text-gray-500">正在拉取投稿列表...</p></div>';
 
     try {
-        const response = await api(`${getApiPrefix()}/api/comments/my-videos?page=1&page_size=30`);
-        const videos = response.list?.vlist || [];
+        const response = await api(`${getApiPrefix()}/api/comments/my-videos?page=${myVideosPage}&page_size=${myVideosPageSize}`);
+        myVideos = response.list?.vlist || [];
+        myVideosHasMore = !!response.has_more;
 
-        if (videos.length === 0) {
-            container.innerHTML = '<div class="col-span-full text-center py-12 text-gray-400"><i class="ri-video-line text-5xl mb-2"></i><p>账号暂无投稿，或 Cookie 已过期</p></div>';
+        if (myVideos.length === 0) {
+            container.innerHTML = '<div class="p-12 text-center text-gray-400"><i class="ri-video-line text-5xl mb-2"></i><p>账号暂无投稿，或 Cookie 已过期</p></div>';
             return;
         }
 
-        container.innerHTML = videos.map(v => `
-            <div class="video-card border border-gray-100 rounded-2xl overflow-hidden hover:border-pink-300 hover:shadow-md transition cursor-pointer bg-white group flex flex-col h-full"
-                 onclick="selectVideo('${v.bvid}')">
-                <div class="relative h-28 bg-gray-100 overflow-hidden flex-shrink-0">
-                    <img src="${v.pic.startsWith('http') ? v.pic : 'https:' + v.pic}" class="w-full h-full object-cover transition duration-300" referrerpolicy="no-referrer">
-                    <div class="absolute bottom-1.5 right-1.5 bg-black bg-opacity-70 text-white text-[11px] px-1.5 py-0.5 rounded">${escapeHtml(v.length)}</div>
-                </div>
-                <div class="p-3 flex flex-col flex-1">
-                    <h4 class="text-sm font-medium text-gray-800 line-clamp-2 leading-snug mb-2 flex-1">${escapeHtml(v.title)}</h4>
-                    <div class="flex items-center justify-between text-xs text-gray-500 mt-auto">
-                        <span class="flex items-center"><i class="ri-play-circle-line mr-1 text-gray-400"></i>${formatNumber(v.play)}</span>
-                        <span class="flex items-center"><i class="ri-message-2-line mr-1 text-gray-400"></i>${formatNumber(v.comment)}</span>
-                        <span>${formatShortDate(v.created)}</span>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+        renderMyVideos();
     } catch (err) {
-        container.innerHTML = `<div class="col-span-full text-center py-12 text-red-500"><i class="ri-error-warning-line text-4xl mb-2"></i><p>加载失败: ${escapeHtml(err.message)}</p></div>`;
+        container.innerHTML = `<div class="p-12 text-center text-red-500"><i class="ri-error-warning-line text-4xl mb-2"></i><p>加载失败: ${escapeHtml(err.message)}</p></div>`;
     }
+}
+
+function openVideoSelector() {
+    myVideosPage = 1;
+    Modal.show('video-selector-modal');
+    loadMyVideosPage();
+}
+
+function closeVideoSelector() {
+    Modal.hide('video-selector-modal');
 }
 
 function selectVideo(bvid) {
     document.getElementById('filter-bvid').value = bvid;
-    Modal.hide('video-selector-modal');
+    closeVideoSelector();
     currentPage = 1;
     loadComments();
+}
+
+function prevVideoSelectorPage() {
+    if (myVideosPage <= 1) return;
+    myVideosPage -= 1;
+    loadMyVideosPage();
+}
+
+function nextVideoSelectorPage() {
+    if (!myVideosHasMore) return;
+    myVideosPage += 1;
+    loadMyVideosPage();
 }
 
 async function loadComments() {
