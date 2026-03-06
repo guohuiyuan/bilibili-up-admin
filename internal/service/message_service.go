@@ -40,11 +40,13 @@ func NewMessageService(
 }
 
 type FollowAutoReplySummary struct {
-	ScannedFans int `json:"scanned_fans"`
-	NewFans     int `json:"new_fans"`
-	Replied     int `json:"replied"`
-	Failed      int `json:"failed"`
-	Seeded      int `json:"seeded"`
+	UnreadCount int   `json:"unread_count"`
+	UnreadTime  int64 `json:"unread_time"`
+	ScannedFans int   `json:"scanned_fans"`
+	NewFans     int   `json:"new_fans"`
+	Replied     int   `json:"replied"`
+	Failed      int   `json:"failed"`
+	Seeded      int   `json:"seeded"`
 }
 
 func (s *MessageService) biliClient() (*bilibili.Client, error) {
@@ -445,6 +447,19 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 		return nil, err
 	}
 
+	unreadState, err := client.GetFollowerUnreadState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if unreadState != nil {
+		summary.UnreadCount = int(unreadState.Count)
+		summary.UnreadTime = unreadState.Time
+	}
+	if unreadState == nil || unreadState.Count <= 0 || unreadState.Time <= 0 {
+		log.Printf("[fans.auto_reply] skipped unread_count=%d unread_time=%d", summary.UnreadCount, summary.UnreadTime)
+		return summary, nil
+	}
+
 	if rules.FanPageSize <= 0 {
 		rules.FanPageSize = 20
 	}
@@ -453,16 +468,19 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 	}
 	interval := time.Duration(rules.RequestIntervalSeconds) * time.Second
 
-	const followWindow = 10 * time.Minute
 	recordCount, err := s.fanReplyRepo.Count(ctx)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[fans.auto_reply] start fan_page_size=%d interval_sec=%d follow_window_min=10 record_count=%d", rules.FanPageSize, rules.RequestIntervalSeconds, recordCount)
+	pagesToScan := (summary.UnreadCount + rules.FanPageSize - 1) / rules.FanPageSize
+	if pagesToScan <= 0 {
+		pagesToScan = 1
+	}
+	log.Printf("[fans.auto_reply] start unread_count=%d unread_time=%d fan_page_size=%d pages=%d interval_sec=%d record_count=%d", summary.UnreadCount, summary.UnreadTime, rules.FanPageSize, pagesToScan, rules.RequestIntervalSeconds, recordCount)
 	digest := sha256.Sum256([]byte(content))
 	replyDigest := hex.EncodeToString(digest[:])
 
-	for page := 1; page <= 3; page++ {
+	for page := 1; page <= pagesToScan; page++ {
 		if page > 1 {
 			if err := sleepWithContext(ctx, interval); err != nil {
 				return nil, err
@@ -479,8 +497,7 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 		now := time.Now()
 		summary.ScannedFans += len(fans)
 		for _, fan := range fans {
-			nowUnix := now.Unix()
-			withinWindow := fan.FollowTime > 0 && nowUnix >= fan.FollowTime && (nowUnix-fan.FollowTime) <= int64(followWindow/time.Second)
+			isNewFollower := fan.FollowTime > 0 && fan.FollowTime >= unreadState.Time
 
 			record, err := s.fanReplyRepo.GetByFanUID(ctx, fan.UserID)
 			if err != nil {
@@ -499,21 +516,25 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 					log.Printf("[fans.auto_reply] create_record_failed uid=%d err=%v", fan.UserID, err)
 					continue
 				}
-				summary.NewFans++
-				log.Printf("[fans.auto_reply] discovered uid=%d uname=%q follow_time=%d within_window=%v", fan.UserID, fan.UserName, fan.FollowTime, withinWindow)
+				if isNewFollower {
+					summary.NewFans++
+					log.Printf("[fans.auto_reply] discovered uid=%d uname=%q follow_time=%d unread_time=%d", fan.UserID, fan.UserName, fan.FollowTime, unreadState.Time)
+				} else {
+					summary.Seeded++
+				}
 			}
 
 			record.FanName = fan.UserName
 			record.LastSeenAt = &now
-			if !withinWindow {
-				record.LastError = "follow_time_outside_10m_window"
-				record.Replied = false
-				record.RepliedAt = nil
-				record.ReplyDigest = ""
+			if !isNewFollower {
+				if !record.Replied {
+					record.LastError = "follow_time_before_unread_threshold"
+				}
 				_ = s.fanReplyRepo.Update(ctx, record)
 				continue
 			}
 			if record.Replied && record.ReplyDigest == replyDigest {
+				record.LastError = ""
 				_ = s.fanReplyRepo.Update(ctx, record)
 				continue
 			}
@@ -542,7 +563,7 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 		}
 	}
 
-	log.Printf("[fans.auto_reply] done scanned=%d new=%d replied=%d failed=%d seeded=%d", summary.ScannedFans, summary.NewFans, summary.Replied, summary.Failed, summary.Seeded)
+	log.Printf("[fans.auto_reply] done unread_count=%d unread_time=%d scanned=%d new=%d replied=%d failed=%d seeded=%d", summary.UnreadCount, summary.UnreadTime, summary.ScannedFans, summary.NewFans, summary.Replied, summary.Failed, summary.Seeded)
 
 	return summary, nil
 }

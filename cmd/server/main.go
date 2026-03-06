@@ -298,7 +298,7 @@ func initPolling(runtime *appruntime.Store, services *Services, settingRepo *rep
 
 	_ = mgr.Register(polling.Task{
 		Name:       "fans-follow-auto-reply",
-		Interval:   5 * time.Minute,
+		Interval:   1 * time.Hour,
 		Timeout:    90 * time.Second,
 		RunOnStart: true,
 		PreHandle:  checkReady,
@@ -309,7 +309,7 @@ func initPolling(runtime *appruntime.Store, services *Services, settingRepo *rep
 			}
 			summary, err := services.Message.AutoReplyNewFollowers(ctx, cfg.Interaction)
 			if err == nil && summary != nil {
-				log.Printf("[polling][fans-follow-auto-reply] scanned=%d new=%d replied=%d failed=%d seeded=%d", summary.ScannedFans, summary.NewFans, summary.Replied, summary.Failed, summary.Seeded)
+				log.Printf("[polling][fans-follow-auto-reply] unread_count=%d unread_time=%d scanned=%d new=%d replied=%d failed=%d seeded=%d", summary.UnreadCount, summary.UnreadTime, summary.ScannedFans, summary.NewFans, summary.Replied, summary.Failed, summary.Seeded)
 			}
 			return err
 		},

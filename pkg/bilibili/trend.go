@@ -518,6 +518,11 @@ type FansVideo struct {
 	Videos     []VideoInfo
 }
 
+type FollowerUnreadState struct {
+	Count int64 `json:"count"`
+	Time  int64 `json:"time"`
+}
+
 type FanProfile struct {
 	UserID     int64  `json:"user_id"`
 	UserName   string `json:"user_name"`
@@ -586,6 +591,17 @@ func (c *Client) ListFans(ctx context.Context, page, pageSize int) ([]FanProfile
 		out = append(out, FanProfile{UserID: f.Mid, UserName: f.Uname, UserFace: f.Face, FollowTime: f.MTime})
 	}
 	return out, nil
+}
+
+func (c *Client) GetFollowerUnreadState(ctx context.Context) (*FollowerUnreadState, error) {
+	if err := c.ensureAvailable(); err != nil {
+		return nil, err
+	}
+	state, err := c.inner.User().FollowersUnreadCount(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get follower unread state failed: %w", err)
+	}
+	return &FollowerUnreadState{Count: state.Count, Time: state.Time}, nil
 }
 
 func waitRequestInterval(ctx context.Context, interval time.Duration) error {
