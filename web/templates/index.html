@@ -15,127 +15,288 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
+.settings-anchor {
+    scroll-margin-top: 2rem;
+}
 </style>
 {{ end }}
 
 {{ define "content" }}
-<div class="mb-8">
-    <h2 class="text-2xl font-bold text-gray-800 flex items-center"><i class="ri-dashboard-3-line text-pink-500 mr-2"></i>仪表盘</h2>
-    <p class="text-gray-500 mt-1">欢迎回来，查看今日运营数据及 AI 模型运行状态</p>
-</div>
+<div class="space-y-8">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center"><i class="ri-dashboard-3-line text-pink-500 mr-2"></i>仪表盘</h2>
+            <p class="text-gray-500 mt-1">首页已合并系统设置和 B 站配置，今日统计按当天 00:00 到当前时间计算。</p>
+        </div>
+        <div class="inline-flex items-center rounded-xl border border-pink-100 bg-pink-50 px-4 py-2 text-sm text-pink-600">
+            <i class="ri-time-line mr-2"></i>
+            <span id="stat-window">统计区间加载中...</span>
+        </div>
+    </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100 relative overflow-hidden">
-        <div class="flex items-center justify-between relative z-10">
-            <div>
-                <p class="text-gray-500 text-sm font-medium">今日评论</p>
-                <p id="stat-comments" class="text-3xl font-bold text-gray-800 mt-2">-</p>
-                <p class="text-pink-500 text-sm mt-2 font-medium">实时统计</p>
-            </div>
-            <div class="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-md">
-                <i class="ri-chat-3-line text-white text-2xl"></i>
-            </div>
-        </div>
-    </div>
-    
-    <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-gray-500 text-sm font-medium">今日私信</p>
-                <p id="stat-messages" class="text-3xl font-bold text-gray-800 mt-2">-</p>
-                <p class="text-pink-500 text-sm mt-2 font-medium">实时统计</p>
-            </div>
-            <div class="w-14 h-14 rounded-2xl gradient-blue flex items-center justify-center shadow-md">
-                <i class="ri-mail-line text-white text-2xl"></i>
-            </div>
-        </div>
-    </div>
-    
-    <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-gray-500 text-sm font-medium">今日互动</p>
-                <p id="stat-interactions" class="text-3xl font-bold text-gray-800 mt-2">-</p>
-                <p class="text-pink-500 text-sm mt-2 font-medium">近30天</p>
-            </div>
-            <div class="w-14 h-14 rounded-2xl gradient-teal flex items-center justify-center shadow-md">
-                <i class="ri-thumb-up-line text-white text-2xl"></i>
-            </div>
-        </div>
-    </div>
-    
-    <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-gray-500 text-sm font-medium">AI回复</p>
-                <p id="stat-ai-replies" class="text-3xl font-bold text-gray-800 mt-2">-</p>
-                <p class="text-gray-500 text-sm mt-2 font-medium">
-                    <i class="ri-robot-line"></i> 近7天成功调用
-                </p>
-            </div>
-            <div class="w-14 h-14 rounded-2xl gradient-purple flex items-center justify-center shadow-md">
-                <i class="ri-robot-line text-white text-2xl"></i>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
-        <h3 class="font-semibold text-gray-800 mb-5 flex items-center"><i class="ri-flashlight-line text-pink-500 mr-2"></i>快捷操作</h3>
-        <div class="grid grid-cols-2 gap-4 flex-1">
-            <button onclick="window.location.href='/admin/comments'" class="flex flex-col items-center justify-center space-y-2 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-xl p-5 transition border border-pink-100 shadow-sm">
-                <i class="ri-chat-3-line text-2xl"></i>
-                <span class="font-medium">评论管理</span>
-            </button>
-            <button onclick="window.location.href='/admin/messages'" class="flex flex-col items-center justify-center space-y-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl p-5 transition border border-blue-100 shadow-sm">
-                <i class="ri-mail-line text-2xl"></i>
-                <span class="font-medium">私信管理</span>
-            </button>
-            <button onclick="window.location.href='/admin/interaction'" class="flex flex-col items-center justify-center space-y-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl p-5 transition border border-purple-100 shadow-sm">
-                <i class="ri-thumb-up-line text-2xl"></i>
-                <span class="font-medium">互动管理</span>
-            </button>
-            <button onclick="window.location.href='/admin/trends'" class="flex flex-col items-center justify-center space-y-2 bg-teal-50 hover:bg-teal-100 text-teal-600 rounded-xl p-5 transition border border-teal-100 shadow-sm">
-                <i class="ri-fire-line text-2xl"></i>
-                <span class="font-medium">热度分析</span>
-            </button>
-        </div>
-    </div>
-    
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col h-full">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-800 flex items-center"><i class="ri-server-line text-blue-500 mr-2"></i>AI模型真实状态</h3>
-            <button onclick="loadLLMStatus()" class="text-gray-400 hover:text-pink-500 transition" title="刷新状态">
-                <i class="ri-refresh-line text-lg"></i>
-            </button>
-        </div>
-        <div id="llm-status" class="space-y-3 flex-1 overflow-y-auto pr-2 max-h-[250px] no-scrollbar">
-            <div class="text-center text-pink-400 py-8"><i class="ri-loader-4-line animate-spin text-3xl"></i><p class="text-sm mt-2">读取配置中...</p></div>
-        </div>
-        <button onclick="testAllLLM()" class="mt-4 w-full bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 rounded-xl p-3 transition font-medium flex items-center justify-center shadow-sm">
-            <i class="ri-pulse-line mr-2"></i> 一键测试连通性
-        </button>
-    </div>
-</div>
-
-<div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-    <div class="flex items-center justify-between mb-4">
-        <h3 class="font-semibold text-gray-800">最近评论</h3>
-        <a href="/admin/comments" class="text-pink-500 hover:text-pink-600 text-sm transition font-medium">查看全部 <i class="ri-arrow-right-s-line"></i></a>
-    </div>
-    <div id="recent-comments" class="space-y-4">
-        <div class="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-            <div class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
-                <i class="ri-user-smile-line text-pink-500"></i>
-            </div>
-            <div class="flex-1">
-                <div class="flex items-center justify-between">
-                    <span class="font-medium text-gray-800">系统提示</span>
-                    <span class="text-xs text-gray-400">刚刚</span>
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100 relative overflow-hidden">
+            <div class="flex items-center justify-between relative z-10">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium">今日评论</p>
+                    <p id="stat-comments" class="text-3xl font-bold text-gray-800 mt-2">-</p>
+                    <p class="text-pink-500 text-sm mt-2 font-medium">按评论时间统计</p>
                 </div>
-                <p class="text-gray-600 mt-1 text-sm">后台轮询已启用，正在等待最新评论数据。</p>
+                <div class="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-md">
+                    <i class="ri-chat-3-line text-white text-2xl"></i>
+                </div>
             </div>
+        </div>
+
+        <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium">今日私信</p>
+                    <p id="stat-messages" class="text-3xl font-bold text-gray-800 mt-2">-</p>
+                    <p class="text-pink-500 text-sm mt-2 font-medium">按消息时间统计</p>
+                </div>
+                <div class="w-14 h-14 rounded-2xl gradient-blue flex items-center justify-center shadow-md">
+                    <i class="ri-mail-line text-white text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium">今日互动</p>
+                    <p id="stat-interactions" class="text-3xl font-bold text-gray-800 mt-2">-</p>
+                    <p class="text-pink-500 text-sm mt-2 font-medium">点赞 / 投币 / 收藏成功数</p>
+                </div>
+                <div class="w-14 h-14 rounded-2xl gradient-teal flex items-center justify-center shadow-md">
+                    <i class="ri-thumb-up-line text-white text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card bg-white rounded-2xl p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium">AI回复</p>
+                    <p id="stat-ai-replies" class="text-3xl font-bold text-gray-800 mt-2">-</p>
+                    <p class="text-gray-500 text-sm mt-2 font-medium">
+                        <i class="ri-robot-line"></i> 近7天成功调用
+                    </p>
+                </div>
+                <div class="w-14 h-14 rounded-2xl gradient-purple flex items-center justify-center shadow-md">
+                    <i class="ri-robot-line text-white text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <section class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col h-full">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-800 flex items-center"><i class="ri-server-line text-blue-500 mr-2"></i>AI模型真实状态</h3>
+                <button onclick="loadLLMStatus()" class="text-gray-400 hover:text-pink-500 transition" title="刷新状态">
+                    <i class="ri-refresh-line text-lg"></i>
+                </button>
+            </div>
+            <div id="llm-status" class="space-y-3 flex-1 overflow-y-auto pr-2 max-h-[320px] no-scrollbar">
+                <div class="text-center text-pink-400 py-8"><i class="ri-loader-4-line animate-spin text-3xl"></i><p class="text-sm mt-2">读取配置中...</p></div>
+            </div>
+            <button onclick="testAllLLM()" class="mt-4 w-full bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 rounded-xl p-3 transition font-medium flex items-center justify-center shadow-sm">
+                <i class="ri-pulse-line mr-2"></i>一键测试连通性
+            </button>
+        </section>
+
+        <section id="bilibili-settings" class="settings-anchor rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 flex items-center"><i class="ri-qr-code-line text-pink-500 mr-2"></i>B站配置</h3>
+                    <p class="mt-1 text-sm text-gray-500">支持 Cookie 登录和扫码登录，登录成功后立即写入当前配置。</p>
+                </div>
+                <button type="button" onclick="loadBilibiliSettings().catch(err => showToast(err.message, 'error'))" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-pink-300 hover:text-pink-500 transition">
+                    <i class="ri-refresh-line mr-1"></i>刷新状态
+                </button>
+            </div>
+            <div class="grid gap-6 lg:grid-cols-2">
+                <section class="rounded-2xl border border-gray-100 bg-gray-50 p-5 space-y-4">
+                    <h4 class="font-semibold text-gray-800">Cookie 登录</h4>
+                    <textarea id="cookie-input" class="h-44 w-full rounded-xl border border-gray-200 px-4 py-3 bg-white" placeholder="粘贴浏览器里的完整 Cookie"></textarea>
+                    <button id="save-cookie-btn" type="button" onclick="saveCookieLogin().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-pink-500 px-5 py-3 text-white hover:bg-pink-600 transition">保存 Cookie 登录</button>
+                </section>
+                <section class="rounded-2xl border border-gray-100 bg-gray-50 p-5 space-y-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <h4 class="font-semibold text-gray-800">扫码登录</h4>
+                        <button id="generate-qr-btn" type="button" onclick="generateQRCode().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition">生成二维码</button>
+                    </div>
+                    <div id="qr-wrapper" class="flex min-h-[240px] items-center justify-center rounded-2xl border border-gray-200 bg-white p-4 text-gray-400">
+                        点击上面的按钮生成二维码
+                    </div>
+                    <p id="qr-status" class="text-sm text-gray-500"></p>
+                </section>
+            </div>
+            <section class="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                <div class="mb-3 flex items-center justify-between">
+                    <h4 class="font-semibold text-gray-800">当前登录状态</h4>
+                    <a href="/admin/messages" class="text-sm text-pink-500 hover:text-pink-600">前往私信管理</a>
+                </div>
+                <pre id="bili-state" class="overflow-auto rounded-xl bg-white p-4 text-sm border border-gray-200"></pre>
+            </section>
+        </section>
+    </div>
+
+    <div id="app-settings" class="settings-anchor max-w-6xl space-y-6">
+        <div>
+            <h3 class="text-2xl font-bold text-gray-800 flex items-center"><i class="ri-settings-3-line text-pink-500 mr-2"></i>系统设置</h3>
+            <p class="mt-1 text-sm text-gray-500">管理全局基础配置、互动规则和所有大模型通道，更改后即时生效。</p>
+        </div>
+
+        <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-4">
+                <h4 class="text-lg font-semibold text-gray-800">常规设置</h4>
+                <button type="button" onclick="saveGeneralSettings().catch(err => showToast(err.message, 'error'))" class="rounded-xl bg-pink-500 px-5 py-2 text-white hover:bg-pink-600 transition shadow-sm">
+                    <i class="ri-save-line mr-1"></i>保存常规设置
+                </button>
+            </div>
+
+            <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700">默认调用模型 (Default Provider)</label>
+                <select id="default-provider" class="w-full rounded-xl border border-gray-200 px-4 py-3 bg-white focus:ring-2 focus:ring-pink-400 outline-none"></select>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Worker 数量</label>
+                    <input id="worker-count" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">队列容量</label>
+                    <input id="queue-size" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">日志级别</label>
+                    <input id="log-level" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="debug / info / warn / error">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">日志格式</label>
+                    <input id="log-format" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="console / json">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">日志文件路径</label>
+                    <input id="log-file-path" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="logs/bilibili-up-admin.log">
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-pink-100 bg-pink-50/40 p-4">
+                <h5 class="text-sm font-semibold text-pink-700 mb-3">互动规则设置</h5>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <label class="flex items-center space-x-2 text-sm text-gray-700">
+                        <input id="interaction-enable-like" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-500">
+                        <span>启用自动点赞</span>
+                    </label>
+                    <label class="flex items-center space-x-2 text-sm text-gray-700">
+                        <input id="interaction-enable-coin" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-500">
+                        <span>启用自动投币</span>
+                    </label>
+                    <label class="flex items-center space-x-2 text-sm text-gray-700 md:col-span-2">
+                        <input id="interaction-enable-favorite" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-500">
+                        <span>启用自动收藏</span>
+                    </label>
+                    <label class="flex items-center space-x-2 text-sm text-gray-700 md:col-span-2">
+                        <input id="interaction-enable-follow-auto-reply" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-pink-500 focus:ring-pink-500">
+                        <span>启用新关注粉丝自动回复</span>
+                    </label>
+                    <div class="md:col-span-2">
+                        <label class="mb-2 block text-sm font-medium text-gray-700">新关注粉丝自动回复内容</label>
+                        <textarea id="interaction-follow-auto-reply-content" rows="3" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="感谢关注！欢迎常来评论区交流～"></textarea>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">投币播放阈值</label>
+                        <input id="interaction-coin-threshold" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="10000">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">收藏夹 ID (media_id)</label>
+                        <input id="interaction-favorite-media-id" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="自动收藏时必填">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">粉丝分页大小</label>
+                        <input id="interaction-fan-page-size" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="20">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">投稿分页大小</label>
+                        <input id="interaction-video-page-size" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="5">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">请求间隔（秒）</label>
+                        <input id="interaction-request-interval" type="number" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:ring-2 focus:ring-pink-400 outline-none" placeholder="3">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-4">
+                <h4 class="text-lg font-semibold text-gray-800">大模型管理 (Providers)</h4>
+                <button type="button" onclick="Modal.show('add-provider-modal')" class="rounded-xl bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 transition shadow-sm">
+                    <i class="ri-add-line mr-1"></i>添加模型
+                </button>
+            </div>
+            <div id="providers" class="space-y-4">
+                <div class="text-center text-gray-400 py-8"><i class="ri-loader-4-line animate-spin text-2xl"></i><p>加载中...</p></div>
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-800">轮询可观测性</h4>
+                    <p class="mt-1 text-xs text-gray-500">展示标签、评论、私信轮询任务的运行状态与统计信息。</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span id="polling-overview" class="text-xs text-gray-500">加载中...</span>
+                    <button type="button" onclick="loadPollingStats().catch(err => showToast(err.message, 'error'))" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:border-pink-300 hover:text-pink-500 transition">
+                        <i class="ri-refresh-line mr-1"></i>刷新
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
+                            <th class="py-2 pr-4">任务</th>
+                            <th class="py-2 pr-4">状态</th>
+                            <th class="py-2 pr-4">成功/失败/跳过</th>
+                            <th class="py-2 pr-4">最近耗时</th>
+                            <th class="py-2 pr-4">最近执行</th>
+                            <th class="py-2 pr-4">下次执行</th>
+                            <th class="py-2 pr-4">最近错误</th>
+                        </tr>
+                    </thead>
+                    <tbody id="polling-stats-body">
+                        <tr><td colspan="7" class="py-6 text-center text-gray-400">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+<div id="add-provider-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-[400px] p-6 shadow-xl transform transition-all">
+        <h3 class="text-lg font-bold mb-4 text-gray-800 flex items-center"><i class="ri-robot-line text-pink-500 mr-2"></i>添加模型渠道</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm mb-1 text-gray-700">配置名称 (唯一标识，如 my-openai)</label>
+                <input id="new-provider-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-pink-400 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm mb-1 text-gray-700">模型渠道 (Channel - 由后端动态拉取)</label>
+                <select id="new-provider-channel" class="w-full border border-gray-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-pink-400 outline-none">
+                    <option value="">加载中...</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+            <button onclick="Modal.hide('add-provider-modal')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">取消</button>
+            <button onclick="submitNewProvider()" class="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition shadow-sm">确定添加</button>
         </div>
     </div>
 </div>
@@ -143,7 +304,6 @@
 
 {{ define "scripts" }}
 <script>
-// 动态兼容前缀
 function getApiPrefix() {
     return window.location.pathname.startsWith('/admin') ? '/admin' : '';
 }
@@ -155,69 +315,34 @@ function safeNum(val) {
 
 async function loadDashboardStats() {
     const prefix = getApiPrefix();
-    const [comments, messages, interactions, llmStats] = await Promise.all([
-        api(`${prefix}/api/comments?page=1&page_size=1`),
-        api(`${prefix}/api/messages?page=1&page_size=1`),
-        api(`${prefix}/api/interactions/stats?days=30`),
+    const [summary, llmStats] = await Promise.all([
+        api(`${prefix}/api/dashboard/summary`),
         api(`${prefix}/api/llm/stats`),
     ]);
 
-    const interactionTotal = safeNum(interactions.like) + safeNum(interactions.coin) + safeNum(interactions.favorite);
-    document.getElementById('stat-comments').textContent = formatNumber(comments.total || 0);
-    document.getElementById('stat-messages').textContent = formatNumber(messages.total || 0);
-    document.getElementById('stat-interactions').textContent = formatNumber(interactionTotal);
+    document.getElementById('stat-comments').textContent = formatNumber(summary.comment_count || 0);
+    document.getElementById('stat-messages').textContent = formatNumber(summary.message_count || 0);
+    document.getElementById('stat-interactions').textContent = formatNumber(summary.interaction_count || 0);
     document.getElementById('stat-ai-replies').textContent = formatNumber(llmStats.success_count || 0);
+    document.getElementById('stat-window').textContent = `${formatDayTime(summary.start_time)} - ${formatDayTime(summary.end_time)}`;
 }
 
-async function loadRecentComments() {
-    const prefix = getApiPrefix();
-    const data = await api(`${prefix}/api/comments?page=1&page_size=5`);
-    const comments = data.comments || [];
-    const container = document.getElementById('recent-comments');
-    if (!comments.length) {
-        container.innerHTML = `
-        <div class="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-            <div class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
-                <i class="ri-information-line text-pink-500"></i>
-            </div>
-            <div class="flex-1">
-                <div class="flex items-center justify-between">
-                    <span class="font-medium text-gray-800">系统提示</span>
-                    <span class="text-xs text-gray-400">刚刚</span>
-                </div>
-                <p class="text-gray-600 mt-1 text-sm">后台轮询已启用，暂无最新评论。</p>
-            </div>
-        </div>`;
-        return;
-    }
-
-    container.innerHTML = comments.map(item => `
-    <div class="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-        <div class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
-            <i class="ri-user-smile-line text-pink-500"></i>
-        </div>
-        <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-                <span class="font-medium text-gray-800 truncate">${item.author_name || '用户'}</span>
-                <span class="text-xs text-gray-400">${formatTime(item.comment_time) || '-'}</span>
-            </div>
-            <p class="text-gray-600 mt-1 text-sm truncate">${item.content || ''}</p>
-        </div>
-    </div>`).join('');
+function formatDayTime(value) {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${d.getMonth() + 1}-${d.getDate()} ${hours}:${minutes}`;
 }
 
-// --- 真正的模型状态核心逻辑 ---
-
-// 加载模型真实状态
 async function loadLLMStatus() {
     const container = document.getElementById('llm-status');
     container.innerHTML = '<div class="text-center text-pink-400 py-8"><i class="ri-loader-4-line animate-spin text-3xl"></i><p class="text-sm mt-2">获取最新状态...</p></div>';
     
     try {
         const prefix = getApiPrefix();
-        // 1. 获取数据库里所有的模型配置
         const providersData = await api(`${prefix}/api/settings/llm/providers`);
-        // 2. 获取当前实际生效的（运行时管理器中成功载入的）
         const runtimeInfo = await api(`${prefix}/api/llm/providers`);
         
         const defaultProv = runtimeInfo.default_provider || "";
@@ -230,7 +355,7 @@ async function loadLLMStatus() {
                 <div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                     <i class="ri-robot-line text-3xl mb-2"></i>
                     <p>暂无配置的大模型</p>
-                    <a href="${prefix}/settings" class="text-pink-500 hover:underline mt-2 inline-block font-medium">前往设置添加配置</a>
+                    <a href="#app-settings" class="text-pink-500 hover:underline mt-2 inline-block font-medium">前往设置添加配置</a>
                 </div>`;
             return;
         }
@@ -240,7 +365,6 @@ async function loadLLMStatus() {
             const isEnabled = config.enabled;
             const isActive = activeProvs.includes(name); // 存在于运行时管理器
             
-            // 状态指示器诊断
             let statusColor = 'bg-gray-300';
             let statusText = '未启用';
             if (isActive) {
@@ -248,7 +372,7 @@ async function loadLLMStatus() {
                 statusText = '已就绪';
             } else if (isEnabled) {
                 statusColor = 'bg-amber-500';
-                statusText = '配置异常'; // 勾选了启用，但没有被成功加载进内存(可能缺API Key)
+                statusText = '配置异常';
             }
 
             const isDefault = name === defaultProv;
@@ -281,7 +405,6 @@ async function loadLLMStatus() {
     }
 }
 
-// 单独测试某个模型
 async function testLLM(providerName) {
     const icon = document.getElementById(`test-icon-${providerName}`);
     const dot = document.getElementById(`status-dot-${providerName}`);
@@ -307,7 +430,6 @@ async function testLLM(providerName) {
     }
 }
 
-// 批量测试所有激活的模型
 async function testAllLLM() {
     const prefix = getApiPrefix();
     try {
@@ -323,7 +445,6 @@ async function testAllLLM() {
             try {
                 await testLLM(p);
             } catch(e) {}
-            // 延时 1000 毫秒，避免并发超速触发 API 限制
             await new Promise(r => setTimeout(r, 1000));
         }
     } catch (err) {
@@ -331,13 +452,359 @@ async function testAllLLM() {
     }
 }
 
-// 页面加载完成后，自动拉取真实状态
-document.addEventListener('DOMContentLoaded', () => {
-    const refreshAll = async () => {
-        await Promise.allSettled([loadDashboardStats(), loadRecentComments(), loadLLMStatus()]);
+let availableChannels = [];
+let currentProviders = {};
+let pollingStatsTimer = null;
+let currentQRCodeKey = "";
+let currentPollTimer = null;
+let isGeneratingQR = false;
+
+async function loadChannels() {
+    availableChannels = await api(`${getApiPrefix()}/api/settings/llm/channels`);
+    const select = document.getElementById("new-provider-channel");
+    select.innerHTML = availableChannels.map(ch => `<option value="${ch}">${ch}</option>`).join('');
+}
+
+async function loadSettingsData() {
+    const appData = await api(`${getApiPrefix()}/api/settings/app`);
+    document.getElementById("worker-count").value = appData.task?.worker_count || 5;
+    document.getElementById("queue-size").value = appData.task?.queue_size || 100;
+    document.getElementById("log-level").value = appData.log?.level || "debug";
+    document.getElementById("log-format").value = appData.log?.format || "console";
+    document.getElementById("log-file-path").value = appData.log?.file_path || "";
+    document.getElementById("interaction-enable-like").checked = appData.interaction?.enable_like ?? true;
+    document.getElementById("interaction-enable-coin").checked = appData.interaction?.enable_coin ?? true;
+    document.getElementById("interaction-enable-favorite").checked = appData.interaction?.enable_favorite ?? false;
+    document.getElementById("interaction-enable-follow-auto-reply").checked = appData.interaction?.enable_follow_auto_reply ?? false;
+    document.getElementById("interaction-follow-auto-reply-content").value = appData.interaction?.follow_auto_reply_content || "感谢关注！欢迎常来评论区交流～";
+    document.getElementById("interaction-coin-threshold").value = appData.interaction?.coin_play_threshold || 10000;
+    document.getElementById("interaction-favorite-media-id").value = appData.interaction?.favorite_media_id || 0;
+    document.getElementById("interaction-fan-page-size").value = appData.interaction?.fan_page_size || 20;
+    document.getElementById("interaction-video-page-size").value = appData.interaction?.video_page_size || 5;
+    document.getElementById("interaction-request-interval").value = appData.interaction?.request_interval_seconds || 3;
+
+    currentProviders = await api(`${getApiPrefix()}/api/settings/llm/providers`) || {};
+    renderProviders();
+
+    const defaultSelect = document.getElementById("default-provider");
+    const currentDefault = appData.llm?.default_provider || "";
+    defaultSelect.innerHTML = Object.keys(currentProviders).map(name =>
+        `<option value="${name}" ${name === currentDefault ? "selected" : ""}>${name}</option>`
+    ).join('') + `<option value="" ${currentDefault === "" ? "selected" : ""}>不设置 (关闭AI)</option>`;
+}
+
+function formatDateTime(value) {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    return d.toLocaleString();
+}
+
+function escapeHtml(value) {
+    const text = value == null ? '' : String(value);
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function renderPollingStats(data) {
+    const body = document.getElementById('polling-stats-body');
+    const overview = document.getElementById('polling-overview');
+    const tasks = data?.tasks || [];
+    overview.textContent = `状态: ${data?.started ? '运行中' : '未启动'} · 任务数: ${tasks.length}`;
+
+    if (tasks.length === 0) {
+        body.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400">暂无轮询任务</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = tasks.map(task => {
+        const statusText = task.running ? '运行中' : '空闲';
+        const statusClass = task.running ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-gray-600 bg-gray-50 border-gray-200';
+        const hasFailure = (task.failure_count || 0) > 0;
+        const rowClass = hasFailure ? 'bg-red-50/60 border-red-100' : 'border-gray-50';
+        const lastError = (task.last_error || '').trim();
+        const errorCell = lastError
+            ? `<details class="group max-w-xl">
+                    <summary class="cursor-pointer text-red-500 hover:text-red-600 list-none">
+                        <span class="inline-flex items-center text-xs"><i class="ri-alert-line mr-1"></i>展开错误详情</span>
+                    </summary>
+                    <pre class="mt-2 max-h-28 overflow-auto whitespace-pre-wrap rounded-md border border-red-100 bg-red-50 p-2 text-xs text-red-600">${escapeHtml(lastError)}</pre>
+               </details>`
+            : '-';
+        return `
+            <tr class="border-b align-top ${rowClass}">
+                <td class="py-3 pr-4">
+                    <div class="font-medium text-gray-800">${task.name || '-'}</div>
+                    <div class="text-xs text-gray-400">间隔 ${task.interval_second || 0}s · 超时 ${task.timeout_second || 0}s</div>
+                </td>
+                <td class="py-3 pr-4">
+                    <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs ${statusClass}">${statusText}</span>
+                </td>
+                <td class="py-3 pr-4 text-gray-700">${task.success_count || 0} / ${task.failure_count || 0} / ${task.skip_count || 0}</td>
+                <td class="py-3 pr-4 text-gray-700">${task.last_duration_ms || 0} ms</td>
+                <td class="py-3 pr-4 text-gray-500">${formatDateTime(task.last_finished_at)}</td>
+                <td class="py-3 pr-4 text-gray-500">${formatDateTime(task.next_run_at)}</td>
+                <td class="py-3 pr-4 text-xs text-red-500 break-all">${errorCell}</td>
+            </tr>`;
+    }).join('');
+}
+
+async function loadPollingStats() {
+    const data = await api(`${getApiPrefix()}/api/observability/polling`);
+    renderPollingStats(data);
+}
+
+function renderProviders() {
+    const container = document.getElementById("providers");
+    const entries = Object.entries(currentProviders);
+
+    if (entries.length === 0) {
+        container.innerHTML = `<div class="text-center text-gray-400 py-8">暂无配置的大模型</div>`;
+        return;
+    }
+
+    container.innerHTML = entries.map(([name, config]) => `
+    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 hover:border-pink-200 transition" data-provider="${name}">
+        <div class="mb-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="font-bold text-gray-800 text-lg">${name}</span>
+                <span class="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200">${config.provider}</span>
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="updateProvider('${name}')" class="rounded-lg bg-white border border-gray-200 px-3 py-1 text-sm text-gray-700 hover:text-pink-500 hover:border-pink-300 transition shadow-sm"><i class="ri-save-line mr-1"></i>保存此模型</button>
+                <button onclick="deleteProvider('${name}')" class="rounded-lg bg-white border border-red-100 px-3 py-1 text-sm text-red-500 hover:bg-red-50 transition shadow-sm"><i class="ri-delete-bin-line mr-1"></i>删除</button>
+            </div>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
+            <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600">具体的模型类型 (Model)</label>
+                <input class="provider-model w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" value="${config.model || ''}" placeholder="例如 gpt-4o 或 deepseek-chat">
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600">中转代理 URL (可选)</label>
+                <input class="provider-base-url w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" value="${config.base_url || ''}" placeholder="不填则使用官方默认地址">
+            </div>
+            <div class="md:col-span-2">
+                <label class="mb-1 block text-xs font-medium text-gray-600">API Key</label>
+                <input class="provider-api-key w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" type="password" value="${config.api_key || ''}" placeholder="sk-...">
+            </div>
+            <div class="grid grid-cols-3 gap-3 md:col-span-2">
+                <div class="flex flex-col justify-center">
+                    <label class="flex items-center space-x-2 cursor-pointer mt-4">
+                        <input class="provider-enabled w-4 h-4 text-pink-500 border-gray-300 rounded focus:ring-pink-500" type="checkbox" ${config.enabled ? 'checked' : ''}>
+                        <span class="text-sm font-medium text-gray-700">启用该模型</span>
+                    </label>
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600">Max Tokens</label>
+                    <input class="provider-max-tokens w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" type="number" value="${config.max_tokens || 1000}">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600">Temperature</label>
+                    <input class="provider-temperature w-full rounded-lg border border-gray-200 px-3 py-2 outline-none focus:border-pink-400" type="number" step="0.1" value="${config.temperature ?? 0.7}">
+                </div>
+            </div>
+        </div>
+    </div>`).join("");
+}
+
+async function submitNewProvider() {
+    const name = document.getElementById("new-provider-name").value.trim();
+    const channel = document.getElementById("new-provider-channel").value;
+
+    if (!name) return showToast("请输入配置名称", "warning");
+    if (currentProviders[name]) return showToast("名称已存在", "warning");
+    if (!channel) return showToast("请选择渠道", "warning");
+
+    await api(`${getApiPrefix()}/api/settings/llm/providers`, {
+        method: 'POST',
+        body: {
+            name: name,
+            settings: {
+                enabled: true,
+                provider: channel,
+                model: "",
+                base_url: "",
+                api_key: "",
+                max_tokens: 1000,
+                temperature: 0.7
+            }
+        }
+    });
+    showToast("添加成功，请在下方补充参数", "success");
+    Modal.hide('add-provider-modal');
+    document.getElementById("new-provider-name").value = "";
+    await loadSettingsData();
+}
+
+async function updateProvider(name) {
+    const card = document.querySelector(`[data-provider="${name}"]`);
+    if (!card) return;
+
+    const settings = {
+        provider: currentProviders[name].provider,
+        model: card.querySelector(".provider-model").value.trim(),
+        base_url: card.querySelector(".provider-base-url").value.trim(),
+        api_key: card.querySelector(".provider-api-key").value.trim(),
+        enabled: card.querySelector(".provider-enabled").checked,
+        max_tokens: Number(card.querySelector(".provider-max-tokens").value || 1000),
+        temperature: Number(card.querySelector(".provider-temperature").value || 0.7)
     };
-    refreshAll();
-    setInterval(refreshAll, 60 * 1000);
+
+    await api(`${getApiPrefix()}/api/settings/llm/providers/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        body: settings
+    });
+    showToast("模型配置保存成功", "success");
+    await loadSettingsData();
+}
+
+async function deleteProvider(name) {
+    if (!confirm(`确定要彻底删除配置 [${name}] 吗？`)) return;
+
+    await api(`${getApiPrefix()}/api/settings/llm/providers/${encodeURIComponent(name)}`, {
+        method: 'DELETE'
+    });
+    showToast("已删除该配置", "success");
+    await loadSettingsData();
+}
+
+async function saveGeneralSettings() {
+    const appData = await api(`${getApiPrefix()}/api/settings/app`);
+    appData.llm.default_provider = document.getElementById("default-provider").value.trim();
+    appData.task.worker_count = Number(document.getElementById("worker-count").value || 5);
+    appData.task.queue_size = Number(document.getElementById("queue-size").value || 100);
+    appData.log.level = document.getElementById("log-level").value.trim();
+    appData.log.format = document.getElementById("log-format").value.trim();
+    appData.log.file_path = document.getElementById("log-file-path").value.trim();
+    appData.interaction = {
+        enable_like: document.getElementById("interaction-enable-like").checked,
+        enable_coin: document.getElementById("interaction-enable-coin").checked,
+        enable_favorite: document.getElementById("interaction-enable-favorite").checked,
+        enable_follow_auto_reply: document.getElementById("interaction-enable-follow-auto-reply").checked,
+        follow_auto_reply_content: document.getElementById("interaction-follow-auto-reply-content").value.trim(),
+        coin_play_threshold: Number(document.getElementById("interaction-coin-threshold").value || 10000),
+        favorite_media_id: Number(document.getElementById("interaction-favorite-media-id").value || 0),
+        fan_page_size: Number(document.getElementById("interaction-fan-page-size").value || 20),
+        video_page_size: Number(document.getElementById("interaction-video-page-size").value || 5),
+        request_interval_seconds: Number(document.getElementById("interaction-request-interval").value || 3)
+    };
+
+    await api(`${getApiPrefix()}/api/settings/app`, {
+        method: "PUT",
+        body: {
+            llm: appData.llm,
+            llm_providers: currentProviders,
+            task: appData.task,
+            log: appData.log,
+            interaction: appData.interaction
+        }
+    });
+
+    showToast("常规设置已保存", "success");
+}
+
+async function loadBilibiliSettings() {
+    const data = await api(`${getApiPrefix()}/api/settings/bilibili`);
+    document.getElementById("bili-state").textContent = JSON.stringify(data, null, 2);
+}
+
+async function saveCookieLogin() {
+    const cookie = document.getElementById("cookie-input").value.trim();
+    if (!cookie) {
+        throw new Error("请先粘贴 Cookie");
+    }
+
+    await api(`${getApiPrefix()}/api/settings/bilibili/cookie`, {
+        method: "PUT",
+        body: { cookie }
+    });
+
+    showToast("Cookie 登陆已保存", "success");
+    await loadBilibiliSettings();
+}
+
+async function generateQRCode() {
+    if (isGeneratingQR) return;
+    isGeneratingQR = true;
+
+    if (currentPollTimer) {
+        clearTimeout(currentPollTimer);
+        currentPollTimer = null;
+    }
+
+    try {
+        const data = await api(`${getApiPrefix()}/api/settings/bilibili/qrcode`, { method: "POST" });
+        currentQRCodeKey = data.qrcode_key;
+
+        if (!data.url) {
+            throw new Error("二维码链接为空，请检查后端返回");
+        }
+
+        document.getElementById("qr-wrapper").innerHTML = `
+            <div class="space-y-3 text-center">
+                <img class="mx-auto h-56 w-56 rounded-lg border bg-white p-2" alt="Bilibili QR login" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.url)}">
+                <a class="break-all text-sm text-blue-600 underline" href="${data.url}" target="_blank" rel="noreferrer">如果图片加载失败，点这里打开登录链接</a>
+            </div>
+        `;
+        document.getElementById("qr-status").textContent = "请使用 B 站 App 扫码确认";
+        currentPollTimer = setTimeout(pollQRCode, 2000);
+    } finally {
+        isGeneratingQR = false;
+    }
+}
+
+async function pollQRCode() {
+    if (!currentQRCodeKey) return;
+
+    try {
+        const data = await api(`${getApiPrefix()}/api/settings/bilibili/qrcode/poll?key=${encodeURIComponent(currentQRCodeKey)}`);
+        if (data.success) {
+            currentPollTimer = null;
+            document.getElementById("qr-status").textContent = "扫码登录成功";
+            showToast("扫码登录成功", "success");
+            await loadBilibiliSettings();
+            return;
+        }
+
+        document.getElementById("qr-status").textContent = data.message || "等待扫码中";
+        currentPollTimer = setTimeout(pollQRCode, 2000);
+    } catch (err) {
+        currentPollTimer = null;
+        document.getElementById("qr-status").textContent = err.message || "扫码状态查询失败";
+        showToast(err.message || "扫码状态查询失败", "error");
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const refreshHome = async () => {
+        await Promise.allSettled([loadDashboardStats(), loadLLMStatus()]);
+    };
+
+    refreshHome();
+    loadChannels().catch(err => showToast(err.message, 'error'));
+    loadSettingsData().catch(err => showToast('初始化系统设置失败: ' + err.message, 'error'));
+    loadBilibiliSettings().catch(err => showToast(err.message, 'error'));
+    loadPollingStats().catch(err => {
+        document.getElementById('polling-overview').textContent = '轮询状态加载失败';
+        document.getElementById('polling-stats-body').innerHTML = `<tr><td colspan="7" class="py-6 text-center text-red-400">${err.message}</td></tr>`;
+    });
+
+    setInterval(refreshHome, 60 * 1000);
+    pollingStatsTimer = setInterval(() => {
+        loadPollingStats().catch(() => {});
+    }, 10000);
+});
+
+window.addEventListener('beforeunload', () => {
+    if (pollingStatsTimer) {
+        clearInterval(pollingStatsTimer);
+        pollingStatsTimer = null;
+    }
 });
 </script>
 {{ end }}

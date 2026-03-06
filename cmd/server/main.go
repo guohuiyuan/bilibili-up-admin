@@ -458,6 +458,7 @@ func initRepositories(db *gorm.DB) *Repositories {
 }
 
 type Services struct {
+	Dashboard      *service.DashboardService
 	Comment        *service.CommentService
 	Message        *service.MessageService
 	Interaction    *service.InteractionService
@@ -470,6 +471,7 @@ type Services struct {
 
 func initServices(runtime *appruntime.Store, settings *service.AppSettingsService, repos *Repositories) *Services {
 	return &Services{
+		Dashboard:      service.NewDashboardService(repos.Comment, repos.Message, repos.Interaction),
 		Comment:        service.NewCommentService(runtime, repos.Comment, repos.LLMChatLog),
 		Message:        service.NewMessageService(runtime, repos.Message, repos.LLMChatLog, repos.FanAutoReply),
 		Interaction:    service.NewInteractionService(runtime, repos.Interaction),
@@ -483,6 +485,7 @@ func initServices(runtime *appruntime.Store, settings *service.AppSettingsServic
 
 type Handlers struct {
 	Page           *handler.PageHandler
+	Dashboard      *handler.DashboardHandler
 	Comment        *handler.CommentHandler
 	Message        *handler.MessageHandler
 	Interaction    *handler.InteractionHandler
@@ -497,6 +500,7 @@ type Handlers struct {
 func initHandlers(services *Services, settingRepo *repository.SettingRepository, settings *service.AppSettingsService, runtime *appruntime.Store) *Handlers {
 	return &Handlers{
 		Page:           handler.NewPageHandler(),
+		Dashboard:      handler.NewDashboardHandler(services.Dashboard),
 		Comment:        handler.NewCommentHandler(services.Comment),
 		Message:        handler.NewMessageHandler(services.Message),
 		Interaction:    handler.NewInteractionHandler(services.Interaction, settings),
@@ -570,6 +574,7 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 				api.POST("/auth/logout", h.Auth.Logout)
 				api.GET("/auth/me", h.Auth.Me)
 				api.POST("/auth/change-password", h.Auth.ChangePassword)
+				api.GET("/dashboard/summary", h.Dashboard.Summary)
 
 				api.GET("/observability/polling", h.Observability.PollingStats)
 

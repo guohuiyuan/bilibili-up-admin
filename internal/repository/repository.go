@@ -79,6 +79,16 @@ func (r *CommentRepository) List(ctx context.Context, videoBVID string, replySta
 	return comments, total, nil
 }
 
+// CountBetween 统计时间范围内的评论数量。
+func (r *CommentRepository) CountBetween(ctx context.Context, startTime, endTime time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Comment{}).
+		Where("(comment_time BETWEEN ? AND ?) OR (comment_time IS NULL AND created_at BETWEEN ? AND ?)", startTime, endTime, startTime, endTime).
+		Count(&count).Error
+	return count, err
+}
+
 // GetUnreplied 获取未回复评论
 func (r *CommentRepository) GetUnreplied(ctx context.Context, limit int) ([]model.Comment, error) {
 	var comments []model.Comment
@@ -156,6 +166,16 @@ func (r *MessageRepository) List(ctx context.Context, senderID int64, replyStatu
 	}
 
 	return messages, total, nil
+}
+
+// CountBetween 统计时间范围内的私信数量。
+func (r *MessageRepository) CountBetween(ctx context.Context, startTime, endTime time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Message{}).
+		Where("(message_time BETWEEN ? AND ?) OR (message_time IS NULL AND created_at BETWEEN ? AND ?)", startTime, endTime, startTime, endTime).
+		Count(&count).Error
+	return count, err
 }
 
 // GetUnreplied 获取未回复私信

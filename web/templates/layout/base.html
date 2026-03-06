@@ -62,31 +62,102 @@
                 <a href="/admin/llm-logs" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "大模型对话日志" }}active{{ end }}">
                     <i class="ri-terminal-window-line"></i><span class="ml-3">AI 日志</span>
                 </a>
-                <a href="/admin/settings" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "系统设置" }}active{{ end }}">
-                    <i class="ri-settings-3-line"></i><span class="ml-3">系统设置</span>
-                </a>
-                <a href="/admin/settings/bilibili" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "B站配置" }}active{{ end }}">
-                    <i class="ri-qr-code-line"></i><span class="ml-3">B站配置</span>
-                </a>
-                <a href="/admin/account/password" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "修改密码" }}active{{ end }}">
-                    <i class="ri-lock-password-line"></i><span class="ml-3">账号安全</span>
-                </a>
             </nav>
         </aside>
         <main class="flex-1 overflow-y-auto">
             <div class="p-8 space-y-4">
                 <div class="flex justify-end">
-                    <button onclick="logoutAdmin()" class="inline-flex items-center px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600">
-                        <i class="ri-logout-box-r-line mr-1"></i>退出登录
-                    </button>
+                    <div class="relative">
+                        <button id="admin-menu-button" type="button" class="inline-flex items-center px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-700">
+                            <i class="ri-shield-user-line mr-2 text-pink-500"></i>
+                            <span id="current-admin-name">账号安全</span>
+                            <i class="ri-arrow-down-s-line ml-2 text-gray-400"></i>
+                        </button>
+                        <div id="admin-menu" class="hidden absolute right-0 mt-2 w-48 rounded-xl border border-gray-200 bg-white shadow-lg py-2 z-20">
+                            <button type="button" onclick="openPasswordModal()" class="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                <i class="ri-lock-password-line mr-2 text-pink-500"></i>修改密码
+                            </button>
+                            <button type="button" onclick="logoutAdmin()" class="flex w-full items-center px-4 py-2 text-sm text-red-500 hover:bg-red-50">
+                                <i class="ri-logout-box-r-line mr-2"></i>退出登录
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 {{ block "content" . }}{{ end }}
             </div>
         </main>
     </div>
+    <div id="topbar-password-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center p-6">
+        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div class="mb-4 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800">修改密码</h3>
+                    <p class="mt-1 text-sm text-gray-500">更新管理员登录密码。</p>
+                </div>
+                <button type="button" onclick="closePasswordModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="ri-close-line text-xl"></i>
+                </button>
+            </div>
+            <form id="topbar-password-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">当前密码</label>
+                    <input id="topbar-current-password" type="password" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">新密码</label>
+                    <input id="topbar-new-password" type="password" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400" minlength="8" required>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">确认新密码</label>
+                    <input id="topbar-confirm-password" type="password" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400" minlength="8" required>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" onclick="closePasswordModal()" class="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-pink-500 text-white hover:bg-pink-600">保存密码</button>
+                </div>
+            </form>
+        </div>
+    </div>
     {{ end }}
     <script src="/admin/static/js/app.js"></script>
     <script>
+    async function loadCurrentAdmin() {
+        const label = document.getElementById('current-admin-name');
+        if (!label) {
+            return;
+        }
+        try {
+            const me = await api('/admin/api/auth/me');
+            label.textContent = me.username || '账号安全';
+        } catch (error) {
+            label.textContent = '账号安全';
+        }
+    }
+
+    function openPasswordModal() {
+        const modal = document.getElementById('topbar-password-modal');
+        const menu = document.getElementById('admin-menu');
+        if (menu) {
+            menu.classList.add('hidden');
+        }
+        if (modal) {
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closePasswordModal() {
+        const modal = document.getElementById('topbar-password-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+        const form = document.getElementById('topbar-password-form');
+        if (form) {
+            form.reset();
+        }
+    }
+
     async function logoutAdmin() {
         try {
             await api('/admin/api/auth/logout', { method: 'POST' });
@@ -94,6 +165,57 @@
         }
         window.location.href = '/admin/login';
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const menuButton = document.getElementById('admin-menu-button');
+        const menu = document.getElementById('admin-menu');
+        const passwordForm = document.getElementById('topbar-password-form');
+
+        if (menuButton && menu) {
+            menuButton.addEventListener('click', () => {
+                menu.classList.toggle('hidden');
+            });
+            document.addEventListener('click', (event) => {
+                if (!menu.classList.contains('hidden') && !menu.contains(event.target) && !menuButton.contains(event.target)) {
+                    menu.classList.add('hidden');
+                }
+            });
+        }
+
+        if (passwordForm) {
+            passwordForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const currentPassword = document.getElementById('topbar-current-password').value;
+                const newPassword = document.getElementById('topbar-new-password').value;
+                const confirmPassword = document.getElementById('topbar-confirm-password').value;
+
+                if (newPassword.length < 8) {
+                    showToast('新密码至少 8 位', 'error');
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    showToast('两次输入的新密码不一致', 'error');
+                    return;
+                }
+
+                try {
+                    await api('/admin/api/auth/change-password', {
+                        method: 'POST',
+                        body: {
+                            current_password: currentPassword,
+                            new_password: newPassword,
+                        }
+                    });
+                    showToast('密码修改成功', 'success');
+                    closePasswordModal();
+                } catch (error) {
+                    showToast(error.message || '修改失败', 'error');
+                }
+            });
+        }
+
+        loadCurrentAdmin();
+    });
     </script>
     {{ block "scripts" . }}{{ end }}
 </body>
