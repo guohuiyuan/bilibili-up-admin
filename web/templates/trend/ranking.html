@@ -1,47 +1,74 @@
 {{ define "head" }}
 <style>
-.tag-item {
-    transition: all 0.2s ease;
+:root {
+    --panel-line: #e6ebf2;
+    --panel-bg: #ffffff;
+    --panel-accent: #fb7299;
 }
-.tag-item:hover {
-    background-color: #fef3c7;
+
+.panel-shell {
+    background:
+        radial-gradient(circle at top left, rgba(251, 114, 153, 0.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.1), transparent 24%),
+        linear-gradient(180deg, #f8fafc 0%, #f3f6fb 100%);
+}
+
+.panel-card,
+.panel-toolbar {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-line);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+}
+
+.rank-item {
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.rank-item:hover {
+    background: #fafcff;
 }
 </style>
 {{ end }}
 
 {{ define "content" }}
-<div class="mb-8">
-    <div class="flex items-center justify-between">
+<div class="panel-shell -mx-8 -mt-4 px-8 pt-6 pb-10">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-            <h2 class="text-2xl font-bold text-gray-800">热度分析</h2>
-            <p class="text-gray-500 mt-1">查看B站热门标签和视频排行（后台轮询自动更新）</p>
+            <div class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs text-gray-500 border border-gray-200">
+                <i class="ri-fire-line mr-2 text-pink-500"></i>热度面板
+            </div>
+            <h2 class="mt-3 text-3xl font-bold text-gray-900">热度分析</h2>
+            <p class="mt-2 text-sm text-gray-500">查看热门标签和视频排行，页面风格与互动、AI 日志保持一致。</p>
         </div>
     </div>
-</div>
 
-<!-- 搜索 -->
-<div class="bg-white rounded-2xl p-6 shadow-sm mb-6">
-    <div class="flex space-x-4">
-        <div class="flex-1">
-            <input type="text" id="search-keyword" placeholder="搜索标签..."
-                   class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500">
+    <div class="panel-toolbar rounded-3xl p-5 mb-5">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end">
+            <div class="flex-1">
+                <label class="mb-2 block text-xs font-medium tracking-wide text-gray-400">标签搜索</label>
+                <div class="flex items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 focus-within:border-pink-300 focus-within:bg-white transition">
+                    <i class="ri-search-line mr-2 text-pink-500"></i>
+                    <input type="text" id="search-keyword" placeholder="输入标签关键词"
+                           class="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder-gray-400">
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="searchTag()" class="rounded-full bg-gray-900 px-5 py-2 text-sm text-white hover:bg-black transition">搜索标签</button>
+                <button onclick="loadTrendingTags(); loadVideoRanking();" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:border-pink-300 hover:text-pink-500 transition">刷新</button>
+            </div>
         </div>
-        <button onclick="searchTag()" class="px-6 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition">
-            搜索
-        </button>
     </div>
-</div>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-    <!-- 热门标签 -->
-    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div class="p-6 border-b border-gray-100">
-            <div class="flex items-center justify-between">
-                <h3 class="font-semibold text-gray-800 flex items-center">
-                    <i class="ri-fire-line text-pink-500 mr-2"></i>
-                    热门标签
-                </h3>
-                <select id="tag-category-select" onchange="loadTrendingTags()" class="px-3 py-1 border border-gray-200 rounded-lg text-sm">
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <section class="panel-card rounded-3xl overflow-hidden">
+            <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="ri-fire-line mr-2 text-pink-500"></i>热门标签
+                    </h3>
+                    <p class="mt-1 text-xs text-gray-400">按数据库同步后的最新热榜展示</p>
+                </div>
+                <select id="tag-category-select" onchange="loadTrendingTags()" class="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700">
                     <option value="">全部</option>
                     <option value="13">番剧</option>
                     <option value="167">国创</option>
@@ -71,24 +98,23 @@
                     <option value="1025">亲子</option>
                 </select>
             </div>
-        </div>
-        <div id="tag-list" class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
-            <div class="p-8 text-center text-gray-400">
-                <i class="ri-loader-4-line animate-spin text-4xl"></i>
-                <p class="mt-2">加载中...</p>
+            <div id="tag-list" class="max-h-[72vh] overflow-y-auto divide-y divide-gray-100">
+                <div class="p-10 text-center text-gray-400">
+                    <i class="ri-loader-4-line animate-spin text-4xl"></i>
+                    <p class="mt-2">加载中...</p>
+                </div>
             </div>
-        </div>
-    </div>
+        </section>
 
-    <!-- 视频排行 -->
-    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div class="p-6 border-b border-gray-100">
-            <div class="flex items-center justify-between">
-                <h3 class="font-semibold text-gray-800 flex items-center">
-                    <i class="ri-trophy-line text-pink-500 mr-2"></i>
-                    视频排行
-                </h3>
-                <select id="category-select" onchange="loadVideoRanking()" class="px-3 py-1 border border-gray-200 rounded-lg text-sm">
+        <section class="panel-card rounded-3xl overflow-hidden">
+            <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="ri-trophy-line mr-2 text-pink-500"></i>视频排行
+                    </h3>
+                    <p class="mt-1 text-xs text-gray-400">按分区查看热门视频的实时排行</p>
+                </div>
+                <select id="category-select" onchange="loadVideoRanking()" class="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700">
                     <option value="0">全部</option>
                     <option value="13">番剧</option>
                     <option value="167">国创</option>
@@ -128,25 +154,26 @@
                     <option value="1031">生活经验</option>
                 </select>
             </div>
-        </div>
-        <div id="video-list" class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
-            <div class="p-8 text-center text-gray-400">
-                <i class="ri-loader-4-line animate-spin text-4xl"></i>
-                <p class="mt-2">加载中...</p>
+            <div id="video-list" class="max-h-[72vh] overflow-y-auto divide-y divide-gray-100">
+                <div class="p-10 text-center text-gray-400">
+                    <i class="ri-loader-4-line animate-spin text-4xl"></i>
+                    <p class="mt-2">加载中...</p>
+                </div>
             </div>
-        </div>
+        </section>
     </div>
-</div>
 
-<!-- 标签详情 -->
-<div id="tag-detail" class="bg-white rounded-2xl p-6 shadow-sm hidden">
-    <div class="flex items-center justify-between mb-4">
-        <h3 id="tag-name" class="font-semibold text-gray-800 text-lg"></h3>
-        <button onclick="closeTagDetail()" class="text-gray-400 hover:text-gray-600">
-            <i class="ri-close-line text-xl"></i>
-        </button>
-    </div>
-    <div id="tag-videos" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div id="tag-detail" class="panel-card rounded-3xl p-6 mt-5 hidden">
+        <div class="mb-4 flex items-center justify-between">
+            <div>
+                <h3 id="tag-name" class="text-lg font-semibold text-gray-900"></h3>
+                <p class="mt-1 text-xs text-gray-400">标签下的代表视频</p>
+            </div>
+            <button onclick="closeTagDetail()" class="rounded-full border border-gray-200 bg-white p-2 text-gray-500 hover:border-pink-300 hover:text-pink-500 transition">
+                <i class="ri-close-line text-lg"></i>
+            </button>
+        </div>
+        <div id="tag-videos" class="grid grid-cols-1 gap-4 md:grid-cols-2"></div>
     </div>
 </div>
 {{ end }}
@@ -156,7 +183,7 @@
 function renderTagEmptyState(message) {
     const container = document.getElementById('tag-list');
     container.innerHTML = `
-        <div class="p-8 text-center text-gray-400">
+        <div class="p-10 text-center text-gray-400">
             <i class="ri-forbid-2-line text-4xl"></i>
             <p class="mt-2">${message}</p>
         </div>
@@ -169,88 +196,72 @@ function isUnsupportedTagError(message) {
 }
 
 async function loadTrendingTags() {
-    const category = document.getElementById('tag-category-select')?.value || '';
+    const category = document.getElementById('tag-category-select').value || '';
     const query = new URLSearchParams();
-    if (category) {
-        query.set('category', category);
-    }
+    if (category) query.set('category', category);
     try {
-        const response = await fetch(`/admin/api/trends/tags?${query.toString()}`);
-        if (!response.ok) {
-            const errBody = await response.json().catch(() => ({}));
-            throw new Error(errBody.error || '获取热门标签失败');
-        }
-        const data = await response.json();
+        const data = await api(`/admin/api/trends/tags?${query.toString()}`);
         const tags = data.tags || [];
-        if (tags.length === 0) {
-            renderTagEmptyState('当前分类暂不支持标签热榜');
+        if (!tags.length) {
+            renderTagEmptyState('当前分类暂无标签热榜');
             return;
         }
         renderTags(tags);
     } catch (error) {
         if (isUnsupportedTagError(error.message)) {
             renderTagEmptyState('当前分类暂不支持标签热榜');
-            showToast('当前分类暂不支持标签热榜', 'info');
+            showToast('当前分类暂不支持标签热榜', 'warning');
             return;
         }
         renderTagEmptyState('标签热榜加载失败');
-        showToast('加载失败: ' + error.message, 'error');
+        showToast(error.message, 'error');
     }
 }
 
 async function loadVideoRanking() {
     const category = document.getElementById('category-select').value;
     try {
-        const response = await fetch(`/admin/api/trends/videos?category=${category}&limit=50`);
-        if (!response.ok) {
-            const errBody = await response.json().catch(() => ({}));
-            throw new Error(errBody.error || '获取视频排行失败');
-        }
-        const data = await response.json();
+        const data = await api(`/admin/api/trends/videos?category=${category}&limit=50`);
         renderVideos(data.videos || []);
     } catch (error) {
-        showToast('加载失败: ' + error.message, 'error');
+        showToast(error.message, 'error');
     }
 }
 
 function renderTags(tags) {
-    if (tags.length === 0) {
-        renderTagEmptyState('当前分类暂不支持标签热榜');
-        return;
-    }
-
     const container = document.getElementById('tag-list');
-
     container.innerHTML = tags.map((tag, index) => {
         const name = tag.name || tag.tag_name || tag.Name || tag.TagName || '';
         const useCount = tag.use_count ?? tag.useCount ?? tag.UseCount ?? 0;
         const followCount = tag.follow_count ?? tag.followCount ?? tag.FollowCount ?? 0;
         const category = tag.category || tag.Category || '';
         return `
-        <div class="tag-item flex items-center justify-between p-4 cursor-pointer rounded-xl mx-2 my-1 border border-transparent hover:border-amber-200" onclick="showTagDetail('${name}')">
-            <div class="flex items-center space-x-3">
-                <span class="w-8 h-8 rounded-lg ${
-                    index < 3 ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-600'
-                } flex items-center justify-center font-bold text-sm">
-                    ${index + 1}
-                </span>
-                <div>
-                    <span class="text-gray-800 font-medium">${name}</span>
-                    <div class="text-xs text-gray-400 mt-1">使用 ${formatNumber(useCount)} · 关注 ${formatNumber(followCount)}${category ? ` · ${category}` : ''}</div>
+            <button onclick="showTagDetail('${name}')" class="rank-item w-full px-5 py-4 text-left">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl ${index < 3 ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500'} font-semibold">${index + 1}</div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="truncate text-sm font-semibold text-gray-900">${name}</div>
+                            <div class="text-xs text-gray-400">${category || '全部'}</div>
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+                            <span>使用 ${formatNumber(useCount)}</span>
+                            <span>关注 ${formatNumber(followCount)}</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    `}).join('');
+            </button>
+        `;
+    }).join('');
 }
 
 function renderVideos(videos) {
     const container = document.getElementById('video-list');
-
-    if (videos.length === 0) {
+    if (!videos.length) {
         container.innerHTML = `
-            <div class="p-8 text-center text-gray-400">
+            <div class="p-10 text-center text-gray-400">
                 <i class="ri-video-line text-4xl"></i>
-                <p class="mt-2">暂无数据</p>
+                <p class="mt-2">暂无视频排行数据</p>
             </div>
         `;
         return;
@@ -261,48 +272,41 @@ function renderVideos(videos) {
             ? `https://www.bilibili.com/video/${video.bvid}`
             : (video.avid ? `https://www.bilibili.com/video/av${video.avid}` : '#');
         return `
-        <div class="flex items-start space-x-3 p-4 hover:bg-gray-50 transition rounded-xl mx-2 my-1 border border-transparent hover:border-pink-100">
-            <span class="w-8 h-8 rounded-lg ${
-                index < 3 ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-600'
-            } flex items-center justify-center font-bold text-sm flex-shrink-0">
-                ${index + 1}
-            </span>
-            <div class="flex-1 min-w-0">
-                <a href="${jumpUrl}" target="_blank" rel="noopener noreferrer" class="text-gray-800 hover:text-pink-600 font-medium line-clamp-2 break-words">${video.title}</a>
-                <div class="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-gray-500">
-                    <span class="inline-flex items-center"><i class="ri-user-3-line mr-1"></i>${video.owner || '-'}</span>
-                    <span><i class="ri-play-line"></i> ${formatNumber(video.view)}</span>
-                    <span><i class="ri-thumb-up-line"></i> ${formatNumber(video.like)}</span>
+            <div class="rank-item px-5 py-4">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl ${index < 3 ? 'bg-pink-50 text-pink-600' : 'bg-gray-100 text-gray-500'} font-semibold">${index + 1}</div>
+                    <div class="min-w-0 flex-1">
+                        <a href="${jumpUrl}" target="_blank" rel="noopener noreferrer" class="line-clamp-2 text-sm font-semibold text-gray-900 hover:text-pink-500">${video.title || '-'}</a>
+                        <div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+                            <span><i class="ri-user-3-line mr-1"></i>${video.owner || '-'}</span>
+                            <span><i class="ri-play-line mr-1"></i>${formatNumber(video.view)}</span>
+                            <span><i class="ri-thumb-up-line mr-1"></i>${formatNumber(video.like)}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    `}).join('');
+        `;
+    }).join('');
 }
 
 async function showTagDetail(tagName) {
     document.getElementById('tag-name').textContent = `#${tagName}`;
     document.getElementById('tag-detail').classList.remove('hidden');
-
     try {
-        const response = await fetch(`/admin/api/trends/tags/${encodeURIComponent(tagName)}?page=1&page_size=10`);
-        if (!response.ok) {
-            const errBody = await response.json().catch(() => ({}));
-            throw new Error(errBody.error || '获取标签详情失败');
-        }
-        const data = await response.json();
-
+        const data = await api(`/admin/api/trends/tags/${encodeURIComponent(tagName)}?page=1&page_size=10`);
         const container = document.getElementById('tag-videos');
-        container.innerHTML = (data.top_videos || []).map(video => `
-            <div class="bg-gray-50 rounded-xl p-4">
-                <p class="text-gray-800 text-sm truncate">${video.title}</p>
-                <div class="flex items-center space-x-3 mt-2 text-xs text-gray-500">
-                    <span>${video.owner}</span>
-                    <span><i class="ri-play-line"></i> ${formatNumber(video.view)}</span>
+        const videos = data.top_videos || [];
+        container.innerHTML = videos.map(video => `
+            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div class="text-sm font-medium text-gray-900">${video.title || '-'}</div>
+                <div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+                    <span>${video.owner || '-'}</span>
+                    <span><i class="ri-play-line mr-1"></i>${formatNumber(video.view)}</span>
                 </div>
             </div>
         `).join('');
     } catch (error) {
-        showToast('加载详情失败: ' + error.message, 'error');
+        showToast(error.message, 'error');
     }
 }
 
@@ -311,45 +315,23 @@ function closeTagDetail() {
 }
 
 async function searchTag() {
-    const keyword = document.getElementById('search-keyword').value;
+    const keyword = document.getElementById('search-keyword').value.trim();
     if (!keyword) return;
-
     try {
-        const response = await fetch(`/admin/api/trends/search?keyword=${encodeURIComponent(keyword)}`);
-        if (!response.ok) {
-            const errBody = await response.json().catch(() => ({}));
-            throw new Error(errBody.error || '搜索标签失败');
-        }
-        const data = await response.json();
+        const data = await api(`/admin/api/trends/search?keyword=${encodeURIComponent(keyword)}`);
         renderTags(data.tags || []);
     } catch (error) {
-        showToast('搜索失败: ' + error.message, 'error');
+        showToast(error.message, 'error');
     }
 }
 
-function formatNumber(num) {
-    if (!num) return '0';
-    if (num >= 10000) {
-        return (num / 10000).toFixed(1) + '万';
-    }
-    return num.toString();
-}
-
-function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
-        type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-    }`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
-loadTrendingTags();
-loadVideoRanking();
-setInterval(() => {
+document.addEventListener('DOMContentLoaded', () => {
     loadTrendingTags();
     loadVideoRanking();
-}, 2 * 60 * 1000);
+    setInterval(() => {
+        loadTrendingTags();
+        loadVideoRanking();
+    }, 60 * 1000);
+});
 </script>
 {{ end }}

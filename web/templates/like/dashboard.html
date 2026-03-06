@@ -1,83 +1,181 @@
+{{ define "head" }}
+<style>
+:root {
+    --panel-line: #e6ebf2;
+    --panel-bg: #ffffff;
+    --panel-accent: #fb7299;
+}
+
+.panel-shell {
+    background:
+        radial-gradient(circle at top left, rgba(251, 114, 153, 0.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.1), transparent 24%),
+        linear-gradient(180deg, #f8fafc 0%, #f3f6fb 100%);
+}
+
+.panel-card,
+.panel-toolbar {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-line);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+}
+
+.panel-action {
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.panel-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.select-card {
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.select-card:hover {
+    background: #fafcff;
+}
+</style>
+{{ end }}
+
 {{ define "content" }}
-<div class="max-w-7xl mx-auto space-y-6">
-    <div class="flex items-center justify-between">
+<div class="panel-shell -mx-8 -mt-4 px-8 pt-6 pb-10">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-            <h2 class="text-2xl font-bold text-gray-800">互动管理</h2>
-            <p class="mt-1 text-sm text-pink-600">选择粉丝与投稿，执行点赞/投币/收藏/三连，真实互动数据自动轮询更新。</p>
+            <div class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
+                <i class="ri-heart-pulse-line mr-2 text-pink-500"></i>互动面板
+            </div>
+            <h2 class="mt-3 text-3xl font-bold text-gray-900">互动管理</h2>
+            <p class="mt-2 text-sm text-gray-500">按统一的工作台风格管理粉丝互动、视频操作和实时状态同步。</p>
         </div>
-        <div class="flex items-center gap-2">
-            <button type="button" onclick="loadOperationStats().catch(err => showToast(err.message, 'error'))" class="rounded-xl border border-pink-200 bg-white px-4 py-2 text-sm text-pink-600 hover:bg-pink-50 transition">
+        <div class="flex flex-wrap items-center gap-3">
+            <button type="button" onclick="loadOperationStats().catch(err => showToast(err.message, 'error'))" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:border-pink-300 hover:text-pink-500 transition">
                 <i class="ri-bar-chart-line mr-1"></i>刷新统计
             </button>
-            <button type="button" onclick="loadFansPage().catch(err => showToast(err.message, 'error'))" class="rounded-xl border border-pink-200 bg-white px-4 py-2 text-sm text-pink-600 hover:bg-pink-50 transition">
+            <button type="button" onclick="loadFansPage().catch(err => showToast(err.message, 'error'))" class="rounded-full bg-gray-900 px-5 py-2 text-sm text-white hover:bg-black transition">
                 <i class="ri-refresh-line mr-1"></i>刷新粉丝
             </button>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 to-white p-4 shadow-sm">
-            <p class="text-xs text-pink-500">操作总量（近30天）</p>
-            <p id="op-total" class="mt-2 text-2xl font-bold text-pink-700">-</p>
+    <div class="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-medium tracking-wide text-gray-400">近 30 天操作总量</div>
+            <div id="op-total" class="mt-3 text-3xl font-bold text-gray-900">-</div>
+            <div class="mt-2 text-xs text-pink-500">点赞、投币、收藏总和</div>
         </div>
-        <div class="rounded-2xl border border-pink-100 bg-white p-4 shadow-sm">
-            <p class="text-xs text-gray-500">点赞操作数</p>
-            <p id="op-like" class="mt-2 text-2xl font-bold text-gray-800">-</p>
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-medium tracking-wide text-gray-400">点赞操作</div>
+            <div id="op-like" class="mt-3 text-3xl font-bold text-gray-900">-</div>
+            <div class="mt-2 text-xs text-gray-400">累计点赞执行次数</div>
         </div>
-        <div class="rounded-2xl border border-pink-100 bg-white p-4 shadow-sm">
-            <p class="text-xs text-gray-500">投币操作数</p>
-            <p id="op-coin" class="mt-2 text-2xl font-bold text-gray-800">-</p>
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-medium tracking-wide text-gray-400">投币操作</div>
+            <div id="op-coin" class="mt-3 text-3xl font-bold text-gray-900">-</div>
+            <div class="mt-2 text-xs text-gray-400">累计投币执行次数</div>
         </div>
-        <div class="rounded-2xl border border-pink-100 bg-white p-4 shadow-sm">
-            <p class="text-xs text-gray-500">收藏操作数</p>
-            <p id="op-favorite" class="mt-2 text-2xl font-bold text-gray-800">-</p>
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-medium tracking-wide text-gray-400">收藏操作</div>
+            <div id="op-favorite" class="mt-3 text-3xl font-bold text-gray-900">-</div>
+            <div class="mt-2 text-xs text-gray-400">累计收藏执行次数</div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <section class="rounded-2xl border border-pink-100 bg-white shadow-sm overflow-hidden">
-            <div class="px-4 py-3 border-b border-pink-100 font-semibold text-gray-800">1. 选择粉丝</div>
-            <div id="fan-list" class="max-h-[520px] overflow-y-auto divide-y divide-gray-50">
-                <div class="p-6 text-center text-gray-400">加载中...</div>
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_1.15fr_1fr]">
+        <section class="panel-card rounded-3xl overflow-hidden">
+            <div class="border-b border-gray-100 px-6 py-5">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">1. 选择粉丝</h3>
+                        <p class="mt-1 text-xs text-gray-400">从互动粉丝列表中选择要查看的账号。</p>
+                    </div>
+                    <div id="fan-page-indicator" class="rounded-full bg-gray-50 px-3 py-1 text-xs text-gray-500">第 1 页</div>
+                </div>
             </div>
-            <div class="px-4 py-3 border-t border-pink-100 flex items-center justify-between text-sm">
-                <button onclick="prevFanPage()" class="rounded-lg border border-pink-200 px-3 py-1.5 text-pink-600 hover:bg-pink-50">上一页</button>
-                <span id="fan-page-indicator" class="text-gray-500">第 1 页</span>
-                <button onclick="nextFanPage()" class="rounded-lg border border-pink-200 px-3 py-1.5 text-pink-600 hover:bg-pink-50">下一页</button>
+            <div id="fan-list" class="max-h-[68vh] overflow-y-auto divide-y divide-gray-100">
+                <div class="p-10 text-center text-gray-400">
+                    <i class="ri-loader-4-line animate-spin text-3xl"></i>
+                    <p class="mt-2">正在加载粉丝列表...</p>
+                </div>
             </div>
-        </section>
-
-        <section class="rounded-2xl border border-pink-100 bg-white shadow-sm overflow-hidden">
-            <div class="px-4 py-3 border-b border-pink-100 font-semibold text-gray-800">2. 选择粉丝投稿</div>
-            <div id="fan-video-list" class="max-h-[520px] overflow-y-auto divide-y divide-gray-50">
-                <div class="p-6 text-center text-gray-400">请先选择粉丝</div>
-            </div>
-            <div class="px-4 py-3 border-t border-pink-100 flex items-center justify-between text-sm">
-                <button onclick="prevVideoPage()" class="rounded-lg border border-pink-200 px-3 py-1.5 text-pink-600 hover:bg-pink-50">上一页</button>
-                <span id="video-page-indicator" class="text-gray-500">第 1 页</span>
-                <button onclick="nextVideoPage()" class="rounded-lg border border-pink-200 px-3 py-1.5 text-pink-600 hover:bg-pink-50">下一页</button>
+            <div class="border-t border-gray-100 px-6 py-4 flex items-center justify-between">
+                <button onclick="prevFanPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">上一页</button>
+                <button onclick="nextFanPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">下一页</button>
             </div>
         </section>
 
-        <section class="rounded-2xl border border-pink-100 bg-white shadow-sm p-5 space-y-4">
-            <div class="font-semibold text-gray-800">3. 执行互动</div>
-            <div id="selected-video-box" class="rounded-xl border border-pink-200 bg-pink-50/40 p-4 text-sm text-gray-500">请先选择投稿</div>
-            <div class="grid grid-cols-4 gap-2">
-                <button onclick="actLike()" class="rounded-lg bg-pink-100 text-pink-700 py-2 hover:bg-pink-200 transition">点赞</button>
-                <button onclick="actCoin()" class="rounded-lg bg-rose-100 text-rose-700 py-2 hover:bg-rose-200 transition">投币</button>
-                <button onclick="actFavorite()" class="rounded-lg bg-fuchsia-100 text-fuchsia-700 py-2 hover:bg-fuchsia-200 transition">收藏</button>
-                <button onclick="actTriple()" class="rounded-lg bg-purple-100 text-purple-700 py-2 hover:bg-purple-200 transition">三连</button>
+        <section class="panel-card rounded-3xl overflow-hidden">
+            <div class="border-b border-gray-100 px-6 py-5">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">2. 选择视频</h3>
+                        <p class="mt-1 text-xs text-gray-400">查看该粉丝关联的视频列表并选中目标视频。</p>
+                    </div>
+                    <div id="video-page-indicator" class="rounded-full bg-gray-50 px-3 py-1 text-xs text-gray-500">第 1 页</div>
+                </div>
             </div>
-            <div class="grid grid-cols-2 gap-2">
-                <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">视频点赞：<span id="eng-like">-</span></div>
-                <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">视频投币：<span id="eng-coin">-</span></div>
-                <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">视频收藏：<span id="eng-fav">-</span></div>
-                <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">UP硬币：<span id="up-coin">-</span></div>
+            <div id="fan-video-list" class="max-h-[68vh] overflow-y-auto divide-y divide-gray-100">
+                <div class="p-10 text-center text-gray-400">
+                    <i class="ri-video-line text-3xl"></i>
+                    <p class="mt-2">请先选择粉丝</p>
+                </div>
+            </div>
+            <div class="border-t border-gray-100 px-6 py-4 flex items-center justify-between">
+                <button onclick="prevVideoPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">上一页</button>
+                <button onclick="nextVideoPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">下一页</button>
+            </div>
+        </section>
+
+        <section class="space-y-5">
+            <div class="panel-card rounded-3xl p-6">
+                <div class="mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">3. 执行互动</h3>
+                    <p class="mt-1 text-xs text-gray-400">选定视频后可直接执行点赞、投币、收藏和三连。</p>
+                </div>
+                <div id="selected-video-box" class="rounded-3xl border border-dashed border-pink-200 bg-pink-50/60 p-4 text-sm text-gray-500">请选择一个视频</div>
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                    <button onclick="actLike()" class="panel-action rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm font-medium text-pink-700">点赞</button>
+                    <button onclick="actCoin()" class="panel-action rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">投币</button>
+                    <button onclick="actFavorite()" class="panel-action rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 text-sm font-medium text-fuchsia-700">收藏</button>
+                    <button onclick="actTriple()" class="panel-action rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-700">三连</button>
+                </div>
             </div>
 
-            <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
-                <div>我的状态：<span id="my-like">-</span> / <span id="my-coin">-</span> / <span id="my-fav">-</span></div>
-                <div>最近同步：<span id="sync-time">-</span></div>
+            <div class="panel-card rounded-3xl p-6">
+                <div class="mb-4 flex items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">互动状态</h3>
+                        <p class="mt-1 text-xs text-gray-400">每 15 秒轮询一次当前选中视频的状态。</p>
+                    </div>
+                    <button onclick="refreshSelectedVideoEngagement()" class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">立即同步</button>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                        <div class="text-xs text-gray-400">视频点赞</div>
+                        <div id="eng-like" class="mt-2 text-xl font-semibold text-gray-900">-</div>
+                    </div>
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                        <div class="text-xs text-gray-400">视频投币</div>
+                        <div id="eng-coin" class="mt-2 text-xl font-semibold text-gray-900">-</div>
+                    </div>
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                        <div class="text-xs text-gray-400">视频收藏</div>
+                        <div id="eng-fav" class="mt-2 text-xl font-semibold text-gray-900">-</div>
+                    </div>
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                        <div class="text-xs text-gray-400">UP 主硬币</div>
+                        <div id="up-coin" class="mt-2 text-xl font-semibold text-gray-900">-</div>
+                    </div>
+                </div>
+                <div class="mt-4 rounded-3xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
+                    <div class="flex flex-wrap gap-x-6 gap-y-2">
+                        <div>我的点赞：<span id="my-like" class="font-medium text-gray-900">-</span></div>
+                        <div>我的投币：<span id="my-coin" class="font-medium text-gray-900">-</span></div>
+                        <div>我的收藏：<span id="my-fav" class="font-medium text-gray-900">-</span></div>
+                    </div>
+                    <div class="mt-3 text-xs text-gray-400">最近同步：<span id="sync-time">-</span></div>
+                </div>
             </div>
         </section>
     </div>
@@ -106,53 +204,84 @@ function fmt(n) {
 
 function renderFans() {
     const container = document.getElementById('fan-list');
+    document.getElementById('fan-page-indicator').textContent = `第 ${fanPage} 页`;
+
     if (!fanItems.length) {
-        container.innerHTML = '<div class="p-6 text-center text-gray-400">暂无粉丝投稿数据</div>';
-        document.getElementById('fan-page-indicator').textContent = `第 ${fanPage} 页`;
+        container.innerHTML = `
+            <div class="p-10 text-center text-gray-400">
+                <i class="ri-user-search-line text-3xl"></i>
+                <p class="mt-2">暂无粉丝投稿数据</p>
+            </div>
+        `;
         return;
     }
+
     container.innerHTML = fanItems.map(item => {
         const active = selectedFan && selectedFan.user_id === item.user_id;
         return `
-            <button class="w-full text-left px-4 py-3 hover:bg-gray-50 ${active ? 'bg-pink-50' : ''}" onclick="selectFan(${item.user_id})">
-                <div class="font-medium text-gray-800">${item.user_name || ('用户' + item.user_id)}</div>
-                <div class="text-xs text-gray-500 mt-1">UID ${item.user_id}</div>
-            </button>`;
+            <button class="select-card w-full px-5 py-4 text-left ${active ? 'bg-pink-50' : 'bg-white'}" onclick="selectFan(${item.user_id})">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="truncate text-sm font-semibold text-gray-900">${item.user_name || ('用户 ' + item.user_id)}</div>
+                        <div class="mt-1 text-xs text-gray-500">UID ${item.user_id}</div>
+                    </div>
+                    <span class="rounded-full ${active ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-500'} px-2.5 py-1 text-xs">${active ? '已选中' : '可选择'}</span>
+                </div>
+            </button>
+        `;
     }).join('');
-    document.getElementById('fan-page-indicator').textContent = `第 ${fanPage} 页`;
 }
 
 function renderFanVideos() {
     const container = document.getElementById('fan-video-list');
+    document.getElementById('video-page-indicator').textContent = `第 ${videoPage} 页`;
+
     if (!selectedFan) {
-        container.innerHTML = '<div class="p-6 text-center text-gray-400">请先选择粉丝</div>';
-        document.getElementById('video-page-indicator').textContent = `第 ${videoPage} 页`;
+        container.innerHTML = `
+            <div class="p-10 text-center text-gray-400">
+                <i class="ri-user-follow-line text-3xl"></i>
+                <p class="mt-2">请先选择粉丝</p>
+            </div>
+        `;
         return;
     }
+
     if (!videoItems.length) {
-        container.innerHTML = '<div class="p-6 text-center text-gray-400">该粉丝暂无投稿</div>';
-        document.getElementById('video-page-indicator').textContent = `第 ${videoPage} 页`;
+        container.innerHTML = `
+            <div class="p-10 text-center text-gray-400">
+                <i class="ri-inbox-line text-3xl"></i>
+                <p class="mt-2">该粉丝暂无可用视频</p>
+            </div>
+        `;
         return;
     }
+
     container.innerHTML = videoItems.map(video => {
         const active = selectedVideo && selectedVideo.bvid === video.bvid;
         return `
-            <button class="w-full text-left px-4 py-3 hover:bg-gray-50 ${active ? 'bg-blue-50' : ''}" onclick="selectVideo('${video.bvid}')">
-                <div class="font-medium text-gray-800 truncate">${video.title || video.bvid}</div>
-                <div class="text-xs text-gray-500 mt-1">${video.bvid} · 播放 ${fmt(video.view)}</div>
-            </button>`;
+            <button class="select-card w-full px-5 py-4 text-left ${active ? 'bg-sky-50' : 'bg-white'}" onclick="selectVideo('${video.bvid}')">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="truncate text-sm font-semibold text-gray-900">${video.title || video.bvid}</div>
+                        <div class="mt-1 text-xs text-gray-500">${video.bvid}</div>
+                        <div class="mt-2 text-xs text-gray-400">播放 ${fmt(video.view)}</div>
+                    </div>
+                    <span class="rounded-full ${active ? 'bg-sky-100 text-sky-600' : 'bg-gray-100 text-gray-500'} px-2.5 py-1 text-xs">${active ? '当前视频' : '选择'}</span>
+                </div>
+            </button>
+        `;
     }).join('');
-    document.getElementById('video-page-indicator').textContent = `第 ${videoPage} 页`;
 }
 
 function renderSelectedVideo() {
     const box = document.getElementById('selected-video-box');
     if (!selectedVideo) {
-        box.innerHTML = '请先选择投稿';
+        box.innerHTML = '请选择一个视频';
         return;
     }
+
     box.innerHTML = `
-        <div class="font-medium text-gray-800">${selectedVideo.title || selectedVideo.bvid}</div>
+        <div class="text-sm font-semibold text-gray-900">${selectedVideo.title || selectedVideo.bvid}</div>
         <div class="mt-1 text-xs text-gray-500">${selectedVideo.bvid}</div>
     `;
 }
@@ -257,7 +386,7 @@ async function loadOperationStats() {
 
 async function syncEngagement() {
     if (!selectedVideo) {
-        showToast('请先选择投稿', 'error');
+        showToast('请先选择视频', 'error');
         return;
     }
     const data = await api(`/admin/api/videos/${selectedVideo.bvid}/engagement`);
@@ -266,13 +395,13 @@ async function syncEngagement() {
     document.getElementById('eng-fav').textContent = fmt(data.video?.favorite);
     document.getElementById('up-coin').textContent = fmt(data.up_coin);
     document.getElementById('my-like').textContent = data.relation?.like ? '已点赞' : '未点赞';
-    document.getElementById('my-coin').textContent = data.relation?.coined ? `已投币(${data.relation?.coin || 0})` : '未投币';
+    document.getElementById('my-coin').textContent = data.relation?.coined ? `已投币 (${data.relation?.coin || 0})` : '未投币';
     document.getElementById('my-fav').textContent = data.relation?.favorite ? '已收藏' : '未收藏';
     document.getElementById('sync-time').textContent = data.synced_at ? new Date(data.synced_at).toLocaleString('zh-CN') : '-';
 }
 
 async function actLike() {
-    if (!selectedVideo) return showToast('请先选择投稿', 'error');
+    if (!selectedVideo) return showToast('请先选择视频', 'error');
     const data = await api(`/admin/api/videos/${selectedVideo.bvid}/like`, { method: 'POST' });
     showToast(data.message || '已执行点赞', data.success ? 'success' : 'error');
     await loadOperationStats();
@@ -280,7 +409,7 @@ async function actLike() {
 }
 
 async function actCoin() {
-    if (!selectedVideo) return showToast('请先选择投稿', 'error');
+    if (!selectedVideo) return showToast('请先选择视频', 'error');
     const data = await api(`/admin/api/videos/${selectedVideo.bvid}/coin`, {
         method: 'POST',
         body: { coin_count: 1 }
@@ -291,8 +420,8 @@ async function actCoin() {
 }
 
 async function actFavorite() {
-    if (!selectedVideo) return showToast('请先选择投稿', 'error');
-    if (!favoriteMediaID) return showToast('请先在系统设置中配置收藏夹ID', 'error');
+    if (!selectedVideo) return showToast('请先选择视频', 'error');
+    if (!favoriteMediaID) return showToast('请先在系统设置中配置收藏夹 ID', 'error');
     const data = await api(`/admin/api/videos/${selectedVideo.bvid}/favorite`, {
         method: 'POST',
         body: { media_id: favoriteMediaID }
@@ -303,7 +432,7 @@ async function actFavorite() {
 }
 
 async function actTriple() {
-    if (!selectedVideo) return showToast('请先选择投稿', 'error');
+    if (!selectedVideo) return showToast('请先选择视频', 'error');
     const data = await api(`/admin/api/videos/${selectedVideo.bvid}/triple`, { method: 'POST' });
     showToast(data.message || '已执行三连', data.success ? 'success' : 'error');
     await loadOperationStats();
