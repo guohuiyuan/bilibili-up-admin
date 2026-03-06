@@ -46,17 +46,20 @@ func (Comment) TableName() string { return "comments" }
 
 type Message struct {
 	BaseModel
-	MessageID    int64      `gorm:"column:message_id;uniqueIndex;not null" json:"message_id"`
-	SenderID     int64      `gorm:"column:sender_uid;index;not null" json:"sender_uid"`
-	SenderName   string     `gorm:"column:sender_name;size:100" json:"sender_name"`
-	SenderFace   string     `gorm:"column:sender_face;size:500" json:"sender_face"`
-	IsFromSelf   bool       `gorm:"column:is_from_self;default:false;index" json:"is_from_self"`
-	Content      string     `gorm:"column:content;type:text;not null" json:"content"`
-	MsgType      int        `gorm:"column:msg_type;default:1" json:"msg_type"`
-	ReplyStatus  int        `gorm:"column:reply_status;default:0;index" json:"reply_status"` // 0=未回复, 1=已回复, 2=忽略
-	IsAIReply    bool       `gorm:"column:is_ai_reply;default:false" json:"is_ai_reply"`
-	ReplyContent string     `gorm:"column:reply_content;type:text" json:"reply_content"`
-	MessageTime  *time.Time `gorm:"column:message_time" json:"message_time"`
+	MessageID        int64      `gorm:"column:message_id;uniqueIndex;not null" json:"message_id"`
+	SenderID         int64      `gorm:"column:sender_uid;index;not null" json:"sender_uid"`
+	SenderName       string     `gorm:"column:sender_name;size:100" json:"sender_name"`
+	SenderFace       string     `gorm:"column:sender_face;size:500" json:"sender_face"`
+	ConversationUID  int64      `gorm:"column:conversation_uid;index" json:"conversation_uid"`
+	ConversationName string     `gorm:"column:conversation_name;size:100" json:"conversation_name"`
+	ConversationFace string     `gorm:"column:conversation_face;size:500" json:"conversation_face"`
+	IsFromSelf       bool       `gorm:"column:is_from_self;default:false;index" json:"is_from_self"`
+	Content          string     `gorm:"column:content;type:text;not null" json:"content"`
+	MsgType          int        `gorm:"column:msg_type;default:1" json:"msg_type"`
+	ReplyStatus      int        `gorm:"column:reply_status;default:0;index" json:"reply_status"` // 0=未回复, 1=已回复, 2=忽略
+	IsAIReply        bool       `gorm:"column:is_ai_reply;default:false" json:"is_ai_reply"`
+	ReplyContent     string     `gorm:"column:reply_content;type:text" json:"reply_content"`
+	MessageTime      *time.Time `gorm:"column:message_time" json:"message_time"`
 }
 
 func (Message) TableName() string { return "messages" }

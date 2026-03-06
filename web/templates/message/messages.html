@@ -1,62 +1,132 @@
 {{ define "head" }}
 <style>
-.message-item {
-    transition: all 0.2s ease;
+:root {
+    --msg-pink: #fb7299;
+    --msg-panel: #ffffff;
+    --msg-line: #edf1f5;
 }
-.message-item:hover {
-    background-color: #f9fafb;
+
+.message-shell {
+    background:
+        radial-gradient(circle at top left, rgba(120, 190, 255, 0.1), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(251, 114, 153, 0.08), transparent 24%),
+        linear-gradient(180deg, #f8fafc 0%, #f3f6fa 100%);
+}
+
+.message-panel,
+.conversation-list,
+.thread-pane,
+.thread-toolbar {
+    background: var(--msg-panel);
+    border: 1px solid var(--msg-line);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.04);
+}
+
+.conversation-item {
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.conversation-item:hover {
+    background: #fafbfd;
+}
+
+.conversation-item.active {
+    background: linear-gradient(90deg, rgba(251, 114, 153, 0.1), rgba(251, 114, 153, 0.02));
+    border-color: rgba(251, 114, 153, 0.18);
+}
+
+.thread-message {
+    animation: fadeInUp 0.2s ease;
+}
+
+.thread-incoming {
+    background: #ffffff;
+    border: 1px solid #e9edf3;
+}
+
+.thread-self {
+    background: linear-gradient(180deg, #fff5f8, #ffffff);
+    border: 1px solid #ffd5e3;
+}
+
+.thread-reply {
+    background: linear-gradient(180deg, #fff5f8, #fffdfd);
+    border: 1px solid #ffdce7;
+}
+
+.thread-empty-art {
+    color: #b6c2d2;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 </style>
 {{ end }}
 
 {{ define "content" }}
-<div class="mb-8">
-    <div class="flex items-center justify-between">
+<div class="message-shell -mx-8 -mt-4 px-8 pt-6 pb-10">
+    <div class="mb-6 flex items-center justify-between">
         <div>
-            <h2 class="text-2xl font-bold text-gray-800">私信管理</h2>
-            <p class="text-gray-500 mt-1">管理和回复粉丝私信，私信由后台轮询自动更新</p>
+            <div class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs text-gray-500 border border-gray-200">
+                <i class="ri-mail-unread-line mr-2 text-pink-500"></i>私信工作台
+            </div>
+            <h2 class="mt-3 text-3xl font-bold text-gray-900">私信箱</h2>
+            <p class="mt-2 text-sm text-gray-500">尽量贴近 B 站消息页的“会话列表 + 对话阅读”结构，方便后续接入大模型回复链路。</p>
         </div>
+        <button onclick="loadMessages()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">
+            <i class="ri-refresh-line mr-1"></i>刷新消息
+        </button>
     </div>
-</div>
 
-<!-- 筛选器 -->
-<div class="bg-white rounded-2xl p-6 shadow-sm mb-6">
-    <div class="flex flex-wrap gap-4">
-        <div class="w-48">
-            <label class="block text-sm text-gray-500 mb-2">回复状态</label>
-            <select id="filter-status" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500">
-                <option value="-1">全部</option>
-                <option value="0">未回复</option>
-                <option value="1">已回复</option>
-                <option value="2">已忽略</option>
-            </select>
-        </div>
-        <div class="flex items-end">
-            <button onclick="loadMessages()" class="px-6 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition">
-                搜索
-            </button>
+    <div class="thread-toolbar rounded-3xl p-5 mb-5">
+        <div class="flex flex-wrap gap-4 items-end">
+            <div class="w-56">
+                <label class="block text-xs font-medium tracking-wide text-gray-400 mb-2">消息状态</label>
+                <select id="filter-status" class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200">
+                    <option value="-1">全部消息</option>
+                    <option value="0">待回复</option>
+                    <option value="1">已回复</option>
+                    <option value="2">已忽略</option>
+                </select>
+            </div>
+            <div class="rounded-2xl bg-gray-50 border border-gray-100 px-4 py-3 text-sm text-gray-500">
+                <div class="text-xs text-gray-400 mb-1">说明</div>
+                右侧会话视图按发信人聚合，优先服务“大模型辅助回复”的上下文阅读。
+            </div>
+            <div class="ml-auto text-sm text-gray-400">
+                <span id="total-count">共 0 条私信</span>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- 私信列表 -->
-<div class="bg-white rounded-2xl shadow-sm overflow-hidden">
-    <div class="p-6 border-b border-gray-100">
-        <div class="flex items-center justify-between">
-            <h3 class="font-semibold text-gray-800">私信列表</h3>
-            <span id="total-count" class="text-sm text-gray-500">共 0 条私信</span>
+    <div class="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-5 items-start">
+        <div class="conversation-list rounded-3xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                    <div class="text-sm font-semibold text-gray-800">最近消息</div>
+                    <div class="text-xs text-gray-400 mt-1">按发信人聚合显示</div>
+                </div>
+                <div class="text-xs text-gray-400">会话</div>
+            </div>
+            <div id="message-sidebar" class="max-h-[72vh] overflow-y-auto divide-y divide-gray-100"></div>
+            <div class="px-5 py-4 border-t border-gray-100 bg-gray-50 flex justify-center">
+                <div id="pagination" class="flex space-x-2"></div>
+            </div>
         </div>
-    </div>
-    
-    <div id="message-list" class="divide-y divide-gray-100">
-        <div class="p-8 text-center text-gray-400">
-            <i class="ri-mail-open-line text-4xl"></i>
-            <p class="mt-2">暂无私信数据</p>
+
+        <div class="thread-pane rounded-3xl overflow-hidden min-h-[72vh] flex flex-col">
+            <div id="thread-header" class="px-6 py-5 border-b border-gray-100 bg-white"></div>
+            <div id="thread-body" class="flex-1 overflow-y-auto bg-[#fafbfd] p-6"></div>
+            <div id="thread-actions" class="px-6 py-4 border-t border-gray-100 bg-white"></div>
         </div>
-    </div>
-    
-    <div class="p-4 border-t border-gray-100 flex justify-center">
-        <div id="pagination" class="flex space-x-2"></div>
     </div>
 </div>
 {{ end }}
@@ -64,16 +134,83 @@
 {{ define "scripts" }}
 <script>
 let currentPage = 1;
-const pageSize = 20;
+const pageSize = 40;
+let currentMessages = [];
+let activeConversationId = null;
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatTime(value) {
+    if (!value) return '刚刚';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    if (diff < 60 * 1000) return '刚刚';
+    if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}分钟前`;
+    if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))}小时前`;
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hour = `${date.getHours()}`.padStart(2, '0');
+    const minute = `${date.getMinutes()}`.padStart(2, '0');
+    return `${month}-${day} ${hour}:${minute}`;
+}
+
+function avatarHtml(name, face, size = 'w-12 h-12') {
+    if (face) {
+        return `<img src="${escapeHtml(face)}" alt="${escapeHtml(name || '用户')}" class="${size} rounded-full object-cover border border-gray-100" referrerpolicy="no-referrer">`;
+    }
+    return `<div class="${size} rounded-full bg-gradient-to-br from-pink-100 to-blue-100 text-pink-600 flex items-center justify-center font-semibold border border-pink-100">${escapeHtml((name || 'U').slice(0, 1))}</div>`;
+}
+
+function groupConversations(messages) {
+    const conversationMap = new Map();
+    for (const item of messages) {
+        const conversationId = item.conversation_uid || item.conversation_id || 0;
+        const fallbackSenderId = item.sender_uid || item.sender_id || item.SenderID || 0;
+        const sessionId = conversationId || fallbackSenderId;
+        if (!sessionId) {
+            continue;
+        }
+        const existing = conversationMap.get(sessionId) || {
+            conversationId: sessionId,
+            conversationName: item.conversation_name || item.sender_name || '用户',
+            conversationFace: item.conversation_face || item.sender_face || '',
+            messages: []
+        };
+        existing.messages.push(item);
+        if (!existing.conversationFace && (item.conversation_face || item.sender_face)) {
+            existing.conversationFace = item.conversation_face || item.sender_face;
+        }
+        if (!existing.conversationName && (item.conversation_name || item.sender_name)) {
+            existing.conversationName = item.conversation_name || item.sender_name;
+        }
+        conversationMap.set(sessionId, existing);
+    }
+    return Array.from(conversationMap.values()).map(session => {
+        session.messages.sort((a, b) => new Date(a.message_time).getTime() - new Date(b.message_time).getTime());
+        session.latest = session.messages[session.messages.length - 1] || null;
+        session.pending = session.messages.filter(m => !m.is_from_self && m.reply_status === 0).length;
+        return session;
+    }).sort((a, b) => new Date(b.latest?.message_time || 0).getTime() - new Date(a.latest?.message_time || 0).getTime());
+}
 
 async function loadMessages() {
     const status = document.getElementById('filter-status').value;
-    
+
     try {
         const data = await api(`/admin/api/messages?reply_status=${status}&page=${currentPage}&page_size=${pageSize}`);
-        
-        renderMessages(data.messages || []);
+        currentMessages = data.messages || [];
         document.getElementById('total-count').textContent = `共 ${data.total || 0} 条私信`;
+        renderMessageWorkspace(currentMessages);
+        renderPagination(data.total || 0);
         return data;
     } catch (error) {
         showToast('加载失败: ' + error.message, 'error');
@@ -81,71 +218,178 @@ async function loadMessages() {
     }
 }
 
-function renderMessages(messages) {
-    const container = document.getElementById('message-list');
-    
-    if (messages.length === 0) {
+function renderMessageWorkspace(messages) {
+    const sessions = groupConversations(messages);
+    renderSidebar(sessions);
+    if (sessions.length === 0) {
+        activeConversationId = null;
+        renderEmptyThread();
+        return;
+    }
+    if (!sessions.some(item => item.conversationId === activeConversationId)) {
+        activeConversationId = sessions[0].conversationId;
+    }
+    renderThread(sessions.find(item => item.conversationId === activeConversationId));
+}
+
+function renderSidebar(sessions) {
+    const container = document.getElementById('message-sidebar');
+    if (sessions.length === 0) {
         container.innerHTML = `
-            <div class="p-8 text-center text-gray-400">
-                <i class="ri-mail-open-line text-4xl"></i>
-                <p class="mt-2">暂无私信数据</p>
+            <div class="p-10 text-center text-gray-400">
+                <i class="ri-mail-forbid-line text-5xl"></i>
+                <p class="mt-3">暂无可展示的会话</p>
             </div>
         `;
         return;
     }
-    
-    container.innerHTML = messages.map(m => {
-        const fromSelf = !!m.is_from_self;
-        const rowClass = fromSelf ? 'justify-end' : 'justify-start';
-        const bubbleClass = fromSelf
-            ? 'bg-blue-50 border-blue-100 text-blue-900'
-            : 'bg-white border-gray-200 text-gray-700';
-        const statusBadge = fromSelf
-            ? '<span class="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-600">我发出</span>'
-            : `<span class="text-xs px-2 py-1 rounded-full ${
-                m.reply_status === 1 ? 'bg-green-100 text-green-600' :
-                m.reply_status === 2 ? 'bg-gray-100 text-gray-500' : 'bg-pink-100 text-pink-600'
-              }">${m.reply_status === 1 ? '已回复' : m.reply_status === 2 ? '已忽略' : '待回复'}</span>`;
 
+    container.innerHTML = sessions.map(session => {
+        const latest = session.latest || {};
+        const preview = latest.content || latest.reply_content || '暂无消息内容';
         return `
-        <div class="message-item p-4">
-            <div class="flex ${rowClass}">
-                <div class="w-full max-w-[78%] border rounded-2xl p-4 shadow-sm ${bubbleClass}">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-2">
-                            <span class="font-medium">${m.sender_name || (fromSelf ? '我' : '用户')}</span>
-                            ${statusBadge}
-                            ${m.is_ai_reply ? '<span class="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-600">AI回复</span>' : ''}
+            <button onclick="openConversation(${session.conversationId})" class="conversation-item ${session.conversationId === activeConversationId ? 'active' : ''} w-full text-left px-5 py-4 border-l-4 ${session.conversationId === activeConversationId ? 'border-pink-400' : 'border-transparent'}">
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0">${avatarHtml(session.conversationName, session.conversationFace)}</div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="font-medium text-gray-900 truncate">${escapeHtml(session.conversationName)}</div>
+                            <div class="text-xs text-gray-400 whitespace-nowrap">${formatTime(latest.message_time)}</div>
                         </div>
-                        <span class="text-xs text-gray-400">${formatTime(m.message_time)}</span>
-                    </div>
-                    <p class="mt-2 whitespace-pre-wrap break-words">${m.content || ''}</p>
-                    ${m.reply_content ? `
-                        <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <p class="text-sm text-gray-600">回复: ${m.reply_content}</p>
+                        <div class="mt-1 text-sm text-gray-500 truncate">${escapeHtml(preview)}</div>
+                        <div class="mt-2 flex items-center gap-2 text-xs">
+                            ${session.pending > 0 ? `<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">待回复 ${session.pending}</span>` : '<span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-gray-500 border border-gray-100">已处理</span>'}
+                            <span class="text-gray-400">${session.messages.length} 条</span>
                         </div>
-                    ` : ''}
-                    ${!fromSelf && m.reply_status === 0 ? `
-                    <div class="flex items-center space-x-4 mt-4">
-                        <button onclick="aiReply(${m.message_id})" class="text-pink-500 hover:text-pink-600 text-sm flex items-center space-x-1">
-                            <i class="ri-robot-line"></i>
-                            <span>AI回复</span>
-                        </button>
-                        <button onclick="manualReply(${m.message_id}, ${m.sender_uid})" class="text-gray-500 hover:text-gray-600 text-sm flex items-center space-x-1">
-                            <i class="ri-edit-line"></i>
-                            <span>手动回复</span>
-                        </button>
-                        <button onclick="ignore(${m.message_id})" class="text-gray-400 hover:text-gray-500 text-sm flex items-center space-x-1">
-                            <i class="ri-close-line"></i>
-                            <span>忽略</span>
-                        </button>
                     </div>
-                    ` : ''}
                 </div>
+            </button>
+        `;
+    }).join('');
+}
+
+function renderEmptyThread() {
+    document.getElementById('thread-header').innerHTML = `
+        <div>
+            <div class="text-lg font-semibold text-gray-800">选择一个会话</div>
+            <div class="text-sm text-gray-400 mt-1">左侧选择最近消息后，在这里处理回复。</div>
+        </div>
+    `;
+    document.getElementById('thread-body').innerHTML = `
+        <div class="h-full min-h-[420px] flex flex-col items-center justify-center text-center">
+            <div class="thread-empty-art text-8xl leading-none">◔ ◡ ◔</div>
+            <div class="mt-6 text-lg text-gray-400">快找小伙伴聊天吧</div>
+            <div class="mt-2 text-sm text-gray-300">当前筛选条件下没有可阅读的会话。</div>
+        </div>
+    `;
+    document.getElementById('thread-actions').innerHTML = `
+        <div class="text-sm text-gray-400">暂无可执行操作</div>
+    `;
+}
+
+function openConversation(conversationId) {
+    activeConversationId = conversationId;
+    renderMessageWorkspace(currentMessages);
+}
+
+function renderThread(session) {
+    if (!session) {
+        renderEmptyThread();
+        return;
+    }
+
+    const latest = session.latest || {};
+    document.getElementById('thread-header').innerHTML = `
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center space-x-4 min-w-0">
+                ${avatarHtml(session.conversationName, session.conversationFace, 'w-14 h-14')}
+                <div class="min-w-0">
+                    <div class="text-lg font-semibold text-gray-900 truncate">${escapeHtml(session.conversationName)}</div>
+                    <div class="mt-1 text-sm text-gray-400">最近消息 ${formatTime(latest.message_time)}</div>
+                </div>
+            </div>
+            <div class="text-right text-xs text-gray-400">
+                <div>会话内消息 ${session.messages.length} 条</div>
+                <div class="mt-1">待回复 ${session.pending} 条</div>
             </div>
         </div>
     `;
+
+    document.getElementById('thread-body').innerHTML = session.messages.map(item => {
+        const fromSelf = !!item.is_from_self;
+        const pending = item.reply_status === 0;
+        return `
+            <div class="thread-message mb-6 flex ${fromSelf ? 'justify-end' : 'items-start space-x-4'}">
+                ${fromSelf ? '' : `<div class="flex-shrink-0">${avatarHtml(item.sender_name || session.conversationName, item.sender_face || session.conversationFace)}</div>`}
+                <div class="min-w-0 max-w-[78%] ${fromSelf ? 'ml-auto' : ''}">
+                    <div class="${fromSelf ? 'thread-self' : 'thread-incoming'} rounded-[22px] px-5 py-4 shadow-sm">
+                        <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400 mb-2">
+                            <span class="font-medium text-gray-700">${escapeHtml(item.sender_name || (fromSelf ? '我' : session.conversationName))}</span>
+                            <span>${formatTime(item.message_time)}</span>
+                            ${fromSelf ? '<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">我发出的</span>' : pending ? '<span class="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-pink-600 border border-pink-100">待回复</span>' : item.reply_status === 2 ? '<span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-gray-500 border border-gray-100">已忽略</span>' : '<span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-green-600 border border-green-100">已回复</span>'}
+                            ${item.is_ai_reply ? '<span class="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-purple-600 border border-purple-100">AI</span>' : ''}
+                        </div>
+                        <div class="text-[15px] leading-7 text-gray-700 whitespace-pre-wrap break-words">${escapeHtml(item.content || '')}</div>
+                    </div>
+                    ${item.reply_content && !fromSelf ? `
+                        <div class="thread-reply mt-3 ml-10 rounded-[20px] px-5 py-4 shadow-sm">
+                            <div class="text-xs text-pink-400 mb-2">你的回复</div>
+                            <div class="text-[15px] leading-7 text-gray-700 whitespace-pre-wrap break-words">${escapeHtml(item.reply_content)}</div>
+                        </div>
+                    ` : ''}
+                    ${!fromSelf && pending ? `
+                        <div class="mt-3 ml-10 flex flex-wrap items-center gap-3 text-sm">
+                            <button onclick="aiReply(${item.message_id})" class="inline-flex items-center rounded-full bg-pink-50 px-3 py-1.5 text-pink-600 border border-pink-100 hover:bg-pink-100 transition"><i class="ri-robot-2-line mr-1"></i>AI 回复</button>
+                            <button onclick="manualReply(${item.message_id}, ${session.conversationId})" class="inline-flex items-center rounded-full bg-white px-3 py-1.5 text-gray-600 border border-gray-200 hover:border-pink-200 hover:text-pink-500 transition"><i class="ri-edit-line mr-1"></i>手动回复</button>
+                            <button onclick="ignore(${item.message_id})" class="inline-flex items-center rounded-full bg-white px-3 py-1.5 text-gray-500 border border-gray-200 hover:border-gray-300 transition"><i class="ri-eye-off-line mr-1"></i>忽略</button>
+                        </div>
+                    ` : ''}
+                </div>
+                ${fromSelf ? `<div class="flex-shrink-0 ml-4">${avatarHtml(item.sender_name || '我', item.sender_face || '', 'w-12 h-12')}</div>` : ''}
+            </div>
+        `;
     }).join('');
+
+    const pendingItem = [...session.messages].reverse().find(item => !item.is_from_self && item.reply_status === 0);
+    document.getElementById('thread-actions').innerHTML = pendingItem ? `
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <div class="text-sm font-medium text-gray-800">选中会话存在待处理消息</div>
+                <div class="text-xs text-gray-400 mt-1">你可以直接用 AI 回复或手动修订，适合后续沉淀成模型示例。</div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="aiReply(${pendingItem.message_id})" class="rounded-full bg-pink-500 px-4 py-2 text-sm text-white hover:bg-pink-600 transition">AI 回复最近一条</button>
+                <button onclick="manualReply(${pendingItem.message_id}, ${session.conversationId})" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">手动回复</button>
+            </div>
+        </div>
+    ` : `
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <div class="text-sm font-medium text-gray-800">当前会话已处理完成</div>
+                <div class="text-xs text-gray-400 mt-1">如果要做风格校准，可以继续观察对方最新表述。</div>
+            </div>
+            <button onclick="loadMessages()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">刷新会话</button>
+        </div>
+    `;
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const container = document.getElementById('pagination');
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    let html = '';
+    for (let i = 1; i <= totalPages && i <= 5; i++) {
+        html += `<button onclick="goToPage(${i})" class="w-9 h-9 flex items-center justify-center rounded-full text-sm transition ${i === currentPage ? 'bg-pink-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:border-pink-300 hover:text-pink-500'}">${i}</button>`;
+    }
+    container.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadMessages();
 }
 
 async function aiReply(messageId) {
@@ -162,7 +406,7 @@ async function aiReply(messageId) {
 function manualReply(messageId, senderId) {
     const content = prompt('请输入回复内容:');
     if (!content) return;
-    
+
     api(`/admin/api/messages/${messageId}/reply`, {
         method: 'POST',
         body: { sender_uid: senderId, content }
@@ -176,7 +420,7 @@ function manualReply(messageId, senderId) {
 
 async function ignore(messageId) {
     if (!confirm('确定忽略此私信?')) return;
-    
+
     try {
         await api(`/admin/api/messages/${messageId}/ignore`, { method: 'POST' });
         showToast('已忽略', 'success');

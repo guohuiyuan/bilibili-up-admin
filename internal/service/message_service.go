@@ -79,6 +79,104 @@ type MessageSyncResult struct {
 	ErrorSummaries []string `json:"error_summaries,omitempty"`
 }
 
+func resolveSelfIdentity(ctx context.Context, client *bilibili.Client) (int64, string) {
+	if client == nil {
+		return 0, ""
+	}
+	if cfg := client.GetConfig(); cfg != nil && cfg.UserID > 0 {
+		return cfg.UserID, "我"
+	}
+	user, err := client.GetUserInfo(ctx)
+	if err != nil || user == nil {
+		return 0, "我"
+	}
+	name := strings.TrimSpace(user.Name)
+	if name == "" {
+		name = "我"
+	}
+	return user.Mid, name
+}
+
+func buildMessageContext(m bilibili.Message, session bilibili.MessageSession, selfUID int64, selfName string) (bool, string, string, int64, string, string) {
+	isFromSelf := selfUID > 0 && m.SenderID == selfUID
+
+	senderName := strings.TrimSpace(m.SenderName)
+	senderFace := strings.TrimSpace(m.SenderFace)
+	conversationUID := session.UserID
+	conversationName := strings.TrimSpace(session.UserName)
+	conversationFace := strings.TrimSpace(session.UserFace)
+
+	if isFromSelf {
+		if senderName == "" {
+			if selfName != "" {
+				senderName = selfName
+			} else {
+				senderName = "我"
+			}
+		}
+	} else {
+		if senderName == "" {
+			if conversationName != "" {
+				senderName = conversationName
+			} else {
+				senderName = fmt.Sprintf("用户%d", m.SenderID)
+			}
+		}
+		if senderFace == "" {
+			senderFace = conversationFace
+		}
+	}
+
+	if conversationUID == 0 && !isFromSelf {
+		conversationUID = m.SenderID
+	}
+	if conversationName == "" {
+		if !isFromSelf && senderName != "" {
+			conversationName = senderName
+		} else if conversationUID > 0 {
+			conversationName = fmt.Sprintf("用户%d", conversationUID)
+		}
+	}
+	if conversationFace == "" && !isFromSelf {
+		conversationFace = senderFace
+	}
+
+	return isFromSelf, senderName, senderFace, conversationUID, conversationName, conversationFace
+}
+
+func applyMessageContext(record *model.Message, isFromSelf bool, senderName, senderFace string, conversationUID int64, conversationName, conversationFace string, messageTime time.Time) bool {
+	changed := false
+	if record.IsFromSelf != isFromSelf {
+		record.IsFromSelf = isFromSelf
+		changed = true
+	}
+	if senderName != "" && record.SenderName != senderName {
+		record.SenderName = senderName
+		changed = true
+	}
+	if senderFace != "" && record.SenderFace != senderFace {
+		record.SenderFace = senderFace
+		changed = true
+	}
+	if conversationUID > 0 && record.ConversationUID != conversationUID {
+		record.ConversationUID = conversationUID
+		changed = true
+	}
+	if conversationName != "" && record.ConversationName != conversationName {
+		record.ConversationName = conversationName
+		changed = true
+	}
+	if conversationFace != "" && record.ConversationFace != conversationFace {
+		record.ConversationFace = conversationFace
+		changed = true
+	}
+	if record.MessageTime == nil {
+		record.MessageTime = &messageTime
+		changed = true
+	}
+	return changed
+}
+
 // List 获取私信列表
 func (s *MessageService) List(ctx context.Context, senderID int64, replyStatus int, page, pageSize int) (*MessageListResult, error) {
 	messages, total, err := s.repo.List(ctx, senderID, replyStatus, page, pageSize)
@@ -102,15 +200,7 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 		return nil, err
 	}
 
-	selfUID := int64(0)
-	if cfg := client.GetConfig(); cfg != nil {
-		selfUID = cfg.UserID
-	}
-	if selfUID == 0 {
-		if user, userErr := client.GetUserInfo(ctx); userErr == nil {
-			selfUID = user.Mid
-		}
-	}
+	selfUID, selfName := resolveSelfIdentity(ctx, client)
 
 	list, err := client.GetMessages(ctx, page, pageSize)
 	if err != nil {
@@ -136,35 +226,31 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 		result.Fetched += len(chat.Messages)
 
 		for _, m := range chat.Messages {
+			isFromSelf, senderName, senderFace, conversationUID, conversationName, conversationFace := buildMessageContext(m, session, selfUID, selfName)
+			messageTime := time.Unix(m.Time, 0)
 			existing, _ := s.repo.GetByMessageID(ctx, m.ID)
 			if existing != nil {
+				if applyMessageContext(existing, isFromSelf, senderName, senderFace, conversationUID, conversationName, conversationFace, messageTime) {
+					if err := s.repo.Update(ctx, existing); err != nil {
+						log.Printf("[message.sync] update_context_failed msg_id=%d err=%v", m.ID, err)
+					}
+				}
 				result.Existing++
 				continue
 			}
 
-			isFromSelf := selfUID > 0 && m.SenderID == selfUID
-
-			senderName := m.SenderName
-			if senderName == "" {
-				senderName = session.UserName
-			}
-			if senderName == "" {
-				if isFromSelf {
-					senderName = "我"
-				} else {
-					senderName = fmt.Sprintf("用户%d", m.SenderID)
-				}
-			}
-
 			message := &model.Message{
-				MessageID:   m.ID,
-				SenderID:    m.SenderID,
-				SenderName:  senderName,
-				SenderFace:  session.UserFace,
-				IsFromSelf:  isFromSelf,
-				Content:     m.Content,
-				ReplyStatus: map[bool]int{true: 1, false: 0}[isFromSelf],
-				MessageTime: &[]time.Time{time.Unix(m.Time, 0)}[0],
+				MessageID:        m.ID,
+				SenderID:         m.SenderID,
+				SenderName:       senderName,
+				SenderFace:       senderFace,
+				ConversationUID:  conversationUID,
+				ConversationName: conversationName,
+				ConversationFace: conversationFace,
+				IsFromSelf:       isFromSelf,
+				Content:          m.Content,
+				ReplyStatus:      map[bool]int{true: 1, false: 0}[isFromSelf],
+				MessageTime:      &messageTime,
 			}
 
 			if err := s.repo.Create(ctx, message); err != nil {
@@ -286,12 +372,23 @@ func (s *MessageService) ManualReply(ctx context.Context, messageID int64, sende
 	}
 
 	// 兜底：如果该消息尚未入库，则补一条最小记录
+	selfUID, selfName := resolveSelfIdentity(ctx, client)
+	now := time.Now()
+	conversationName := fmt.Sprintf("用户%d", senderID)
+	if senderID == 0 {
+		conversationName = "会话对象"
+	}
 	return s.repo.Create(ctx, &model.Message{
-		MessageID:    messageID,
-		SenderID:     senderID,
-		IsFromSelf:   true,
-		ReplyStatus:  1,
-		ReplyContent: content,
+		MessageID:        messageID,
+		SenderID:         selfUID,
+		SenderName:       selfName,
+		ConversationUID:  senderID,
+		ConversationName: conversationName,
+		IsFromSelf:       true,
+		Content:          content,
+		ReplyStatus:      1,
+		ReplyContent:     content,
+		MessageTime:      &now,
 	})
 }
 
