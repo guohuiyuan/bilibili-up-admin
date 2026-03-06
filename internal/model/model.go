@@ -99,6 +99,7 @@ type LLMChatLog struct {
 	BaseModel
 	Provider          string `gorm:"column:provider;size:50;index" json:"provider"`
 	Model             string `gorm:"column:model;size:100" json:"model"`
+	LogType           string `gorm:"column:log_type;size:30;index" json:"log_type"`
 	InputType         string `gorm:"column:input_type;size:20;index" json:"input_type"` // comment/message
 	InputID           int64  `gorm:"column:input_id;index" json:"input_id"`
 	ConversationKey   string `gorm:"column:conversation_key;size:160;index" json:"conversation_key"`

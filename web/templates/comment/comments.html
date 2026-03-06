@@ -514,6 +514,12 @@ function formatNumber(num) {
     return num.toString();
 }
 
+function aiReply(commentId) {
+    commentReplyWorkspace.open(commentId, { autoGenerate: true }).catch(err => {
+        showToast('AI workspace failed: ' + err.message, 'error');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     window.__replyWorkspaceInstances.comment = new ReplyWorkspaceModal({
         channel: 'comment',

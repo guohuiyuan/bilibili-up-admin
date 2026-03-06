@@ -361,6 +361,19 @@ func (r *LLMChatLogRepository) ListByConversation(ctx context.Context, conversat
 	return logs, query.Find(&logs).Error
 }
 
+func (r *LLMChatLogRepository) ListByConversationOldestFirst(ctx context.Context, conversationKey string, limit int) ([]model.LLMChatLog, error) {
+	var logs []model.LLMChatLog
+	query := r.db.WithContext(ctx).Model(&model.LLMChatLog{})
+	if conversationKey != "" {
+		query = query.Where("conversation_key = ?", conversationKey)
+	}
+	query = query.Order("created_at ASC").Order("id ASC")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	return logs, query.Find(&logs).Error
+}
+
 // GetStats 获取统计数据
 func (r *LLMChatLogRepository) GetStats(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
 	stats := make(map[string]interface{})

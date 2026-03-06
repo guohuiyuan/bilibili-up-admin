@@ -20,12 +20,7 @@ class ReplyWorkspaceModal {
         Modal.show(this.modalId);
         this.renderLoading();
         try {
-            const data = await api(`${this.apiPrefix}/api/reply-workspace?channel=${encodeURIComponent(this.channel)}&target_id=${targetId}`);
-            this.state.target = data.target || null;
-            this.state.draft = data.draft || null;
-            this.state.templates = data.templates || [];
-            this.state.examples = data.examples || [];
-            this.state.logs = data.logs || [];
+            await this.reloadWorkspaceData();
             this.render();
             if (opts.autoGenerate && !this.getDraftContent().trim()) {
                 await this.generateDraft();
@@ -34,6 +29,15 @@ class ReplyWorkspaceModal {
             this.close();
             showToast(error.message, "error");
         }
+    }
+
+    async reloadWorkspaceData() {
+        const data = await api(`${this.apiPrefix}/api/reply-workspace?channel=${encodeURIComponent(this.channel)}&target_id=${this.state.targetId}`);
+        this.state.target = data.target || null;
+        this.state.draft = data.draft || null;
+        this.state.templates = data.templates || [];
+        this.state.examples = data.examples || [];
+        this.state.logs = data.logs || [];
     }
 
     close() {
@@ -45,17 +49,14 @@ class ReplyWorkspaceModal {
         this.text("reply-workspace-source", "");
         this.node("reply-workspace-templates").innerHTML = '<div class="text-sm text-gray-400">Loading templates...</div>';
         this.node("reply-workspace-examples").innerHTML = '<div class="text-sm text-gray-400">Loading examples...</div>';
-        const logs = this.node("reply-workspace-logs");
-        if (logs) {
-            logs.innerHTML = '<div class="text-sm text-gray-400">Loading requests...</div>';
-        }
+        this.node("reply-workspace-logs").innerHTML = '<div class="text-sm text-gray-400">Loading LLM logs...</div>';
         this.textarea().value = "";
     }
 
     render() {
         const target = this.state.target || {};
-        this.text("reply-workspace-target", `${target.author_name || "User"} · ${target.title || this.channel}`);
-        this.text("reply-workspace-source", target.input_content || "");
+        this.text("reply-workspace-target", `${target.author_name || "User"} / ${target.title || this.channel}`);
+        this.text("reply-workspace-source", this.buildSourceText(target));
         this.textarea().value = (this.state.draft && this.state.draft.content) || target.reply_content || "";
         this.input("reply-workspace-instruction").value = (this.state.draft && this.state.draft.extra_instruction) || "";
         this.state.selectedTemplateContent = (this.state.draft && this.state.draft.template_snapshot) || "";
@@ -63,6 +64,23 @@ class ReplyWorkspaceModal {
         this.renderTemplates();
         this.renderExamples();
         this.renderLogs();
+    }
+
+    buildSourceText(target) {
+        const parts = [];
+        if (target.video_title) {
+            parts.push(`Video: ${target.video_title}`);
+        }
+        if (target.video_bvid) {
+            parts.push(`BVID: ${target.video_bvid}`);
+        }
+        if (target.video_desc) {
+            parts.push(`Video description:\n${target.video_desc}`);
+        }
+        if (target.input_content) {
+            parts.push(`Current message:\n${target.input_content}`);
+        }
+        return parts.join("\n\n");
     }
 
     renderTemplates() {
@@ -102,32 +120,49 @@ class ReplyWorkspaceModal {
 
     renderLogs() {
         const container = this.node("reply-workspace-logs");
-        if (!container) return;
         if (!this.state.logs.length) {
-            container.innerHTML = '<div class="text-sm text-gray-400">No LLM requests in this conversation yet.</div>';
+            container.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">No LLM calls in this conversation yet.</div>';
             return;
         }
-        container.innerHTML = this.state.logs.map(item => `
-            <details class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <summary class="cursor-pointer text-sm font-medium text-slate-700">
-                    ${this.escape(item.provider || "LLM")} / ${this.escape(item.model || "-")} / ${this.escape(item.created_at || "")}
-                </summary>
-                <div class="mt-3 space-y-3 text-xs text-slate-600">
-                    <div>
-                        <div class="font-semibold text-slate-700">System Prompt</div>
-                        <pre class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-3 border border-slate-200">${this.escape(item.system_prompt || "")}</pre>
+        container.innerHTML = this.state.logs.map(item => {
+            const logType = item.log_type || "draft";
+            const typeLabel = logType === "summary" ? "Summary compression" : "Draft generation";
+            const tokenLabel = `prompt ${item.prompt_tokens || 0} / output ${item.output_tokens || 0} / total ${item.total_tokens || 0}`;
+            const durationLabel = `${item.duration || 0} ms`;
+            const createdAt = this.formatDate(item.created_at);
+            const statusClass = item.success ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200";
+            return `
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex rounded-full border px-2.5 py-1 text-xs ${statusClass}">${item.success ? "Success" : "Failed"}</span>
+                        <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">${this.escape(typeLabel)}</span>
+                        <span class="text-xs text-slate-500">${this.escape(item.provider || "LLM")} / ${this.escape(item.model || "-")}</span>
+                        <span class="text-xs text-slate-400">${this.escape(createdAt)}</span>
                     </div>
-                    <div>
-                        <div class="font-semibold text-slate-700">Request Messages</div>
-                        <pre class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-3 border border-slate-200">${this.escape(item.request_messages || "")}</pre>
+                    <div class="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-500">
+                        <div>Tokens: ${this.escape(tokenLabel)}</div>
+                        <div>Latency: ${this.escape(durationLabel)}</div>
                     </div>
-                    <div>
-                        <div class="font-semibold text-slate-700">Reply</div>
-                        <pre class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-3 border border-slate-200">${this.escape(item.output_content || "")}</pre>
-                    </div>
+                    <details class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <summary class="cursor-pointer text-sm font-medium text-slate-700">Prompt and response</summary>
+                        <div class="mt-3 space-y-3 text-xs text-slate-600">
+                            <div>
+                                <div class="font-semibold text-slate-700">System prompt</div>
+                                <pre class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-3 border border-slate-200">${this.escape(item.system_prompt || "")}</pre>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-700">Request messages</div>
+                                <pre class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-3 border border-slate-200">${this.escape(this.prettyJSON(item.request_messages || ""))}</pre>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-700">Response</div>
+                                <pre class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-3 border border-slate-200">${this.escape(item.output_content || "")}</pre>
+                            </div>
+                        </div>
+                    </details>
                 </div>
-            </details>
-        `).join("");
+            `;
+        }).join("");
     }
 
     applyTemplate(templateId) {
@@ -153,6 +188,7 @@ class ReplyWorkspaceModal {
                 }
             });
             this.state.draft = data.draft || null;
+            await this.reloadWorkspaceData();
             this.render();
             showToast("Draft generated", "success");
         } finally {
@@ -235,13 +271,12 @@ class ReplyWorkspaceModal {
     }
 
     setBusy(disabled, message = "") {
-        const ids = [
+        [
             "reply-workspace-generate",
             "reply-workspace-save",
             "reply-workspace-send",
             "reply-workspace-save-template"
-        ];
-        ids.forEach(id => {
+        ].forEach(id => {
             const node = this.node(id);
             if (!node) return;
             node.disabled = disabled;
@@ -254,6 +289,21 @@ class ReplyWorkspaceModal {
 
     getDraftContent() {
         return this.textarea().value || "";
+    }
+
+    prettyJSON(value) {
+        try {
+            return JSON.stringify(JSON.parse(value), null, 2);
+        } catch (_) {
+            return value;
+        }
+    }
+
+    formatDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString("zh-CN");
     }
 
     textarea() {

@@ -23,8 +23,8 @@ func llmConversationForComment(comment *model.Comment) llmConversationMeta {
 		title = fmt.Sprintf("comment-%d", comment.CommentID)
 	}
 	return llmConversationMeta{
-		Key:   fmt.Sprintf("comment:%s", title),
-		Title: title,
+		Key:   fmt.Sprintf("comment:%s:%d", title, comment.CommentID),
+		Title: fmt.Sprintf("%s #%d", title, comment.CommentID),
 	}
 }
 

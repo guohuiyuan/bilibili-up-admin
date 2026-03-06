@@ -551,6 +551,12 @@ async function ignore(messageId) {
     }
 }
 
+function aiReply(messageId) {
+    messageReplyWorkspace.open(messageId, { autoGenerate: true }).catch(err => {
+        showToast('AI workspace failed: ' + err.message, 'error');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     window.__replyWorkspaceInstances.message = new ReplyWorkspaceModal({
         channel: 'message',

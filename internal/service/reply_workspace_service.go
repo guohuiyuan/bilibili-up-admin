@@ -16,6 +16,12 @@ import (
 const (
 	ReplyChannelComment = "comment"
 	ReplyChannelMessage = "message"
+
+	replyLogTypeDraft   = "draft"
+	replyLogTypeSummary = "summary"
+
+	replyConversationTokenThreshold = 3200
+	replyConversationKeepTurns      = 4
 )
 
 type ReplyWorkspaceService struct {
@@ -54,6 +60,9 @@ type ReplyWorkspaceTarget struct {
 	Title          string `json:"title"`
 	InputContent   string `json:"input_content"`
 	AuthorName     string `json:"author_name"`
+	VideoBVID      string `json:"video_bvid,omitempty"`
+	VideoTitle     string `json:"video_title,omitempty"`
+	VideoDesc      string `json:"video_desc,omitempty"`
 	ConversationID int64  `json:"conversation_id,omitempty"`
 	ReplyStatus    int    `json:"reply_status"`
 	ReplyContent   string `json:"reply_content,omitempty"`
@@ -134,7 +143,7 @@ func (s *ReplyWorkspaceService) GetWorkspace(ctx context.Context, channel string
 		return nil, err
 	}
 	conversationMeta := s.conversationMeta(channel, target)
-	logs, err := s.llmLogRepo.ListByConversation(ctx, conversationMeta.Key, 8)
+	logs, err := s.llmLogRepo.ListByConversation(ctx, conversationMeta.Key, 12)
 	if err != nil {
 		return nil, err
 	}
@@ -170,17 +179,34 @@ func (s *ReplyWorkspaceService) GenerateDraft(ctx context.Context, req GenerateR
 	}
 
 	examples, _ := s.exampleRepo.List(ctx, req.Channel, 3)
-
-	systemPrompt := s.buildSystemPrompt(req.Channel)
-	userPrompt := s.buildUserPrompt(target, templateText, strings.TrimSpace(req.ExtraInstruction), examples)
-
 	provider, err := s.llmProvider()
 	if err != nil {
 		return nil, err
 	}
 
+	conversationMeta := s.conversationMeta(req.Channel, target)
+	history, err := s.llmLogRepo.ListByConversationOldestFirst(ctx, conversationMeta.Key, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	systemPrompt := s.buildSystemPrompt(req.Channel)
+	messages, err := s.buildConversationMessages(
+		ctx,
+		provider,
+		conversationMeta,
+		target,
+		history,
+		templateText,
+		strings.TrimSpace(req.ExtraInstruction),
+		examples,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	start := time.Now()
-	resp, err := provider.ChatWithSystem(ctx, systemPrompt, []llm.Message{{Role: "user", Content: userPrompt}})
+	resp, err := provider.ChatWithSystem(ctx, systemPrompt, messages)
 	if err != nil {
 		return nil, fmt.Errorf("llm chat failed: %w", err)
 	}
@@ -203,17 +229,17 @@ func (s *ReplyWorkspaceService) GenerateDraft(ctx context.Context, req GenerateR
 	}
 
 	if s.llmLogRepo != nil {
-		conversationMeta := s.conversationMeta(req.Channel, target)
 		_ = s.llmLogRepo.Create(ctx, &model.LLMChatLog{
 			Provider:          provider.Name(),
 			Model:             resp.Model,
+			LogType:           replyLogTypeDraft,
 			InputType:         req.Channel,
 			InputID:           req.TargetID,
 			ConversationKey:   conversationMeta.Key,
 			ConversationTitle: conversationMeta.Title,
 			InputContent:      target.InputContent,
 			SystemPrompt:      systemPrompt,
-			RequestMessages:   marshalLLMMessages([]llm.Message{{Role: "user", Content: userPrompt}}),
+			RequestMessages:   marshalLLMMessages(messages),
 			OutputContent:     resp.Content,
 			PromptTokens:      resp.PromptTokens,
 			OutputTokens:      resp.TokensUsed,
@@ -356,12 +382,29 @@ func (s *ReplyWorkspaceService) getTarget(ctx context.Context, channel string, t
 		if err != nil {
 			return nil, fmt.Errorf("get comment failed: %w", err)
 		}
+
+		videoTitle := strings.TrimSpace(comment.VideoBVID)
+		videoDesc := ""
+		if strings.TrimSpace(comment.VideoBVID) != "" {
+			if client, clientErr := s.biliClient(); clientErr == nil {
+				if info, infoErr := client.GetVideoInfo(ctx, comment.VideoBVID); infoErr == nil && info != nil {
+					if strings.TrimSpace(info.Title) != "" {
+						videoTitle = strings.TrimSpace(info.Title)
+					}
+					videoDesc = strings.TrimSpace(info.Desc)
+				}
+			}
+		}
+
 		return &ReplyWorkspaceTarget{
 			Channel:      channel,
 			TargetID:     targetID,
-			Title:        defaultString(strings.TrimSpace(comment.VideoBVID), "评论回复"),
+			Title:        defaultString(videoTitle, "comment-reply"),
 			InputContent: comment.Content,
-			AuthorName:   defaultString(strings.TrimSpace(comment.AuthorName), "用户"),
+			AuthorName:   defaultString(strings.TrimSpace(comment.AuthorName), "viewer"),
+			VideoBVID:    strings.TrimSpace(comment.VideoBVID),
+			VideoTitle:   videoTitle,
+			VideoDesc:    videoDesc,
 			ReplyStatus:  comment.ReplyStatus,
 			ReplyContent: comment.ReplyContent,
 		}, nil
@@ -373,9 +416,9 @@ func (s *ReplyWorkspaceService) getTarget(ctx context.Context, channel string, t
 		return &ReplyWorkspaceTarget{
 			Channel:        channel,
 			TargetID:       targetID,
-			Title:          defaultString(strings.TrimSpace(message.ConversationName), "私信会话"),
+			Title:          defaultString(strings.TrimSpace(message.ConversationName), "private-message"),
 			InputContent:   message.Content,
-			AuthorName:     defaultString(strings.TrimSpace(message.SenderName), "用户"),
+			AuthorName:     defaultString(strings.TrimSpace(message.SenderName), "viewer"),
 			ConversationID: message.ConversationUID,
 			ReplyStatus:    message.ReplyStatus,
 			ReplyContent:   message.ReplyContent,
@@ -387,39 +430,251 @@ func (s *ReplyWorkspaceService) getTarget(ctx context.Context, channel string, t
 
 func (s *ReplyWorkspaceService) buildSystemPrompt(channel string) string {
 	if channel == ReplyChannelMessage {
-		return "你是B站UP主的私信助手。请生成可直接发送的回复草稿，语气真诚、清楚、克制，不要写解释，不要分点。"
+		return "You are the creator's DM assistant. Reply in concise, natural Chinese. Keep it direct, useful, and ready to send. Do not explain your reasoning."
 	}
-	return "你是B站UP主的评论区助手。请生成可直接发送的评论回复草稿，语气自然、友好、有一点站内交流感，不要写解释，不要分点。"
+	return "You are the creator's comment assistant. Reply in natural Chinese that matches Bilibili comment tone. Keep it concise, friendly, and ready to post. Do not explain your reasoning."
 }
 
 func (s *ReplyWorkspaceService) buildUserPrompt(target *ReplyWorkspaceTarget, templateText, extraInstruction string, examples []model.ReplyExample) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("回复渠道: %s\n", target.Channel))
-	b.WriteString(fmt.Sprintf("对方昵称: %s\n", target.AuthorName))
-	b.WriteString(fmt.Sprintf("原始内容:\n%s\n", strings.TrimSpace(target.InputContent)))
+	b.WriteString(fmt.Sprintf("Channel: %s\n", target.Channel))
+	b.WriteString(fmt.Sprintf("User: %s\n", target.AuthorName))
+	if target.Channel == ReplyChannelComment {
+		if target.VideoTitle != "" {
+			b.WriteString(fmt.Sprintf("Video title: %s\n", target.VideoTitle))
+		}
+		if target.VideoBVID != "" {
+			b.WriteString(fmt.Sprintf("Video BVID: %s\n", target.VideoBVID))
+		}
+	}
+	b.WriteString("Current user message:\n")
+	b.WriteString(strings.TrimSpace(target.InputContent))
+	b.WriteString("\n")
 	if templateText != "" {
-		b.WriteString("\n可参考模板:\n")
+		b.WriteString("\nReference template:\n")
 		b.WriteString(templateText)
 		b.WriteString("\n")
 	}
 	if len(examples) > 0 {
-		b.WriteString("\n高质量示例:\n")
+		b.WriteString("\nGood examples:\n")
 		for i, item := range examples {
-			b.WriteString(fmt.Sprintf("%d. 用户: %s\n", i+1, singleLine(item.UserInput)))
-			b.WriteString(fmt.Sprintf("   回复: %s\n", singleLine(item.ReplyContent)))
+			b.WriteString(fmt.Sprintf("%d. User: %s\n", i+1, singleLine(item.UserInput)))
+			b.WriteString(fmt.Sprintf("   Reply: %s\n", singleLine(item.ReplyContent)))
 		}
 	}
 	if extraInstruction != "" {
-		b.WriteString("\n补充要求:\n")
+		b.WriteString("\nExtra instructions:\n")
 		b.WriteString(extraInstruction)
 		b.WriteString("\n")
 	}
 	if target.Channel == ReplyChannelMessage {
-		b.WriteString("\n要求: 控制在 30-120 字，优先解决问题；如果信息不足，给出礼貌追问。")
+		b.WriteString("\nConstraints: 30-120 Chinese characters. Solve the user's issue first. If information is missing, ask a short follow-up question.\n")
 	} else {
-		b.WriteString("\n要求: 控制在 20-80 字，贴近B站互动口吻，但不要油腻。")
+		b.WriteString("\nConstraints: 20-80 Chinese characters. Stay natural, warm, and not greasy.\n")
 	}
-	b.WriteString("\n请直接输出最终回复正文。")
+	b.WriteString("Return only the final reply text.")
+	return b.String()
+}
+
+func (s *ReplyWorkspaceService) buildConversationMessages(
+	ctx context.Context,
+	provider llm.Provider,
+	conversationMeta llmConversationMeta,
+	target *ReplyWorkspaceTarget,
+	history []model.LLMChatLog,
+	templateText, extraInstruction string,
+	examples []model.ReplyExample,
+) ([]llm.Message, error) {
+	history = compactConversationLogs(history)
+	summary, turns, err := s.ensureConversationSummary(ctx, provider, conversationMeta, target, history)
+	if err != nil {
+		return nil, err
+	}
+
+	messages := make([]llm.Message, 0, len(turns)*2+4)
+	if summary != "" {
+		messages = append(messages, llm.Message{
+			Role:    "user",
+			Content: "Conversation summary:\n" + summary,
+		})
+	}
+	if target.Channel == ReplyChannelComment && len(turns) == 0 {
+		if videoContext := s.buildVideoContext(target); videoContext != "" {
+			messages = append(messages, llm.Message{
+				Role:    "user",
+				Content: videoContext,
+			})
+		}
+	}
+	for _, item := range turns {
+		if text := strings.TrimSpace(item.InputContent); text != "" {
+			messages = append(messages, llm.Message{
+				Role:    "user",
+				Content: "Previous user message:\n" + text,
+			})
+		}
+		if text := strings.TrimSpace(item.OutputContent); text != "" {
+			messages = append(messages, llm.Message{
+				Role:    "assistant",
+				Content: text,
+			})
+		}
+	}
+	messages = append(messages, llm.Message{
+		Role:    "user",
+		Content: s.buildUserPrompt(target, templateText, extraInstruction, examples),
+	})
+	return messages, nil
+}
+
+func (s *ReplyWorkspaceService) ensureConversationSummary(
+	ctx context.Context,
+	provider llm.Provider,
+	conversationMeta llmConversationMeta,
+	target *ReplyWorkspaceTarget,
+	history []model.LLMChatLog,
+) (string, []model.LLMChatLog, error) {
+	summary := ""
+	turns := make([]model.LLMChatLog, 0, len(history))
+	for _, item := range history {
+		switch item.LogType {
+		case replyLogTypeSummary:
+			summary = strings.TrimSpace(item.OutputContent)
+			turns = turns[:0]
+		case "", replyLogTypeDraft:
+			if item.Success {
+				turns = append(turns, item)
+			}
+		}
+	}
+
+	if !needsConversationSummary(turns) {
+		return summary, turns, nil
+	}
+
+	cutoff := len(turns) - replyConversationKeepTurns
+	if cutoff < 1 {
+		return summary, turns, nil
+	}
+
+	older := turns[:cutoff]
+	recent := append([]model.LLMChatLog(nil), turns[cutoff:]...)
+	prompt := buildConversationSummaryPrompt(target, summary, older)
+
+	start := time.Now()
+	resp, err := provider.ChatWithSystem(
+		ctx,
+		"Compress prior conversation into a compact Chinese summary. Preserve user intent, factual context, commitments already made, and unresolved questions.",
+		[]llm.Message{{Role: "user", Content: prompt}},
+	)
+	if err != nil {
+		return summary, turns, fmt.Errorf("summarize conversation failed: %w", err)
+	}
+	duration := time.Since(start).Milliseconds()
+
+	newSummary := strings.TrimSpace(resp.Content)
+	if summary != "" {
+		newSummary = strings.TrimSpace(summary + "\n" + newSummary)
+	}
+	if s.llmLogRepo != nil {
+		_ = s.llmLogRepo.Create(ctx, &model.LLMChatLog{
+			Provider:          provider.Name(),
+			Model:             resp.Model,
+			LogType:           replyLogTypeSummary,
+			InputType:         target.Channel,
+			InputID:           target.TargetID,
+			ConversationKey:   conversationMeta.Key,
+			ConversationTitle: conversationMeta.Title,
+			InputContent:      target.InputContent,
+			SystemPrompt:      "conversation-summary",
+			RequestMessages:   marshalLLMMessages([]llm.Message{{Role: "user", Content: prompt}}),
+			OutputContent:     newSummary,
+			PromptTokens:      resp.PromptTokens,
+			OutputTokens:      resp.TokensUsed,
+			TotalTokens:       resp.TotalTokens,
+			Success:           true,
+			Duration:          duration,
+		})
+	}
+
+	return newSummary, recent, nil
+}
+
+func compactConversationLogs(history []model.LLMChatLog) []model.LLMChatLog {
+	out := make([]model.LLMChatLog, 0, len(history))
+	for _, item := range history {
+		if !item.Success {
+			continue
+		}
+		if item.LogType == "" || item.LogType == replyLogTypeDraft || item.LogType == replyLogTypeSummary {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func needsConversationSummary(turns []model.LLMChatLog) bool {
+	if len(turns) <= replyConversationKeepTurns {
+		return false
+	}
+	total := 0
+	for _, item := range turns {
+		if item.TotalTokens > 0 {
+			total += item.TotalTokens
+		} else {
+			total += approximateTokens(item.InputContent) + approximateTokens(item.OutputContent)
+		}
+	}
+	return total >= replyConversationTokenThreshold
+}
+
+func buildConversationSummaryPrompt(target *ReplyWorkspaceTarget, previousSummary string, turns []model.LLMChatLog) string {
+	var b strings.Builder
+	if previousSummary != "" {
+		b.WriteString("Existing summary:\n")
+		b.WriteString(previousSummary)
+		b.WriteString("\n\n")
+	}
+	b.WriteString(fmt.Sprintf("Channel: %s\n", target.Channel))
+	if target.Channel == ReplyChannelComment {
+		if target.VideoTitle != "" {
+			b.WriteString(fmt.Sprintf("Video title: %s\n", target.VideoTitle))
+		}
+		if target.VideoDesc != "" {
+			b.WriteString("Video description:\n")
+			b.WriteString(target.VideoDesc)
+			b.WriteString("\n")
+		}
+	}
+	b.WriteString("Older turns to compress:\n")
+	for i, item := range turns {
+		b.WriteString(fmt.Sprintf("%d. User: %s\n", i+1, singleLine(item.InputContent)))
+		b.WriteString(fmt.Sprintf("   Reply: %s\n", singleLine(item.OutputContent)))
+	}
+	b.WriteString("Write a compact Chinese summary for future reply generation.")
+	return b.String()
+}
+
+func (s *ReplyWorkspaceService) buildVideoContext(target *ReplyWorkspaceTarget) string {
+	if target == nil || target.Channel != ReplyChannelComment {
+		return ""
+	}
+	if strings.TrimSpace(target.VideoTitle) == "" && strings.TrimSpace(target.VideoDesc) == "" && strings.TrimSpace(target.VideoBVID) == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("This is a brand new comment conversation. Use the video context first.\n")
+	if target.VideoTitle != "" {
+		b.WriteString("Video title: " + target.VideoTitle + "\n")
+	}
+	if target.VideoBVID != "" {
+		b.WriteString("BVID: " + target.VideoBVID + "\n")
+	}
+	if target.VideoDesc != "" {
+		b.WriteString("Video description:\n")
+		b.WriteString(target.VideoDesc)
+		b.WriteString("\n")
+	}
 	return b.String()
 }
 
@@ -434,8 +689,7 @@ func (s *ReplyWorkspaceService) ensureSeedTemplates(ctx context.Context, channel
 	if len(items) > 0 {
 		return nil
 	}
-	seeds := defaultTemplates(channel)
-	for _, item := range seeds {
+	for _, item := range defaultTemplates(channel) {
 		tmp := item
 		if err := s.templateRepo.Create(ctx, &tmp); err != nil {
 			return err
@@ -448,15 +702,15 @@ func defaultTemplates(channel string) []model.ReplyTemplate {
 	switch channel {
 	case ReplyChannelMessage:
 		return []model.ReplyTemplate{
-			{Channel: channel, Title: "礼貌承接", Scene: "日常咨询", Content: "收到啦，感谢你专门来私信我。这个问题我先帮你确认一下，如果有更具体的信息也可以继续发我。"},
-			{Channel: channel, Title: "合作初筛", Scene: "商务合作", Content: "感谢联系，合作相关可以先把品牌、需求、预算区间和预期排期发我，我这边看完后尽快回复你。"},
-			{Channel: channel, Title: "无法立即处理", Scene: "延迟回复", Content: "这条我看到了，不过我现在没法立刻完整处理，晚一点我会回来继续跟你对一下，辛苦稍等。"},
+			{Channel: channel, Title: "Polite ack", Scene: "General DM", Content: "I saw your message. Thanks for reaching out. If you can share a bit more detail, I can answer more precisely."},
+			{Channel: channel, Title: "Business intake", Scene: "Business", Content: "Thanks for reaching out. Please send the brand, brief, budget range, timeline, and expected deliverables first."},
+			{Channel: channel, Title: "Delayed handling", Scene: "Delay", Content: "I saw this message. I cannot handle it fully right now, but I will follow up as soon as I can."},
 		}
 	case ReplyChannelComment:
 		return []model.ReplyTemplate{
-			{Channel: channel, Title: "感谢支持", Scene: "普通互动", Content: "感谢支持，也谢谢你认真看到这里，后面我继续努力更新。"},
-			{Channel: channel, Title: "回答提问", Scene: "问题答复", Content: "这个点你提得很准，简单说就是这样处理的，后面有机会我也可以专门做一期展开讲。"},
-			{Channel: channel, Title: "承接建议", Scene: "建议反馈", Content: "收到这个建议了，确实有参考价值，我后面会继续优化，感谢你认真留言。"},
+			{Channel: channel, Title: "Thanks", Scene: "General", Content: "Thanks for watching and leaving a comment. I appreciate it."},
+			{Channel: channel, Title: "Answer question", Scene: "Question", Content: "Good catch. The short answer is this is how I handled it. If needed I can make a dedicated follow-up."},
+			{Channel: channel, Title: "Take feedback", Scene: "Feedback", Content: "Got it. This feedback is useful. I will keep improving the next version."},
 		}
 	default:
 		return nil
@@ -465,20 +719,24 @@ func defaultTemplates(channel string) []model.ReplyTemplate {
 
 func (s *ReplyWorkspaceService) defaultExampleTitle(target *ReplyWorkspaceTarget) string {
 	if target == nil {
-		return "沉淀示例"
+		return "example"
 	}
 	if target.Channel == ReplyChannelMessage {
-		return fmt.Sprintf("私信示例-%s", target.AuthorName)
+		return fmt.Sprintf("dm-example-%s", target.AuthorName)
 	}
-	return fmt.Sprintf("评论示例-%s", target.AuthorName)
+	return fmt.Sprintf("comment-example-%s", target.AuthorName)
 }
 
 func (s *ReplyWorkspaceService) conversationMeta(channel string, target *ReplyWorkspaceTarget) llmConversationMeta {
 	switch channel {
 	case ReplyChannelComment:
+		title := defaultString(strings.TrimSpace(target.VideoTitle), strings.TrimSpace(target.VideoBVID))
+		if title == "" {
+			title = target.Title
+		}
 		return llmConversationMeta{
-			Key:   fmt.Sprintf("comment:%s", target.Title),
-			Title: target.Title,
+			Key:   fmt.Sprintf("comment:%s:%d", defaultString(strings.TrimSpace(target.VideoBVID), "video"), target.TargetID),
+			Title: fmt.Sprintf("%s #%d", title, target.TargetID),
 		}
 	case ReplyChannelMessage:
 		conversationID := target.ConversationID
@@ -492,6 +750,18 @@ func (s *ReplyWorkspaceService) conversationMeta(channel string, target *ReplyWo
 	default:
 		return llmConversationMeta{}
 	}
+}
+
+func approximateTokens(v string) int {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0
+	}
+	runes := len([]rune(v))
+	if runes < 4 {
+		return 1
+	}
+	return runes / 4
 }
 
 func singleLine(v string) string {
