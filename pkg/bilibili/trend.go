@@ -104,40 +104,35 @@ func trendTagZones() []trendZone {
 		{rid: 23, category: "电影"},
 		{rid: 11, category: "电视剧"},
 		{rid: 71, category: "综艺"},
-		{rid: 1001, category: "影视"},
-		{rid: 1002, category: "娱乐"},
-		{rid: 1003, category: "音乐"},
-		{rid: 1004, category: "舞蹈"},
-		{rid: 1005, category: "动画"},
-		{rid: 1006, category: "绘画"},
-		{rid: 1007, category: "鬼畜"},
-		{rid: 1008, category: "游戏"},
-		{rid: 1009, category: "资讯"},
-		{rid: 1010, category: "知识"},
-		{rid: 1011, category: "人工智能"},
-		{rid: 1012, category: "科技数码"},
-		{rid: 1013, category: "汽车"},
-		{rid: 1014, category: "时尚美妆"},
-		{rid: 1015, category: "家装房产"},
-		{rid: 1016, category: "户外潮流"},
-		{rid: 1017, category: "健身"},
-		{rid: 1018, category: "体育运动"},
-		{rid: 1019, category: "手工"},
-		{rid: 1020, category: "美食"},
-		{rid: 1021, category: "小剧场"},
-		{rid: 1022, category: "旅游出行"},
-		{rid: 1023, category: "三农"},
-		{rid: 1024, category: "动物"},
-		{rid: 1025, category: "亲子"},
-		{rid: 1026, category: "健康"},
-		{rid: 1027, category: "情感"},
-		{rid: 1029, category: "vlog"},
-		{rid: 1030, category: "生活兴趣"},
-		{rid: 1031, category: "生活经验"},
+		{rid: 181, category: "影视"},
+		{rid: 5, category: "娱乐"},
+		{rid: 3, category: "音乐"},
+		{rid: 129, category: "舞蹈"},
+		{rid: 1, category: "动画"},
+		{rid: 162, category: "绘画"},
+		{rid: 119, category: "鬼畜"},
+		{rid: 4, category: "游戏"},
+		{rid: 202, category: "资讯"},
+		{rid: 36, category: "知识"},
+		{rid: 188, category: "科技数码"},
+		{rid: 223, category: "汽车"},
+		{rid: 155, category: "时尚美妆"},
+		{rid: 164, category: "健身"},
+		{rid: 234, category: "体育运动"},
+		{rid: 161, category: "手工"},
+		{rid: 211, category: "美食"},
+		{rid: 250, category: "旅游出行"},
+		{rid: 251, category: "三农"},
+		{rid: 254, category: "亲子"},
 	}
 }
 
 func resolveTrendZone(category string) (trendZone, bool) {
+	zone, ok := trendTagZoneByCategoryKey(category)
+	if ok {
+		return zone, true
+	}
+
 	rid, err := strconv.Atoi(category)
 	if err != nil {
 		return trendZone{}, false
@@ -149,6 +144,58 @@ func resolveTrendZone(category string) (trendZone, bool) {
 	}
 
 	return trendZone{}, false
+}
+
+func trendTagZoneByCategoryKey(category string) (trendZone, bool) {
+	zone, ok := map[string]trendZone{
+		"13":   {rid: 13, category: "番剧"},
+		"167":  {rid: 167, category: "国创"},
+		"177":  {rid: 177, category: "纪录片"},
+		"23":   {rid: 23, category: "电影"},
+		"11":   {rid: 11, category: "电视剧"},
+		"71":   {rid: 71, category: "综艺"},
+		"181":  {rid: 181, category: "影视"},
+		"1001": {rid: 181, category: "影视"},
+		"5":    {rid: 5, category: "娱乐"},
+		"1002": {rid: 5, category: "娱乐"},
+		"3":    {rid: 3, category: "音乐"},
+		"1003": {rid: 3, category: "音乐"},
+		"129":  {rid: 129, category: "舞蹈"},
+		"1004": {rid: 129, category: "舞蹈"},
+		"1":    {rid: 1, category: "动画"},
+		"1005": {rid: 1, category: "动画"},
+		"162":  {rid: 162, category: "绘画"},
+		"1006": {rid: 162, category: "绘画"},
+		"119":  {rid: 119, category: "鬼畜"},
+		"1007": {rid: 119, category: "鬼畜"},
+		"4":    {rid: 4, category: "游戏"},
+		"1008": {rid: 4, category: "游戏"},
+		"202":  {rid: 202, category: "资讯"},
+		"1009": {rid: 202, category: "资讯"},
+		"36":   {rid: 36, category: "知识"},
+		"1010": {rid: 36, category: "知识"},
+		"188":  {rid: 188, category: "科技数码"},
+		"1012": {rid: 188, category: "科技数码"},
+		"223":  {rid: 223, category: "汽车"},
+		"1013": {rid: 223, category: "汽车"},
+		"155":  {rid: 155, category: "时尚美妆"},
+		"1014": {rid: 155, category: "时尚美妆"},
+		"164":  {rid: 164, category: "健身"},
+		"1017": {rid: 164, category: "健身"},
+		"234":  {rid: 234, category: "体育运动"},
+		"1018": {rid: 234, category: "体育运动"},
+		"161":  {rid: 161, category: "手工"},
+		"1019": {rid: 161, category: "手工"},
+		"211":  {rid: 211, category: "美食"},
+		"1020": {rid: 211, category: "美食"},
+		"250":  {rid: 250, category: "旅游出行"},
+		"1022": {rid: 250, category: "旅游出行"},
+		"251":  {rid: 251, category: "三农"},
+		"1023": {rid: 251, category: "三农"},
+		"254":  {rid: 254, category: "亲子"},
+		"1025": {rid: 254, category: "亲子"},
+	}[category]
+	return zone, ok
 }
 
 func (c *Client) getTrendingTagsFromZones(ctx context.Context, zones []trendZone, limit int) ([]TrendingTag, error) {

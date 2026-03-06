@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"time"
 
@@ -58,7 +59,11 @@ func (s *TrendService) GetTrendingTags(ctx context.Context, category string, lim
 	}
 	tags, err := client.GetTrendingTagsByCategory(ctx, category, limit)
 	if err != nil {
+		log.Printf("[trend.tags] fetch failed category=%q limit=%d err=%v", category, limit, err)
 		return nil, err
+	}
+	if len(tags) == 0 {
+		log.Printf("[trend.tags] fetch empty category=%q limit=%d", category, limit)
 	}
 	return s.enrichTrendingTagsWithStoredInfo(ctx, tags), nil
 }

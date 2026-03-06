@@ -59,26 +59,16 @@
                     <option value="1008">游戏</option>
                     <option value="1009">资讯</option>
                     <option value="1010">知识</option>
-                    <option value="1011">人工智能</option>
                     <option value="1012">科技数码</option>
                     <option value="1013">汽车</option>
                     <option value="1014">时尚美妆</option>
-                    <option value="1015">家装房产</option>
-                    <option value="1016">户外潮流</option>
                     <option value="1017">健身</option>
                     <option value="1018">体育运动</option>
                     <option value="1019">手工</option>
                     <option value="1020">美食</option>
-                    <option value="1021">小剧场</option>
                     <option value="1022">旅游出行</option>
                     <option value="1023">三农</option>
-                    <option value="1024">动物</option>
                     <option value="1025">亲子</option>
-                    <option value="1026">健康</option>
-                    <option value="1027">情感</option>
-                    <option value="1029">vlog</option>
-                    <option value="1030">生活兴趣</option>
-                    <option value="1031">生活经验</option>
                 </select>
             </div>
         </div>
@@ -163,6 +153,21 @@
 
 {{ define "scripts" }}
 <script>
+function renderTagEmptyState(message) {
+    const container = document.getElementById('tag-list');
+    container.innerHTML = `
+        <div class="p-8 text-center text-gray-400">
+            <i class="ri-forbid-2-line text-4xl"></i>
+            <p class="mt-2">${message}</p>
+        </div>
+    `;
+}
+
+function isUnsupportedTagError(message) {
+    const text = String(message || '').toLowerCase();
+    return text.includes('unsupported category') || text.includes('empty result');
+}
+
 async function loadTrendingTags() {
     const category = document.getElementById('tag-category-select')?.value || '';
     const query = new URLSearchParams();
@@ -176,8 +181,19 @@ async function loadTrendingTags() {
             throw new Error(errBody.error || '获取热门标签失败');
         }
         const data = await response.json();
-        renderTags(data.tags || []);
+        const tags = data.tags || [];
+        if (tags.length === 0) {
+            renderTagEmptyState('当前分类暂不支持标签热榜');
+            return;
+        }
+        renderTags(tags);
     } catch (error) {
+        if (isUnsupportedTagError(error.message)) {
+            renderTagEmptyState('当前分类暂不支持标签热榜');
+            showToast('当前分类暂不支持标签热榜', 'info');
+            return;
+        }
+        renderTagEmptyState('标签热榜加载失败');
         showToast('加载失败: ' + error.message, 'error');
     }
 }
@@ -198,17 +214,12 @@ async function loadVideoRanking() {
 }
 
 function renderTags(tags) {
-    const container = document.getElementById('tag-list');
-
     if (tags.length === 0) {
-        container.innerHTML = `
-            <div class="p-8 text-center text-gray-400">
-                <i class="ri-tag-line text-4xl"></i>
-                <p class="mt-2">暂无数据</p>
-            </div>
-        `;
+        renderTagEmptyState('当前分类暂不支持标签热榜');
         return;
     }
+
+    const container = document.getElementById('tag-list');
 
     container.innerHTML = tags.map((tag, index) => {
         const name = tag.name || tag.tag_name || tag.Name || tag.TagName || '';

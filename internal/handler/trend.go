@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bilibili-up-admin/internal/service"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -25,8 +26,12 @@ func (h *TrendHandler) TrendingTags(c *gin.Context) {
 
 	tags, err := h.svc.GetTrendingTags(c.Request.Context(), category, limit)
 	if err != nil {
+		log.Printf("[trend.tags] category=%q limit=%d err=%v", category, limit, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	if len(tags) == 0 {
+		log.Printf("[trend.tags] category=%q limit=%d empty result", category, limit)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
