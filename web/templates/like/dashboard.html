@@ -44,6 +44,20 @@
     border-color: #ffd5e3;
 }
 
+.compact-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 153, 160, 0.45) transparent;
+}
+
+.compact-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.compact-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(148, 153, 160, 0.35);
+}
+
 @media (min-width: 1280px) {
     .interaction-sticky {
         position: sticky;
@@ -55,13 +69,13 @@
 
 {{ define "content" }}
 <div class="interaction-shell -mx-8 -mt-4 px-8 pt-6 pb-10">
-    <div class="mb-6 flex items-center justify-between gap-4">
+    <div class="mb-4 flex items-center justify-between gap-4">
         <div>
             <div class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
                 <i class="ri-heart-pulse-line mr-2 text-pink-500"></i>互动工作台
             </div>
-            <h2 class="mt-3 text-3xl font-bold text-gray-900">互动管理</h2>
-            <p class="mt-2 text-sm text-gray-500">按和私信一致的选择器节奏，先选粉丝，再翻页挑投稿并执行互动。</p>
+            <h2 class="mt-2 text-3xl font-bold text-gray-900">互动管理</h2>
+            <p class="mt-1 text-sm text-gray-500">PC 端选择器改为三列，先选粉丝，再选投稿，再连续执行互动。</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
             <button type="button" onclick="loadOperationStats().catch(err => showToast(err.message, 'error'))" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:border-pink-300 hover:text-pink-500 transition">
@@ -76,7 +90,7 @@
         </div>
     </div>
 
-    <div class="interaction-toolbar rounded-3xl p-5 mb-5">
+    <div class="interaction-toolbar rounded-3xl p-4 mb-4">
         <div class="flex flex-wrap items-end gap-4">
             <div class="interaction-panel rounded-3xl px-4 py-3 text-sm text-gray-500">
                 <div class="text-xs text-gray-400">当前粉丝</div>
@@ -97,14 +111,14 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.9fr]">
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <section class="interaction-panel rounded-3xl overflow-hidden">
             <div id="interaction-header" class="border-b border-gray-100 bg-white px-6 py-5"></div>
-            <div id="interaction-body" class="min-h-[70vh] bg-[#fafbfd] p-6"></div>
+            <div id="interaction-body" class="min-h-[66vh] bg-[#fafbfd] p-5"></div>
         </section>
 
         <section class="interaction-sticky space-y-5">
-            <div class="interaction-panel rounded-3xl p-6">
+            <div class="interaction-panel rounded-3xl p-5">
                 <div class="mb-4">
                     <h3 class="text-lg font-semibold text-gray-900">执行互动</h3>
                     <p class="mt-1 text-xs text-gray-400">选中投稿后即可直接执行点赞、投币、收藏和三连。</p>
@@ -118,7 +132,7 @@
                 </div>
             </div>
 
-            <div class="interaction-panel rounded-3xl p-6">
+            <div class="interaction-panel rounded-3xl p-5">
                 <div class="mb-4 flex items-center justify-between gap-4">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900">互动状态</h3>
@@ -169,7 +183,7 @@
                     <i class="ri-close-line text-2xl"></i>
                 </button>
             </div>
-            <div id="fan-picker-list" class="min-h-0 flex-1 overflow-y-auto divide-y divide-gray-100 bg-[#fafbfd]"></div>
+            <div id="fan-picker-list" class="compact-scrollbar min-h-0 flex-1 overflow-y-auto bg-[#fafbfd] p-4"></div>
             <div class="flex items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4">
                 <div id="fan-picker-page" class="text-sm text-gray-500">第 1 页</div>
                 <div class="flex items-center gap-3">
@@ -193,7 +207,7 @@
                     <i class="ri-close-line text-2xl"></i>
                 </button>
             </div>
-            <div id="video-picker-list" class="min-h-0 flex-1 overflow-y-auto divide-y divide-gray-100 bg-[#fafbfd]"></div>
+            <div id="video-picker-list" class="compact-scrollbar min-h-0 flex-1 overflow-y-auto bg-[#fafbfd] p-4"></div>
             <div class="flex items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4">
                 <div id="video-picker-page" class="text-sm text-gray-500">第 1 页</div>
                 <div class="flex items-center gap-3">
@@ -318,9 +332,9 @@ function renderBody() {
 
     const selectedCover = selectedVideo ? normalizeCoverUrl(selectedVideo.pic) : '';
     container.innerHTML = `
-        <div class="grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-            <div class="space-y-5">
-                <div class="rounded-[24px] border border-gray-100 bg-white p-5 shadow-sm">
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+            <div class="space-y-4">
+                <div class="rounded-[24px] border border-gray-100 bg-white p-4 shadow-sm">
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <div class="text-sm font-semibold text-gray-900">当前粉丝</div>
@@ -334,11 +348,15 @@ function renderBody() {
                             <div class="truncate text-base font-semibold text-gray-900">${escapeHtml(selectedFan.user_name || `UID ${selectedFan.user_id}`)}</div>
                             <div class="mt-2 text-sm text-gray-500">UID ${selectedFan.user_id}</div>
                             <div class="mt-1 text-sm text-gray-400">${formatFollowTime(selectedFan.follow_time)}</div>
+                            <div class="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
+                                <span class="rounded-full border border-gray-100 bg-gray-50 px-3 py-1">粉丝 ${fmt(selectedFan.follower_count)}</span>
+                                <span class="rounded-full border border-gray-100 bg-gray-50 px-3 py-1">投稿 ${fmt(selectedFan.archive_count)}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="rounded-[24px] border border-gray-100 bg-white p-5 shadow-sm">
+                <div class="rounded-[24px] border border-gray-100 bg-white p-4 shadow-sm">
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <div class="text-sm font-semibold text-gray-900">当前投稿</div>
@@ -347,8 +365,8 @@ function renderBody() {
                         <button onclick="openVideoPicker()" class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">重新选择</button>
                     </div>
                     ${selectedVideo ? `
-                        <div class="mt-4 flex flex-col gap-4 sm:flex-row">
-                            <div class="h-40 w-full overflow-hidden rounded-[22px] bg-gray-100 sm:w-64">
+                        <div class="mt-4 flex flex-col gap-4 lg:flex-row">
+                            <div class="h-36 w-full overflow-hidden rounded-[22px] bg-gray-100 lg:w-56">
                                 ${selectedCover ? `<img src="${escapeHtml(selectedCover)}" class="h-full w-full object-cover" referrerpolicy="no-referrer">` : '<div class="flex h-full items-center justify-center text-gray-300"><i class="ri-video-line text-4xl"></i></div>'}
                             </div>
                             <div class="min-w-0 flex-1">
@@ -362,18 +380,25 @@ function renderBody() {
                             </div>
                         </div>
                     ` : `
-                        <div class="mt-4 rounded-[22px] border border-dashed border-gray-200 bg-gray-50 px-5 py-10 text-center text-sm text-gray-400">当前粉丝已选定，继续打开投稿选择框挑一个视频。</div>
+                        <div class="mt-4 rounded-[22px] border border-dashed border-gray-200 bg-gray-50 px-5 py-8 text-center text-sm text-gray-400">当前粉丝已选定，继续打开投稿选择框挑一个视频。</div>
                     `}
                 </div>
             </div>
 
-            <div class="rounded-[24px] border border-gray-100 bg-white p-5 shadow-sm">
-                <div class="text-sm font-semibold text-gray-900">工作建议</div>
-                <div class="mt-1 text-xs text-gray-400">和私信一样先切对象，再集中处理当前目标。</div>
-                <div class="mt-4 space-y-3 text-sm text-gray-500">
-                    <div class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">先翻页选中正确粉丝，再翻页挑投稿，避免在不同对象之间来回切换。</div>
-                    <div class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">互动后右侧状态会自动同步，适合连续处理同一对象的多条投稿。</div>
-                    <div class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">如果目标投稿不在当前页，直接在弹窗内继续下一页，不需要离开当前工作区。</div>
+            <div class="rounded-[24px] border border-gray-100 bg-white p-4 shadow-sm">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                        <div class="text-xs text-gray-400">步骤 1</div>
+                        <div class="mt-1 text-sm text-gray-700">先选粉丝，再选投稿，避免反复切对象。</div>
+                    </div>
+                    <div class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                        <div class="text-xs text-gray-400">步骤 2</div>
+                        <div class="mt-1 text-sm text-gray-700">动作执行后右侧状态会自动同步，适合连续处理。</div>
+                    </div>
+                    <div class="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                        <div class="text-xs text-gray-400">步骤 3</div>
+                        <div class="mt-1 text-sm text-gray-700">目标不在当前页时，直接在弹窗里翻页继续找。</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -394,10 +419,10 @@ function renderFanPicker() {
         return;
     }
 
-    container.innerHTML = fanItems.map(item => {
+    container.innerHTML = `<div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">${fanItems.map(item => {
         const active = selectedFan && selectedFan.user_id === item.user_id;
         return `
-            <button class="picker-item ${active ? 'active' : ''} w-full border-l-4 ${active ? 'border-pink-400' : 'border-transparent'} px-6 py-4 text-left" onclick="selectFan(${item.user_id})">
+            <button class="picker-item ${active ? 'active' : ''} w-full rounded-[24px] border p-4 text-left ${active ? 'border-pink-300 bg-pink-50/70' : 'border-gray-100 bg-white'}" onclick="selectFan(${item.user_id})">
                 <div class="flex items-start gap-3">
                     <div class="shrink-0">${avatarHtml(item.user_name, item.user_face)}</div>
                     <div class="min-w-0 flex-1">
@@ -406,14 +431,16 @@ function renderFanPicker() {
                             <div class="text-xs text-gray-400">${formatFollowTime(item.follow_time)}</div>
                         </div>
                         <div class="mt-1 text-sm text-gray-500">UID ${item.user_id}</div>
-                        <div class="mt-2 flex items-center gap-2 text-xs">
-                            ${active ? '<span class="rounded-full border border-pink-100 bg-pink-50 px-2 py-0.5 text-pink-600">当前粉丝</span>' : '<span class="rounded-full border border-gray-100 bg-gray-50 px-2 py-0.5 text-gray-500">点击选择</span>'}
+                        <div class="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
+                            <span class="rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1">粉丝 ${fmt(item.follower_count)}</span>
+                            <span class="rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1">投稿 ${fmt(item.archive_count)}</span>
+                            ${active ? '<span class="rounded-full border border-pink-100 bg-white px-2.5 py-1 text-pink-600">当前粉丝</span>' : '<span class="rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1 text-gray-500">点击选择</span>'}
                         </div>
                     </div>
                 </div>
             </button>
         `;
-    }).join('');
+    }).join('')}</div>`;
 }
 
 function renderVideoPicker() {
@@ -441,33 +468,33 @@ function renderVideoPicker() {
         return;
     }
 
-    container.innerHTML = videoItems.map(video => {
+    container.innerHTML = `<div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">${videoItems.map(video => {
         const active = selectedVideo && selectedVideo.bvid === video.bvid;
         const cover = normalizeCoverUrl(video.pic);
         return `
-            <button class="picker-item ${active ? 'active' : ''} w-full border-l-4 ${active ? 'border-pink-400' : 'border-transparent'} px-6 py-4 text-left" onclick="selectVideo('${video.bvid}')">
-                <div class="flex items-start gap-4">
-                    <div class="h-20 w-36 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
+            <button class="picker-item ${active ? 'active' : ''} w-full rounded-[24px] border p-4 text-left ${active ? 'border-pink-300 bg-pink-50/70' : 'border-gray-100 bg-white'}" onclick="selectVideo('${video.bvid}')">
+                <div class="overflow-hidden rounded-2xl bg-gray-100">
+                    <div class="aspect-video w-full">
                         ${cover ? `<img src="${escapeHtml(cover)}" class="h-full w-full object-cover" referrerpolicy="no-referrer">` : '<div class="flex h-full items-center justify-center text-gray-300"><i class="ri-video-line text-3xl"></i></div>'}
                     </div>
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <div class="truncate text-sm font-semibold text-gray-900">${escapeHtml(video.title || video.bvid)}</div>
-                                <div class="mt-1 text-xs text-gray-500">${escapeHtml(video.bvid)}</div>
-                            </div>
-                            <span class="rounded-full px-2.5 py-1 text-xs ${active ? 'border border-pink-100 bg-pink-50 text-pink-600' : 'border border-gray-100 bg-white text-gray-500'}">${active ? '当前投稿' : '选择'}</span>
+                </div>
+                <div class="mt-4 min-w-0 flex-1">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="line-clamp-2 text-sm font-semibold text-gray-900">${escapeHtml(video.title || video.bvid)}</div>
+                            <div class="mt-1 text-xs text-gray-500">${escapeHtml(video.bvid)}</div>
                         </div>
-                        <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-400">
-                            <span>播放 ${fmt(video.view)}</span>
-                            <span>评论 ${fmt(video.reply)}</span>
-                            <span>点赞 ${fmt(video.like)}</span>
-                        </div>
+                        <span class="rounded-full px-2.5 py-1 text-xs ${active ? 'border border-pink-100 bg-white text-pink-600' : 'border border-gray-100 bg-gray-50 text-gray-500'}">${active ? '当前投稿' : '选择'}</span>
+                    </div>
+                    <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                        <span>播放 ${fmt(video.view)}</span>
+                        <span>评论 ${fmt(video.reply)}</span>
+                        <span>点赞 ${fmt(video.like)}</span>
                     </div>
                 </div>
             </button>
         `;
-    }).join('');
+    }).join('')}</div>`;
 }
 
 function renderSelectedVideo() {

@@ -27,6 +27,22 @@
 .rank-item:hover {
     background: #fafcff;
 }
+
+.panel-scroll {
+    height: 72vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 153, 160, 0.45) transparent;
+}
+
+.panel-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+.panel-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(148, 153, 160, 0.35);
+}
 </style>
 {{ end }}
 
@@ -98,7 +114,7 @@
                     <option value="1025">亲子</option>
                 </select>
             </div>
-            <div id="tag-list" class="max-h-[72vh] overflow-y-auto divide-y divide-gray-100">
+            <div id="tag-list" class="panel-scroll divide-y divide-gray-100">
                 <div class="p-10 text-center text-gray-400">
                     <i class="ri-loader-4-line animate-spin text-4xl"></i>
                     <p class="mt-2">加载中...</p>
@@ -154,7 +170,7 @@
                     <option value="1031">生活经验</option>
                 </select>
             </div>
-            <div id="video-list" class="max-h-[72vh] overflow-y-auto divide-y divide-gray-100">
+            <div id="video-list" class="panel-scroll divide-y divide-gray-100">
                 <div class="p-10 text-center text-gray-400">
                     <i class="ri-loader-4-line animate-spin text-4xl"></i>
                     <p class="mt-2">加载中...</p>
@@ -230,11 +246,18 @@ async function loadVideoRanking() {
 
 function renderTags(tags) {
     const container = document.getElementById('tag-list');
+    if (!tags.length) {
+        renderTagEmptyState('没有匹配的标签结果');
+        return;
+    }
     container.innerHTML = tags.map((tag, index) => {
         const name = tag.name || tag.tag_name || tag.Name || tag.TagName || '';
         const useCount = tag.use_count ?? tag.useCount ?? tag.UseCount ?? 0;
         const followCount = tag.follow_count ?? tag.followCount ?? tag.FollowCount ?? 0;
         const category = tag.category || tag.Category || '';
+        const videoCount = tag.video_count ?? tag.videoCount ?? tag.VideoCount ?? 0;
+        const viewCount = tag.view_count ?? tag.viewCount ?? tag.ViewCount ?? 0;
+        const showSearchMetrics = videoCount > 0 || viewCount > 0;
         return `
             <button onclick="showTagDetail('${name}')" class="rank-item w-full px-5 py-4 text-left">
                 <div class="flex items-start gap-4">
@@ -242,11 +265,10 @@ function renderTags(tags) {
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center justify-between gap-3">
                             <div class="truncate text-sm font-semibold text-gray-900">${name}</div>
-                            <div class="text-xs text-gray-400">${category || '全部'}</div>
+                            <div class="text-xs text-gray-400">${category || (showSearchMetrics ? '搜索结果' : '全部')}</div>
                         </div>
                         <div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
-                            <span>使用 ${formatNumber(useCount)}</span>
-                            <span>关注 ${formatNumber(followCount)}</span>
+                            ${showSearchMetrics ? `<span>视频 ${formatNumber(videoCount)}</span><span>播放 ${formatNumber(viewCount)}</span>` : `<span>使用 ${formatNumber(useCount)}</span><span>关注 ${formatNumber(followCount)}</span>`}
                         </div>
                     </div>
                 </div>
@@ -316,9 +338,12 @@ function closeTagDetail() {
 
 async function searchTag() {
     const keyword = document.getElementById('search-keyword').value.trim();
-    if (!keyword) return;
+    if (!keyword) {
+        loadTrendingTags();
+        return;
+    }
     try {
-        const data = await api(`/admin/api/trends/search?keyword=${encodeURIComponent(keyword)}`);
+        const data = await api(`/admin/api/trends/search?keyword=${encodeURIComponent(keyword)}&page=1&page_size=20`);
         renderTags(data.tags || []);
     } catch (error) {
         showToast(error.message, 'error');
@@ -326,6 +351,12 @@ async function searchTag() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('search-keyword').addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            searchTag();
+        }
+    });
     loadTrendingTags();
     loadVideoRanking();
     setInterval(() => {

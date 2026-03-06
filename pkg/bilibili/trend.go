@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -524,10 +525,12 @@ type FollowerUnreadState struct {
 }
 
 type FanProfile struct {
-	UserID     int64  `json:"user_id"`
-	UserName   string `json:"user_name"`
-	UserFace   string `json:"user_face"`
-	FollowTime int64  `json:"follow_time"`
+	UserID        int64  `json:"user_id"`
+	UserName      string `json:"user_name"`
+	UserFace      string `json:"user_face"`
+	FollowTime    int64  `json:"follow_time"`
+	FollowerCount int64  `json:"follower_count"`
+	ArchiveCount  int64  `json:"archive_count"`
 }
 
 func (c *Client) GetFansVideos(ctx context.Context, page, pageSize int) ([]FansVideo, error) {
@@ -590,7 +593,47 @@ func (c *Client) ListFans(ctx context.Context, page, pageSize int) ([]FanProfile
 	for _, f := range fans {
 		out = append(out, FanProfile{UserID: f.Mid, UserName: f.Uname, UserFace: f.Face, FollowTime: f.MTime})
 	}
+
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 4)
+	for i := range out {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			case sem <- struct{}{}:
+			}
+			defer func() { <-sem }()
+
+			followerCount, archiveCount, err := c.getFanProfileStats(ctx, out[index].UserID)
+			if err != nil {
+				return
+			}
+			out[index].FollowerCount = followerCount
+			out[index].ArchiveCount = archiveCount
+		}(i)
+	}
+	wg.Wait()
+
 	return out, nil
+}
+
+func (c *Client) getFanProfileStats(ctx context.Context, mid int64) (int64, int64, error) {
+	relation, err := c.inner.User().RelationStat(ctx, mid)
+	if err != nil {
+		return 0, 0, fmt.Errorf("get fan relation stat failed: %w", err)
+	}
+	videos, err := c.inner.User().Videos(ctx, mid, 1, 1)
+	if err != nil {
+		return 0, 0, fmt.Errorf("get fan archive count failed: %w", err)
+	}
+	archiveCount := int64(videos.Page.Count)
+	if archiveCount == 0 && len(videos.List.VList) > 0 {
+		archiveCount = int64(len(videos.List.VList))
+	}
+	return relation.Follower, archiveCount, nil
 }
 
 func (c *Client) GetFollowerUnreadState(ctx context.Context) (*FollowerUnreadState, error) {

@@ -125,11 +125,6 @@ func (s *ReplyWorkspaceService) GetWorkspace(ctx context.Context, channel string
 		return nil, err
 	}
 
-	draft, err := s.draftRepo.GetByTarget(ctx, channel, targetID)
-	if err != nil {
-		return nil, err
-	}
-
 	if err := s.ensureSeedTemplates(ctx, channel); err != nil {
 		return nil, err
 	}
@@ -150,7 +145,7 @@ func (s *ReplyWorkspaceService) GetWorkspace(ctx context.Context, channel string
 
 	return &ReplyWorkspaceData{
 		Target:    target,
-		Draft:     draft,
+		Draft:     nil,
 		Templates: templates,
 		Examples:  examples,
 		Logs:      logs,
@@ -224,9 +219,6 @@ func (s *ReplyWorkspaceService) GenerateDraft(ctx context.Context, req GenerateR
 		ModelName:        resp.Model,
 		GeneratedAt:      ptrTime(time.Now()),
 	}
-	if err := s.draftRepo.Save(ctx, draft); err != nil {
-		return nil, err
-	}
 
 	if s.llmLogRepo != nil {
 		_ = s.llmLogRepo.Create(ctx, &model.LLMChatLog{
@@ -249,26 +241,11 @@ func (s *ReplyWorkspaceService) GenerateDraft(ctx context.Context, req GenerateR
 		})
 	}
 
-	return s.draftRepo.GetByTarget(ctx, req.Channel, req.TargetID)
+	return draft, nil
 }
 
 func (s *ReplyWorkspaceService) SaveDraft(ctx context.Context, req SaveReplyDraftRequest) (*model.ReplyDraft, error) {
-	if _, err := s.getTarget(ctx, req.Channel, req.TargetID); err != nil {
-		return nil, err
-	}
-	draft := &model.ReplyDraft{
-		Channel:          req.Channel,
-		TargetID:         req.TargetID,
-		Content:          strings.TrimSpace(req.Content),
-		Status:           "draft",
-		SourceType:       defaultString(strings.TrimSpace(req.SourceType), "manual"),
-		TemplateSnapshot: strings.TrimSpace(req.TemplateContent),
-		ExtraInstruction: strings.TrimSpace(req.ExtraInstruction),
-	}
-	if err := s.draftRepo.Save(ctx, draft); err != nil {
-		return nil, err
-	}
-	return s.draftRepo.GetByTarget(ctx, req.Channel, req.TargetID)
+	return nil, fmt.Errorf("draft saving has been removed")
 }
 
 func (s *ReplyWorkspaceService) SendDraft(ctx context.Context, req SendReplyDraftRequest) error {
@@ -320,21 +297,6 @@ func (s *ReplyWorkspaceService) SendDraft(ctx context.Context, req SendReplyDraf
 		return fmt.Errorf("unsupported channel: %s", req.Channel)
 	}
 
-	now := time.Now()
-	draft := &model.ReplyDraft{
-		Channel:          req.Channel,
-		TargetID:         req.TargetID,
-		Content:          content,
-		Status:           "sent",
-		SourceType:       defaultString(strings.TrimSpace(req.SourceType), "manual"),
-		TemplateSnapshot: strings.TrimSpace(req.TemplateContent),
-		ExtraInstruction: strings.TrimSpace(req.ExtraInstruction),
-		SentAt:           &now,
-	}
-	if err := s.draftRepo.Save(ctx, draft); err != nil {
-		return err
-	}
-
 	if req.SaveAsExample {
 		_ = s.exampleRepo.Create(ctx, &model.ReplyExample{
 			Channel:      req.Channel,
@@ -342,7 +304,7 @@ func (s *ReplyWorkspaceService) SendDraft(ctx context.Context, req SendReplyDraf
 			UserInput:    target.InputContent,
 			ReplyContent: content,
 			Notes:        strings.TrimSpace(req.ExampleNotes),
-			SourceType:   draft.SourceType,
+			SourceType:   defaultString(strings.TrimSpace(req.SourceType), "manual"),
 			SourceID:     req.TargetID,
 			QualityScore: 90,
 		})

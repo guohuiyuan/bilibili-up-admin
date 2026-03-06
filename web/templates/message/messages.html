@@ -40,13 +40,31 @@
 }
 
 .thread-incoming {
-    background: #ffffff;
-    border: 1px solid #e9edf3;
+    background: linear-gradient(180deg, #ffffff, #fbfcfe);
+    border: 1px solid #e7edf5;
 }
 
 .thread-self {
     background: linear-gradient(180deg, #fff5f8, #ffffff);
     border: 1px solid #ffd5e3;
+}
+
+.thread-clickable {
+    cursor: pointer;
+}
+
+.compact-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 153, 160, 0.45) transparent;
+}
+
+.compact-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.compact-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(148, 153, 160, 0.35);
 }
 
 .thread-empty-art {
@@ -82,20 +100,20 @@
 
 {{ define "content" }}
 <div class="message-shell -mx-8 -mt-4 px-8 pt-6 pb-10">
-    <div class="mb-6 flex items-center justify-between gap-4">
+    <div class="mb-4 flex items-center justify-between gap-4">
         <div>
             <div class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
                 <i class="ri-mail-unread-line mr-2 text-pink-500"></i>私信工作台
             </div>
-            <h2 class="mt-3 text-3xl font-bold text-gray-900">私信箱</h2>
-            <p class="mt-2 text-sm text-gray-500">当前会话固定展示，最新消息改为弹出选择框，支持翻页切换。</p>
+            <h2 class="mt-2 text-3xl font-bold text-gray-900">私信箱</h2>
+            <p class="mt-1 text-sm text-gray-500">点击待回复消息或按钮即可打开编辑栏，AI 回复会先自动填入内容。</p>
         </div>
         <button onclick="loadMessages()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">
             <i class="ri-refresh-line mr-1"></i>刷新消息
         </button>
     </div>
 
-    <div class="thread-toolbar rounded-3xl p-5 mb-5">
+    <div class="thread-toolbar rounded-3xl p-4 mb-4">
         <div class="flex flex-wrap items-end gap-4">
             <div class="w-56">
                 <label class="mb-2 block text-xs font-medium tracking-wide text-gray-400">消息状态</label>
@@ -122,7 +140,7 @@
 
     <div class="thread-pane thread-pane-sticky rounded-3xl overflow-hidden min-h-[72vh] flex flex-col">
         <div id="thread-header" class="px-6 py-5 border-b border-gray-100 bg-white"></div>
-        <div id="thread-body" class="flex-1 overflow-y-auto bg-[#fafbfd] p-6"></div>
+        <div id="thread-body" class="compact-scrollbar flex-1 overflow-y-auto bg-[#fafbfd] p-5"></div>
         <div id="thread-actions" class="thread-actions-sticky px-6 py-4 border-t border-gray-100 bg-white/95 backdrop-blur"></div>
     </div>
 </div>
@@ -139,7 +157,7 @@
                     <i class="ri-close-line text-2xl"></i>
                 </button>
             </div>
-            <div id="conversation-picker-list" class="min-h-0 flex-1 overflow-y-auto divide-y divide-gray-100 bg-[#fafbfd]"></div>
+            <div id="conversation-picker-list" class="compact-scrollbar min-h-0 flex-1 overflow-y-auto divide-y divide-gray-100 bg-[#fafbfd]"></div>
             <div class="flex items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4">
                 <div id="conversation-picker-page" class="text-sm text-gray-500">第 1 页</div>
                 <div class="flex items-center gap-3">
@@ -155,7 +173,7 @@
     <div class="bg-white rounded-[28px] w-[1120px] max-w-[96vw] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
         <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-gray-50">
             <div>
-                <div class="text-lg font-semibold text-gray-900">Message Reply Workspace</div>
+                <div class="text-lg font-semibold text-gray-900">私信回复编辑栏</div>
                 <div id="reply-workspace-target" class="text-sm text-gray-500 mt-1">-</div>
             </div>
             <button type="button" onclick="messageReplyWorkspace.close()" class="text-gray-400 hover:text-pink-500 transition">
@@ -190,8 +208,8 @@
                     <input id="reply-workspace-instruction" type="text" class="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200" placeholder="Tone, constraints, or extra hints">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold tracking-wide text-gray-400 mb-2">Draft</label>
-                    <textarea id="reply-workspace-draft" rows="12" class="w-full rounded-[24px] border border-gray-200 px-5 py-4 text-sm leading-7 outline-none focus:ring-2 focus:ring-pink-200" placeholder="Generate first, then edit before sending"></textarea>
+                    <label class="block text-xs font-semibold tracking-wide text-gray-400 mb-2">回复内容</label>
+                    <textarea id="reply-workspace-draft" rows="12" class="w-full rounded-[24px] border border-gray-200 px-5 py-4 text-sm leading-7 outline-none focus:ring-2 focus:ring-pink-200" placeholder="手动输入，或先让 AI 生成后再改"></textarea>
                 </div>
                 <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
                     <label class="flex items-center gap-2 text-sm text-gray-700">
@@ -202,11 +220,10 @@
                     <textarea id="reply-workspace-example-notes" rows="3" class="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-pink-200" placeholder="Notes: scenario, tone, why it is a good example"></textarea>
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-                    <div class="text-xs text-gray-400">Flow: template/example -> AI draft -> edit -> send</div>
+                    <div class="text-xs text-gray-400">流程：模板或示例 -> AI 生成 -> 编辑 -> 发送</div>
                     <div class="flex items-center gap-3">
-                        <button id="reply-workspace-generate" type="button" onclick="messageReplyWorkspace.generateDraft()" class="rounded-full bg-gray-900 px-4 py-2 text-sm text-white hover:bg-black transition">Generate</button>
-                        <button id="reply-workspace-save" type="button" onclick="messageReplyWorkspace.saveDraft()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:border-pink-200 hover:text-pink-500 transition">Save Draft</button>
-                        <button id="reply-workspace-send" type="button" onclick="messageReplyWorkspace.sendDraft()" class="rounded-full bg-pink-500 px-5 py-2 text-sm text-white hover:bg-pink-600 transition">Send Reply</button>
+                        <button id="reply-workspace-generate" type="button" onclick="messageReplyWorkspace.generateReply()" class="rounded-full bg-gray-900 px-4 py-2 text-sm text-white hover:bg-black transition">AI 生成</button>
+                        <button id="reply-workspace-send" type="button" onclick="messageReplyWorkspace.sendReply()" class="rounded-full bg-pink-500 px-5 py-2 text-sm text-white hover:bg-pink-600 transition">发送回复</button>
                     </div>
                 </div>
             </div>
@@ -497,10 +514,10 @@ function renderThread(session) {
         const pending = item.reply_status === 0;
         const timeLabel = formatAbsoluteTime(entry.messageTime);
         return `
-            <div class="thread-message mb-6 flex ${fromSelf ? 'justify-end' : 'items-start space-x-4'}">
+            <div class="thread-message mb-4 flex ${fromSelf ? 'justify-end' : 'items-start space-x-3'}">
                 ${fromSelf ? '' : `<div class="shrink-0">${avatarHtml(entry.senderName || session.conversationName, entry.senderFace || session.conversationFace)}</div>`}
                 <div class="min-w-0 max-w-[78%] ${fromSelf ? 'ml-auto' : ''}">
-                    <div class="${fromSelf ? 'thread-self' : 'thread-incoming'} rounded-[22px] px-5 py-4 shadow-sm">
+                    <div class="${fromSelf ? 'thread-self' : 'thread-incoming'} ${!fromSelf && pending ? 'thread-clickable' : ''} rounded-[20px] px-4 py-3 shadow-sm" ${!fromSelf && pending ? `onclick="openMessageReply(${item.message_id}, ${session.conversationId}, false)"` : ''}>
                         <div class="mb-2 flex flex-wrap items-center gap-2 text-xs text-gray-400">
                             <span class="font-medium text-gray-700">${escapeHtml(entry.senderName || (fromSelf ? '我' : session.conversationName))}</span>
                             <span>${timeLabel || formatTime(entry.messageTime)}</span>
@@ -510,10 +527,10 @@ function renderThread(session) {
                         <div class="whitespace-pre-wrap break-words text-[15px] leading-7 text-gray-700">${escapeHtml(entry.content || '')}</div>
                     </div>
                     ${!fromSelf && pending ? `
-                        <div class="mt-3 ml-10 flex flex-wrap items-center gap-3 text-sm">
-                            <button onclick="aiReply(${item.message_id})" class="inline-flex items-center rounded-full border border-pink-100 bg-pink-50 px-3 py-1.5 text-pink-600 hover:bg-pink-100 transition"><i class="ri-robot-2-line mr-1"></i>AI 回复</button>
-                            <button onclick="manualReply(${item.message_id}, ${session.conversationId})" class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-600 hover:border-pink-200 hover:text-pink-500 transition"><i class="ri-edit-line mr-1"></i>手动回复</button>
-                            <button onclick="ignore(${item.message_id})" class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-500 hover:border-gray-300 transition"><i class="ri-eye-off-line mr-1"></i>忽略</button>
+                        <div class="mt-2 ml-6 flex flex-wrap items-center gap-2 text-sm">
+                            <button onclick="event.stopPropagation(); aiReply(${item.message_id}, ${session.conversationId})" class="inline-flex items-center rounded-full border border-pink-100 bg-pink-50 px-3 py-1.5 text-pink-600 hover:bg-pink-100 transition"><i class="ri-robot-2-line mr-1"></i>AI 回复</button>
+                            <button onclick="event.stopPropagation(); manualReply(${item.message_id}, ${session.conversationId})" class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-600 hover:border-pink-200 hover:text-pink-500 transition"><i class="ri-edit-line mr-1"></i>手动回复</button>
+                            <button onclick="event.stopPropagation(); ignore(${item.message_id})" class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-gray-500 hover:border-gray-300 transition"><i class="ri-eye-off-line mr-1"></i>忽略</button>
                         </div>
                     ` : ''}
                 </div>
@@ -527,10 +544,10 @@ function renderThread(session) {
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <div class="text-sm font-medium text-gray-800">当前会话存在待处理消息</div>
-                <div class="mt-1 text-xs text-gray-400">可以直接调用 AI 生成草稿，也可以手动修改后发送。</div>
+                <div class="mt-1 text-xs text-gray-400">打开编辑栏后可直接修改，AI 回复会先自动填充内容。</div>
             </div>
             <div class="flex items-center gap-3">
-                <button onclick="aiReply(${pendingItem.message_id})" class="rounded-full bg-pink-500 px-4 py-2 text-sm text-white hover:bg-pink-600 transition">AI 回复最近一条</button>
+                <button onclick="aiReply(${pendingItem.message_id}, ${session.conversationId})" class="rounded-full bg-pink-500 px-4 py-2 text-sm text-white hover:bg-pink-600 transition">AI 回复最近一条</button>
                 <button onclick="manualReply(${pendingItem.message_id}, ${session.conversationId})" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">手动回复</button>
             </div>
         </div>
@@ -545,19 +562,14 @@ function renderThread(session) {
     `;
 }
 
-function manualReply(messageId, senderId) {
-    const content = prompt('请输入回复内容');
-    if (!content) return;
-
-    api(`/admin/api/messages/${messageId}/reply`, {
-        method: 'POST',
-        body: { sender_uid: senderId, content }
-    }).then(() => {
-        showToast('回复成功', 'success');
-        loadMessages();
-    }).catch(err => {
-        showToast('回复失败: ' + err.message, 'error');
+function openMessageReply(messageId, senderId, autoGenerate = false) {
+    messageReplyWorkspace.open(messageId, { autoGenerate, senderId }).catch(err => {
+        showToast('打开编辑栏失败: ' + err.message, 'error');
     });
+}
+
+function manualReply(messageId, senderId) {
+    openMessageReply(messageId, senderId, false);
 }
 
 async function ignore(messageId) {
@@ -572,10 +584,8 @@ async function ignore(messageId) {
     }
 }
 
-function aiReply(messageId) {
-    messageReplyWorkspace.open(messageId, { autoGenerate: true }).catch(err => {
-        showToast('AI workspace failed: ' + err.message, 'error');
-    });
+function aiReply(messageId, senderId) {
+    openMessageReply(messageId, senderId, true);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

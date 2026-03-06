@@ -7,23 +7,26 @@ class ReplyWorkspaceModal {
         this.state = {
             targetId: 0,
             target: null,
-            draft: null,
             templates: [],
             examples: [],
             logs: [],
-            selectedTemplateContent: ""
+            selectedTemplateContent: "",
+            sourceType: "manual",
+            initialInstruction: ""
         };
     }
 
     async open(targetId, opts = {}) {
         this.state.targetId = targetId;
+        this.state.sourceType = opts.autoGenerate ? "ai" : "manual";
+        this.state.initialInstruction = opts.instruction || "";
         Modal.show(this.modalId);
         this.renderLoading();
         try {
             await this.reloadWorkspaceData();
             this.render();
-            if (opts.autoGenerate && !this.getDraftContent().trim()) {
-                await this.generateDraft();
+            if (opts.autoGenerate && !this.getEditorContent().trim()) {
+                await this.generateReply();
             }
         } catch (error) {
             this.close();
@@ -34,7 +37,6 @@ class ReplyWorkspaceModal {
     async reloadWorkspaceData() {
         const data = await api(`${this.apiPrefix}/api/reply-workspace?channel=${encodeURIComponent(this.channel)}&target_id=${this.state.targetId}`);
         this.state.target = data.target || null;
-        this.state.draft = data.draft || null;
         this.state.templates = data.templates || [];
         this.state.examples = data.examples || [];
         this.state.logs = data.logs || [];
@@ -50,16 +52,16 @@ class ReplyWorkspaceModal {
         this.node("reply-workspace-templates").innerHTML = '<div class="text-sm text-gray-400">Loading templates...</div>';
         this.node("reply-workspace-examples").innerHTML = '<div class="text-sm text-gray-400">Loading examples...</div>';
         this.node("reply-workspace-logs").innerHTML = '<div class="text-sm text-gray-400">Loading LLM logs...</div>';
-        this.textarea().value = "";
+        this.editor().value = "";
     }
 
     render() {
         const target = this.state.target || {};
         this.text("reply-workspace-target", `${target.author_name || "User"} / ${target.title || this.channel}`);
         this.text("reply-workspace-source", this.buildSourceText(target));
-        this.textarea().value = (this.state.draft && this.state.draft.content) || target.reply_content || "";
-        this.input("reply-workspace-instruction").value = (this.state.draft && this.state.draft.extra_instruction) || "";
-        this.state.selectedTemplateContent = (this.state.draft && this.state.draft.template_snapshot) || "";
+        this.editor().value = target.reply_content || "";
+        this.input("reply-workspace-instruction").value = this.state.initialInstruction || "";
+        this.state.selectedTemplateContent = "";
         this.input("reply-workspace-example-title").value = `${target.author_name || "User"}-${this.channel === "message" ? "DM" : "Comment"} Example`;
         this.renderTemplates();
         this.renderExamples();
@@ -126,7 +128,7 @@ class ReplyWorkspaceModal {
         }
         container.innerHTML = this.state.logs.map(item => {
             const logType = item.log_type || "draft";
-            const typeLabel = logType === "summary" ? "Summary compression" : "Draft generation";
+            const typeLabel = logType === "summary" ? "Summary compression" : "Reply generation";
             const tokenLabel = `prompt ${item.prompt_tokens || 0} / output ${item.output_tokens || 0} / total ${item.total_tokens || 0}`;
             const durationLabel = `${item.duration || 0} ms`;
             const createdAt = this.formatDate(item.created_at);
@@ -169,14 +171,15 @@ class ReplyWorkspaceModal {
         const template = this.state.templates.find(item => item.id === templateId);
         if (!template) return;
         this.state.selectedTemplateContent = template.content || "";
-        const textarea = this.textarea();
-        const current = textarea.value.trim();
-        textarea.value = current ? `${current}\n${template.content}` : template.content;
+        const editor = this.editor();
+        const current = editor.value.trim();
+        editor.value = current ? `${current}\n${template.content}` : template.content;
+        this.state.sourceType = "manual";
     }
 
-    async generateDraft() {
+    async generateReply() {
         const instruction = this.input("reply-workspace-instruction").value.trim();
-        this.setBusy(true, "Generating draft...");
+        this.setBusy(true, "Generating reply...");
         try {
             const data = await api(`${this.apiPrefix}/api/reply-workspace/draft/generate`, {
                 method: "POST",
@@ -187,40 +190,23 @@ class ReplyWorkspaceModal {
                     extra_instruction: instruction
                 }
             });
-            this.state.draft = data.draft || null;
+            const content = (data.reply && data.reply.content) || (data.draft && data.draft.content) || data.content || "";
+            this.editor().value = content;
+            this.state.sourceType = "ai";
             await this.reloadWorkspaceData();
-            this.render();
-            showToast("Draft generated", "success");
+            this.renderTemplates();
+            this.renderExamples();
+            this.renderLogs();
+            showToast("Reply generated", "success");
         } finally {
             this.setBusy(false);
         }
     }
 
-    async saveDraft() {
-        this.setBusy(true, "Saving draft...");
-        try {
-            const data = await api(`${this.apiPrefix}/api/reply-workspace/draft/save`, {
-                method: "POST",
-                body: {
-                    channel: this.channel,
-                    target_id: this.state.targetId,
-                    content: this.getDraftContent(),
-                    source_type: this.state.draft?.source_type || "manual",
-                    template_content: this.state.selectedTemplateContent || "",
-                    extra_instruction: this.input("reply-workspace-instruction").value.trim()
-                }
-            });
-            this.state.draft = data.draft || null;
-            showToast("Draft saved", "success");
-        } finally {
-            this.setBusy(false);
-        }
-    }
-
-    async sendDraft() {
-        const content = this.getDraftContent();
+    async sendReply() {
+        const content = this.getEditorContent();
         if (!content.trim()) {
-            showToast("Draft content is empty", "error");
+            showToast("Reply content is empty", "error");
             return;
         }
         this.setBusy(true, "Sending reply...");
@@ -231,7 +217,7 @@ class ReplyWorkspaceModal {
                     channel: this.channel,
                     target_id: this.state.targetId,
                     content,
-                    source_type: this.state.draft?.source_type || "manual",
+                    source_type: this.state.sourceType || "manual",
                     template_content: this.state.selectedTemplateContent || "",
                     extra_instruction: this.input("reply-workspace-instruction").value.trim(),
                     save_as_example: this.checkbox("reply-workspace-save-example").checked,
@@ -248,7 +234,7 @@ class ReplyWorkspaceModal {
     }
 
     async saveAsTemplate() {
-        const content = this.getDraftContent();
+        const content = this.getEditorContent();
         if (!content.trim()) {
             showToast("Template content is empty", "error");
             return;
@@ -273,7 +259,6 @@ class ReplyWorkspaceModal {
     setBusy(disabled, message = "") {
         [
             "reply-workspace-generate",
-            "reply-workspace-save",
             "reply-workspace-send",
             "reply-workspace-save-template"
         ].forEach(id => {
@@ -287,8 +272,8 @@ class ReplyWorkspaceModal {
         }
     }
 
-    getDraftContent() {
-        return this.textarea().value || "";
+    getEditorContent() {
+        return this.editor().value || "";
     }
 
     prettyJSON(value) {
@@ -306,7 +291,7 @@ class ReplyWorkspaceModal {
         return date.toLocaleString("zh-CN");
     }
 
-    textarea() {
+    editor() {
         return this.node("reply-workspace-draft");
     }
 
