@@ -95,6 +95,15 @@ func (c *Client) GetUserInfo(ctx context.Context) (*UserInfo, error) {
 		Name:    info.Uname,
 		IsLogin: info.IsLogin,
 	}
+	if info.Mid > 0 {
+		profile, profileErr := c.inner.User().Info(ctx, info.Mid)
+		if profileErr == nil {
+			if profile.Name != "" {
+				userInfo.Name = profile.Name
+			}
+			userInfo.Face = profile.Face
+		}
+	}
 	c.userInfo = userInfo
 	return userInfo, nil
 }

@@ -3,6 +3,7 @@ package bilibili
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type Message struct {
@@ -31,6 +32,17 @@ type MessageList struct {
 	HasMore  bool
 }
 
+func (c *Client) resolveMessageUserProfile(ctx context.Context, userID int64) (string, string) {
+	if userID <= 0 || c == nil || c.inner == nil {
+		return "", ""
+	}
+	info, err := c.inner.User().Info(ctx, userID)
+	if err != nil || info == nil {
+		return "", ""
+	}
+	return strings.TrimSpace(info.Name), strings.TrimSpace(info.Face)
+}
+
 func (c *Client) GetMessages(ctx context.Context, page, pageSize int) (*MessageList, error) {
 	if err := c.ensureAvailable(); err != nil {
 		return nil, err
@@ -47,10 +59,21 @@ func (c *Client) GetMessages(ctx context.Context, page, pageSize int) (*MessageL
 	}
 
 	for _, m := range msgs {
+		userName := strings.TrimSpace(m.Uname)
+		userFace := strings.TrimSpace(m.Avatar)
+		if userName == "" || userFace == "" {
+			resolvedName, resolvedFace := c.resolveMessageUserProfile(ctx, m.Mid)
+			if userName == "" {
+				userName = resolvedName
+			}
+			if userFace == "" {
+				userFace = resolvedFace
+			}
+		}
 		result.Sessions = append(result.Sessions, MessageSession{
 			UserID:   m.Mid,
-			UserName: m.Uname,
-			UserFace: m.Avatar,
+			UserName: userName,
+			UserFace: userFace,
 			LastMsg:  m.LastMsg,
 			Unread:   int(m.Unfollow),
 		})
