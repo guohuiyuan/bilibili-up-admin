@@ -85,14 +85,16 @@ func (h *TrendHandler) HistoricalRankings(c *gin.Context) {
 // LatestRankings 获取最新排行
 func (h *TrendHandler) LatestRankings(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	category := c.DefaultQuery("category", "")
 
-	rankings, err := h.svc.GetLatestRankings(c.Request.Context(), limit)
+	rankings, err := h.svc.GetLatestRankings(c.Request.Context(), category, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+		"category": category,
 		"rankings": rankings,
 	})
 }

@@ -342,7 +342,10 @@ func (s *TrendService) GetHistoricalRankings(ctx context.Context, date string, l
 }
 
 // GetLatestRankings 获取最新排行
-func (s *TrendService) GetLatestRankings(ctx context.Context, limit int) ([]model.TagRanking, error) {
+func (s *TrendService) GetLatestRankings(ctx context.Context, category string, limit int) ([]model.TagRanking, error) {
+	if category != "" {
+		return s.repo.GetLatestByCategory(ctx, category, limit)
+	}
 	return s.repo.GetLatest(ctx, limit)
 }
 

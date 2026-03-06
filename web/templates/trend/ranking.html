@@ -62,11 +62,6 @@
                     <option value="Fashion">时尚美妆</option>
                     <option value="Ent">娱乐</option>
                     <option value="Cinephile">影视</option>
-                    <option value="Movie">电影</option>
-                    <option value="TV">电视剧</option>
-                    <option value="Variety">综艺</option>
-                    <option value="Original">原创</option>
-                    <option value="Rookie">新人</option>
                 </select>
             </div>
         </div>
@@ -139,6 +134,36 @@
 
 {{ define "scripts" }}
 <script>
+const TREND_CATEGORY_ALIAS_TO_LABEL = {
+    All: '',
+    Bangumi: '番剧',
+    GuochuangAnime: '国创',
+    Guochuang: '国创',
+    Documentary: '影视',
+    Douga: '动画',
+    Music: '音乐',
+    Dance: '舞蹈',
+    Game: '游戏',
+    Knowledge: '知识',
+    Technology: '科技',
+    Sports: '运动',
+    Car: '汽车',
+    Life: '生活',
+    Food: '美食',
+    Animal: '动物圈',
+    Kichiku: '鬼畜',
+    Fashion: '时尚',
+    Ent: '娱乐',
+    Cinephile: '影视',
+    Movie: '影视',
+    TV: '影视',
+    Variety: '影视',
+};
+
+function toTrendCategoryLabel(category) {
+    return TREND_CATEGORY_ALIAS_TO_LABEL[category] ?? category;
+}
+
 async function loadTrendingTags() {
     const category = document.getElementById('tag-category-select')?.value || '';
     const query = new URLSearchParams();
@@ -168,9 +193,10 @@ async function loadTrendingTags() {
 }
 
 async function loadLatestRankingsAsTags(category) {
+    const normalizedCategory = toTrendCategoryLabel(category);
     const query = new URLSearchParams();
-    if (category) {
-        query.set('category', category);
+    if (normalizedCategory) {
+        query.set('category', normalizedCategory);
     }
     const response = await fetch(`/admin/api/trends/latest?${query.toString()}`);
     if (!response.ok) {
@@ -179,8 +205,11 @@ async function loadLatestRankingsAsTags(category) {
     }
     const data = await response.json();
     let rankings = data.rankings || [];
-    if (category) {
-        rankings = rankings.filter(item => (item.category || '') === category);
+    if (normalizedCategory) {
+        rankings = rankings.filter(item => {
+            const itemCategory = item.category || '';
+            return itemCategory === normalizedCategory || itemCategory === category;
+        });
     }
     const tags = rankings.map((item, index) => ({
         name: item.tag_name || item.name || '',
