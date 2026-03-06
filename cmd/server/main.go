@@ -166,7 +166,10 @@ func initDatabase() (*gorm.DB, error) {
 		&model.LLMChatLog{},
 		&model.Setting{},
 		&model.Task{},
-		&model.LLMProvider{}, // 新增这一行
+		&model.LLMProvider{},
+		&model.ReplyTemplate{},
+		&model.ReplyExample{},
+		&model.ReplyDraft{},
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate failed: %w", err)
 	}
@@ -424,78 +427,88 @@ func buildHTMLRenderer(root string) (render.HTMLRender, error) {
 }
 
 type Repositories struct {
-	Comment      *repository.CommentRepository
-	Message      *repository.MessageRepository
-	Interaction  *repository.InteractionRepository
-	TagRanking   *repository.TagRankingRepository
-	LLMChatLog   *repository.LLMChatLogRepository
-	Setting      *repository.SettingRepository
-	LLMProvider  *repository.LLMProviderRepository // 新增这一行
-	AdminUser    *repository.AdminUserRepository
-	AdminSession *repository.AdminSessionRepository
-	FanAutoReply *repository.FanAutoReplyRecordRepository
+	Comment       *repository.CommentRepository
+	Message       *repository.MessageRepository
+	Interaction   *repository.InteractionRepository
+	TagRanking    *repository.TagRankingRepository
+	LLMChatLog    *repository.LLMChatLogRepository
+	Setting       *repository.SettingRepository
+	LLMProvider   *repository.LLMProviderRepository
+	AdminUser     *repository.AdminUserRepository
+	AdminSession  *repository.AdminSessionRepository
+	FanAutoReply  *repository.FanAutoReplyRecordRepository
+	ReplyTemplate *repository.ReplyTemplateRepository
+	ReplyExample  *repository.ReplyExampleRepository
+	ReplyDraft    *repository.ReplyDraftRepository
 }
 
 func initRepositories(db *gorm.DB) *Repositories {
 	return &Repositories{
-		Comment:      repository.NewCommentRepository(db),
-		Message:      repository.NewMessageRepository(db),
-		Interaction:  repository.NewInteractionRepository(db),
-		TagRanking:   repository.NewTagRankingRepository(db),
-		LLMChatLog:   repository.NewLLMChatLogRepository(db),
-		Setting:      repository.NewSettingRepository(db),
-		LLMProvider:  repository.NewLLMProviderRepository(db), // 新增这一行
-		AdminUser:    repository.NewAdminUserRepository(db),
-		AdminSession: repository.NewAdminSessionRepository(db),
-		FanAutoReply: repository.NewFanAutoReplyRecordRepository(db),
+		Comment:       repository.NewCommentRepository(db),
+		Message:       repository.NewMessageRepository(db),
+		Interaction:   repository.NewInteractionRepository(db),
+		TagRanking:    repository.NewTagRankingRepository(db),
+		LLMChatLog:    repository.NewLLMChatLogRepository(db),
+		Setting:       repository.NewSettingRepository(db),
+		LLMProvider:   repository.NewLLMProviderRepository(db),
+		AdminUser:     repository.NewAdminUserRepository(db),
+		AdminSession:  repository.NewAdminSessionRepository(db),
+		FanAutoReply:  repository.NewFanAutoReplyRecordRepository(db),
+		ReplyTemplate: repository.NewReplyTemplateRepository(db),
+		ReplyExample:  repository.NewReplyExampleRepository(db),
+		ReplyDraft:    repository.NewReplyDraftRepository(db),
 	}
 }
 
 type Services struct {
-	Comment     *service.CommentService
-	Message     *service.MessageService
-	Interaction *service.InteractionService
-	Trend       *service.TrendService
-	LLM         *service.LLMService
-	Settings    *service.AppSettingsService
-	Auth        *service.AuthService
+	Comment        *service.CommentService
+	Message        *service.MessageService
+	Interaction    *service.InteractionService
+	Trend          *service.TrendService
+	LLM            *service.LLMService
+	ReplyWorkspace *service.ReplyWorkspaceService
+	Settings       *service.AppSettingsService
+	Auth           *service.AuthService
 }
 
 func initServices(runtime *appruntime.Store, settings *service.AppSettingsService, repos *Repositories) *Services {
 	return &Services{
-		Comment:     service.NewCommentService(runtime, repos.Comment, repos.LLMChatLog),
-		Message:     service.NewMessageService(runtime, repos.Message, repos.LLMChatLog, repos.FanAutoReply),
-		Interaction: service.NewInteractionService(runtime, repos.Interaction),
-		Trend:       service.NewTrendService(runtime, repos.TagRanking),
-		LLM:         service.NewLLMService(runtime, repos.LLMChatLog),
-		Settings:    settings,
-		Auth:        service.NewAuthService(repos.AdminUser, repos.AdminSession),
+		Comment:        service.NewCommentService(runtime, repos.Comment, repos.LLMChatLog),
+		Message:        service.NewMessageService(runtime, repos.Message, repos.LLMChatLog, repos.FanAutoReply),
+		Interaction:    service.NewInteractionService(runtime, repos.Interaction),
+		Trend:          service.NewTrendService(runtime, repos.TagRanking),
+		LLM:            service.NewLLMService(runtime, repos.LLMChatLog),
+		ReplyWorkspace: service.NewReplyWorkspaceService(runtime, repos.Comment, repos.Message, repos.ReplyTemplate, repos.ReplyExample, repos.ReplyDraft, repos.LLMChatLog),
+		Settings:       settings,
+		Auth:           service.NewAuthService(repos.AdminUser, repos.AdminSession),
 	}
 }
 
 type Handlers struct {
-	Page          *handler.PageHandler
-	Comment       *handler.CommentHandler
-	Message       *handler.MessageHandler
-	Interaction   *handler.InteractionHandler
-	Trend         *handler.TrendHandler
-	LLM           *handler.LLMHandler
-	Settings      *handler.SettingsHandler
-	Observability *handler.ObservabilityHandler
-	Auth          *handler.AuthHandler
+	Page           *handler.PageHandler
+	Comment        *handler.CommentHandler
+	Message        *handler.MessageHandler
+	Interaction    *handler.InteractionHandler
+	Trend          *handler.TrendHandler
+	LLM            *handler.LLMHandler
+	ReplyWorkspace *handler.ReplyWorkspaceHandler
+	Settings       *handler.SettingsHandler
+	Observability  *handler.ObservabilityHandler
+	Auth           *handler.AuthHandler
 }
 
 func initHandlers(services *Services, settingRepo *repository.SettingRepository, settings *service.AppSettingsService, runtime *appruntime.Store) *Handlers {
 	return &Handlers{
-		Page:          handler.NewPageHandler(),
-		Comment:       handler.NewCommentHandler(services.Comment),
-		Message:       handler.NewMessageHandler(services.Message),
-		Interaction:   handler.NewInteractionHandler(services.Interaction, settings),
-		Trend:         handler.NewTrendHandler(services.Trend),
-		LLM:           handler.NewLLMHandler(services.LLM),
-		Settings:      handler.NewSettingsHandler(settings, runtime),
-		Observability: handler.NewObservabilityHandler(settingRepo),
-		Auth:          handler.NewAuthHandler(services.Auth),
+		Page:           handler.NewPageHandler(),
+		Comment:        handler.NewCommentHandler(services.Comment),
+		Message:        handler.NewMessageHandler(services.Message),
+		Interaction:    handler.NewInteractionHandler(services.Interaction, settings),
+		Trend:          handler.NewTrendHandler(services.Trend),
+		LLM:            handler.NewLLMHandler(services.LLM),
+		ReplyWorkspace: handler.NewReplyWorkspaceHandler(services.ReplyWorkspace),
+		Settings:       handler.NewSettingsHandler(settings, runtime),
+		Observability:  handler.NewObservabilityHandler(settingRepo),
+		Auth:           handler.NewAuthHandler(services.Auth),
 	}
 }
 
@@ -565,6 +578,14 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 				api.POST("/messages/:id/ai-reply", h.Message.AIReply)
 				api.POST("/messages/:id/reply", h.Message.ManualReply)
 				api.POST("/messages/:id/ignore", h.Message.Ignore)
+
+				api.GET("/reply-workspace", h.ReplyWorkspace.Workspace)
+				api.POST("/reply-workspace/draft/generate", h.ReplyWorkspace.GenerateDraft)
+				api.POST("/reply-workspace/draft/save", h.ReplyWorkspace.SaveDraft)
+				api.POST("/reply-workspace/draft/send", h.ReplyWorkspace.SendDraft)
+				api.GET("/reply-workspace/templates", h.ReplyWorkspace.ListTemplates)
+				api.POST("/reply-workspace/templates", h.ReplyWorkspace.CreateTemplate)
+				api.DELETE("/reply-workspace/templates/:id", h.ReplyWorkspace.DeleteTemplate)
 
 				api.GET("/interactions", h.Interaction.List)
 				api.GET("/interactions/stats", h.Interaction.Stats)

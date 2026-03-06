@@ -198,3 +198,48 @@ type FanAutoReplyRecord struct {
 }
 
 func (FanAutoReplyRecord) TableName() string { return "fan_auto_reply_records" }
+
+type ReplyTemplate struct {
+	BaseModel
+	Channel    string     `gorm:"column:channel;size:20;index;not null" json:"channel"`
+	Title      string     `gorm:"column:title;size:120;not null" json:"title"`
+	Content    string     `gorm:"column:content;type:text;not null" json:"content"`
+	Scene      string     `gorm:"column:scene;size:120" json:"scene"`
+	UsageCount int        `gorm:"column:usage_count;default:0" json:"usage_count"`
+	LastUsedAt *time.Time `gorm:"column:last_used_at" json:"last_used_at"`
+}
+
+func (ReplyTemplate) TableName() string { return "reply_templates" }
+
+type ReplyExample struct {
+	BaseModel
+	Channel      string     `gorm:"column:channel;size:20;index;not null" json:"channel"`
+	Title        string     `gorm:"column:title;size:120;not null" json:"title"`
+	UserInput    string     `gorm:"column:user_input;type:text;not null" json:"user_input"`
+	ReplyContent string     `gorm:"column:reply_content;type:text;not null" json:"reply_content"`
+	Notes        string     `gorm:"column:notes;type:text" json:"notes"`
+	SourceType   string     `gorm:"column:source_type;size:20" json:"source_type"`
+	SourceID     int64      `gorm:"column:source_id;index" json:"source_id"`
+	QualityScore int        `gorm:"column:quality_score;default:80" json:"quality_score"`
+	UsageCount   int        `gorm:"column:usage_count;default:0" json:"usage_count"`
+	LastUsedAt   *time.Time `gorm:"column:last_used_at" json:"last_used_at"`
+}
+
+func (ReplyExample) TableName() string { return "reply_examples" }
+
+type ReplyDraft struct {
+	BaseModel
+	Channel          string     `gorm:"column:channel;size:20;uniqueIndex:idx_reply_target;priority:1;not null" json:"channel"`
+	TargetID         int64      `gorm:"column:target_id;uniqueIndex:idx_reply_target;priority:2;not null" json:"target_id"`
+	Content          string     `gorm:"column:content;type:text" json:"content"`
+	Status           string     `gorm:"column:status;size:20;default:draft" json:"status"`
+	SourceType       string     `gorm:"column:source_type;size:20" json:"source_type"`
+	TemplateSnapshot string     `gorm:"column:template_snapshot;type:text" json:"template_snapshot"`
+	ExtraInstruction string     `gorm:"column:extra_instruction;type:text" json:"extra_instruction"`
+	ModelProvider    string     `gorm:"column:model_provider;size:100" json:"model_provider"`
+	ModelName        string     `gorm:"column:model_name;size:120" json:"model_name"`
+	GeneratedAt      *time.Time `gorm:"column:generated_at" json:"generated_at"`
+	SentAt           *time.Time `gorm:"column:sent_at" json:"sent_at"`
+}
+
+func (ReplyDraft) TableName() string { return "reply_drafts" }

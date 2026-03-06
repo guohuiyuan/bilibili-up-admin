@@ -612,6 +612,122 @@ func (r *FanAutoReplyRecordRepository) Update(ctx context.Context, record *model
 	return r.db.WithContext(ctx).Save(record).Error
 }
 
+type ReplyTemplateRepository struct {
+	db *gorm.DB
+}
+
+func NewReplyTemplateRepository(db *gorm.DB) *ReplyTemplateRepository {
+	return &ReplyTemplateRepository{db: db}
+}
+
+func (r *ReplyTemplateRepository) List(ctx context.Context, channel string, limit int) ([]model.ReplyTemplate, error) {
+	var items []model.ReplyTemplate
+	query := r.db.WithContext(ctx).Model(&model.ReplyTemplate{})
+	if channel != "" {
+		query = query.Where("channel = ?", channel)
+	}
+	query = query.Order("usage_count DESC").Order("updated_at DESC")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	return items, query.Find(&items).Error
+}
+
+func (r *ReplyTemplateRepository) GetByID(ctx context.Context, id uint) (*model.ReplyTemplate, error) {
+	var item model.ReplyTemplate
+	err := r.db.WithContext(ctx).First(&item, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *ReplyTemplateRepository) Create(ctx context.Context, item *model.ReplyTemplate) error {
+	return r.db.WithContext(ctx).Create(item).Error
+}
+
+func (r *ReplyTemplateRepository) Delete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&model.ReplyTemplate{}, id).Error
+}
+
+func (r *ReplyTemplateRepository) TouchUsage(ctx context.Context, id uint) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Model(&model.ReplyTemplate{}).Where("id = ?", id).Updates(map[string]any{
+		"usage_count":  gorm.Expr("usage_count + 1"),
+		"last_used_at": &now,
+	}).Error
+}
+
+type ReplyExampleRepository struct {
+	db *gorm.DB
+}
+
+func NewReplyExampleRepository(db *gorm.DB) *ReplyExampleRepository {
+	return &ReplyExampleRepository{db: db}
+}
+
+func (r *ReplyExampleRepository) List(ctx context.Context, channel string, limit int) ([]model.ReplyExample, error) {
+	var items []model.ReplyExample
+	query := r.db.WithContext(ctx).Model(&model.ReplyExample{})
+	if channel != "" {
+		query = query.Where("channel = ?", channel)
+	}
+	query = query.Order("quality_score DESC").Order("updated_at DESC")
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	return items, query.Find(&items).Error
+}
+
+func (r *ReplyExampleRepository) Create(ctx context.Context, item *model.ReplyExample) error {
+	return r.db.WithContext(ctx).Create(item).Error
+}
+
+func (r *ReplyExampleRepository) TouchUsage(ctx context.Context, id uint) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Model(&model.ReplyExample{}).Where("id = ?", id).Updates(map[string]any{
+		"usage_count":  gorm.Expr("usage_count + 1"),
+		"last_used_at": &now,
+	}).Error
+}
+
+type ReplyDraftRepository struct {
+	db *gorm.DB
+}
+
+func NewReplyDraftRepository(db *gorm.DB) *ReplyDraftRepository {
+	return &ReplyDraftRepository{db: db}
+}
+
+func (r *ReplyDraftRepository) GetByTarget(ctx context.Context, channel string, targetID int64) (*model.ReplyDraft, error) {
+	var item model.ReplyDraft
+	err := r.db.WithContext(ctx).Where("channel = ? AND target_id = ?", channel, targetID).First(&item).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *ReplyDraftRepository) Save(ctx context.Context, draft *model.ReplyDraft) error {
+	var existing model.ReplyDraft
+	err := r.db.WithContext(ctx).Where("channel = ? AND target_id = ?", draft.Channel, draft.TargetID).First(&existing).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return r.db.WithContext(ctx).Create(draft).Error
+	}
+	if err != nil {
+		return err
+	}
+	draft.ID = existing.ID
+	draft.CreatedAt = existing.CreatedAt
+	return r.db.WithContext(ctx).Save(draft).Error
+}
+
 func (r *LLMProviderRepository) List(ctx context.Context) ([]model.LLMProvider, error) {
 	var list []model.LLMProvider
 	err := r.db.WithContext(ctx).Find(&list).Error
