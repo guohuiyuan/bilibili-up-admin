@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"bilibili-up-admin/internal/model"
@@ -24,37 +23,6 @@ const (
 type TrendService struct {
 	runtime *appruntime.Store
 	repo    *repository.TagRankingRepository
-
-	cacheMu    sync.RWMutex
-	latestTags []model.TagRanking
-}
-
-var trendCategoryAliasToStoredCategory = map[string]string{
-	"All":            "",
-	"Bangumi":        "番剧",
-	"GuochuangAnime": "国创",
-	"Guochuang":      "国创",
-	"Documentary":    "影视",
-	"Douga":          "动画",
-	"Music":          "音乐",
-	"Dance":          "舞蹈",
-	"Game":           "游戏",
-	"Knowledge":      "知识",
-	"Technology":     "科技",
-	"Sports":         "运动",
-	"Car":            "汽车",
-	"Life":           "生活",
-	"Food":           "美食",
-	"Animal":         "动物圈",
-	"Kichiku":        "鬼畜",
-	"Fashion":        "时尚",
-	"Ent":            "娱乐",
-	"Cinephile":      "影视",
-	"Movie":          "影视",
-	"TV":             "影视",
-	"Variety":        "影视",
-	"Original":       "",
-	"Rookie":         "",
 }
 
 // NewTrendService 创建热度服务
@@ -84,84 +52,53 @@ type TagRankingResult struct {
 
 // GetTrendingTags 获取热门标签
 func (s *TrendService) GetTrendingTags(ctx context.Context, category string, limit int) ([]bilibili.TrendingTag, error) {
-	category = normalizeTrendCategory(category)
 	client, err := s.biliClient()
 	if err != nil {
 		return nil, err
 	}
-	return client.GetTrendingTagsByCategory(ctx, category, limit)
+	tags, err := client.GetTrendingTagsByCategory(ctx, category, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.enrichTrendingTagsWithStoredInfo(ctx, tags), nil
 }
 
 // GetTrendingTagsSmart 优先读取缓存，不存在或过期时回源并刷新
 func (s *TrendService) GetTrendingTagsSmart(ctx context.Context, category string, limit int, ttl time.Duration) ([]bilibili.TrendingTag, error) {
-	category = normalizeTrendCategory(category)
-	rankings, _, err := s.EnsureLatestTags(ctx, category, limit, ttl)
-	if err != nil {
-		return nil, err
-	}
-	return toTrendingTags(rankings), nil
+	_ = ttl
+	return s.GetTrendingTags(ctx, category, limit)
 }
 
-// GetTrendingTagsFromDB 优先读取缓存和数据库，必要时自动刷新
+// GetTrendingTagsFromDB 仅返回数据库中最近一次同步的标签信息
 func (s *TrendService) GetTrendingTagsFromDB(ctx context.Context, category string, limit int) ([]bilibili.TrendingTag, error) {
-	category = normalizeTrendCategory(category)
-	rankings := s.getLatestTagsFromMemory(category, limit)
-	if len(rankings) > 0 {
-		return toTrendingTags(rankings), nil
-	}
-
 	rankings, err := s.repo.GetLatestByCategory(ctx, category, limit)
-	if err == nil && len(rankings) > 0 {
-		return toTrendingTags(rankings), nil
-	}
-
-	rankings, _, err = s.EnsureLatestTags(ctx, category, limit, DefaultTrendCacheTTL)
 	if err != nil {
 		return nil, err
 	}
 	return toTrendingTags(rankings), nil
 }
 
-func normalizeTrendCategory(category string) string {
-	if normalized, ok := trendCategoryAliasToStoredCategory[category]; ok {
-		return normalized
+func (s *TrendService) enrichTrendingTagsWithStoredInfo(ctx context.Context, tags []bilibili.TrendingTag) []bilibili.TrendingTag {
+	if len(tags) == 0 {
+		return tags
 	}
-	return category
-}
-
-func (s *TrendService) setLatestTagsToMemory(rankings []model.TagRanking) {
-	if len(rankings) == 0 {
-		return
-	}
-	cloned := make([]model.TagRanking, len(rankings))
-	copy(cloned, rankings)
-
-	s.cacheMu.Lock()
-	s.latestTags = cloned
-	s.cacheMu.Unlock()
-}
-
-func (s *TrendService) getLatestTagsFromMemory(category string, limit int) []model.TagRanking {
-	s.cacheMu.RLock()
-	defer s.cacheMu.RUnlock()
-	if len(s.latestTags) == 0 {
-		return nil
-	}
-	capacity := len(s.latestTags)
-	if limit > 0 && limit < capacity {
-		capacity = limit
-	}
-	out := make([]model.TagRanking, 0, capacity)
-	for _, row := range s.latestTags {
-		if category != "" && row.Category != category {
+	enriched := make([]bilibili.TrendingTag, len(tags))
+	copy(enriched, tags)
+	for i := range enriched {
+		row, err := s.repo.GetByTagName(ctx, enriched[i].Name)
+		if err != nil || row == nil {
 			continue
 		}
-		out = append(out, row)
-		if limit > 0 && len(out) >= limit {
-			break
+		if enriched[i].TagID == 0 {
+			enriched[i].TagID = row.TagID
 		}
+		if enriched[i].HotValue == 0 {
+			enriched[i].HotValue = row.HotValue
+		}
+		enriched[i].UseCount = row.UseCount
+		enriched[i].FollowCount = row.FollowCount
 	}
-	return out
+	return enriched
 }
 
 func toTrendingTags(rankings []model.TagRanking) []bilibili.TrendingTag {
@@ -250,8 +187,6 @@ func (s *TrendService) SaveTagRankings(ctx context.Context, tags []bilibili.Tren
 			RecordDate:  now,
 		})
 	}
-
-	s.setLatestTagsToMemory(rankings)
 
 	return s.repo.BatchCreate(ctx, rankings)
 }

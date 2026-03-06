@@ -4,11 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
-	"time"
 )
-
-const tagInfoMinInterval = 1200 * time.Millisecond
 
 type TagRanking struct {
 	TagName    string      `json:"tag_name"`
@@ -75,7 +71,7 @@ func (c *Client) GetTrendingTags(ctx context.Context, limit int) ([]TrendingTag,
 	if err := c.ensureAvailable(); err != nil {
 		return nil, err
 	}
-	zones := trendingZones()
+	zones := trendTagZones()
 	return c.getTrendingTagsFromZones(ctx, zones, limit)
 }
 
@@ -100,107 +96,56 @@ type trendZone struct {
 	category string
 }
 
-type rankTypeAlias struct {
-	Key         string
-	Label       string
-	APIType     string
-	VideoRID    int32
-	PGCSeason   int32
-	VideoType   string
-	TagCategory string
-}
-
-func rankTypeAliases() []rankTypeAlias {
-	return []rankTypeAlias{
-		{Key: "All", Label: "全部", APIType: "x", VideoRID: 0, VideoType: "all", TagCategory: ""},
-		{Key: "Bangumi", Label: "番剧", APIType: "pgc", PGCSeason: 1, VideoType: "all", TagCategory: ""},
-		{Key: "GuochuangAnime", Label: "国产动画", APIType: "pgc", PGCSeason: 4, VideoType: "all", TagCategory: "国创"},
-		{Key: "Guochuang", Label: "国创相关", APIType: "x", VideoRID: 168, VideoType: "all", TagCategory: "国创"},
-		{Key: "Documentary", Label: "纪录片", APIType: "pgc", PGCSeason: 3, VideoType: "all", TagCategory: "影视"},
-		{Key: "Douga", Label: "动画", APIType: "x", VideoRID: 1, VideoType: "all", TagCategory: "动画"},
-		{Key: "Music", Label: "音乐", APIType: "x", VideoRID: 3, VideoType: "all", TagCategory: "音乐"},
-		{Key: "Dance", Label: "舞蹈", APIType: "x", VideoRID: 129, VideoType: "all", TagCategory: "舞蹈"},
-		{Key: "Game", Label: "游戏", APIType: "x", VideoRID: 4, VideoType: "all", TagCategory: "游戏"},
-		{Key: "Knowledge", Label: "知识", APIType: "x", VideoRID: 36, VideoType: "all", TagCategory: "知识"},
-		{Key: "Technology", Label: "科技数码", APIType: "x", VideoRID: 188, VideoType: "all", TagCategory: "科技"},
-		{Key: "Sports", Label: "运动", APIType: "x", VideoRID: 234, VideoType: "all", TagCategory: "运动"},
-		{Key: "Car", Label: "汽车", APIType: "x", VideoRID: 223, VideoType: "all", TagCategory: "汽车"},
-		{Key: "Life", Label: "生活", APIType: "x", VideoRID: 160, VideoType: "all", TagCategory: "生活"},
-		{Key: "Food", Label: "美食", APIType: "x", VideoRID: 211, VideoType: "all", TagCategory: "美食"},
-		{Key: "Animal", Label: "动物圈", APIType: "x", VideoRID: 217, VideoType: "all", TagCategory: "动物圈"},
-		{Key: "Kichiku", Label: "鬼畜", APIType: "x", VideoRID: 119, VideoType: "all", TagCategory: "鬼畜"},
-		{Key: "Fashion", Label: "时尚美妆", APIType: "x", VideoRID: 155, VideoType: "all", TagCategory: "时尚"},
-		{Key: "Ent", Label: "娱乐", APIType: "x", VideoRID: 5, VideoType: "all", TagCategory: "娱乐"},
-		{Key: "Cinephile", Label: "影视", APIType: "x", VideoRID: 181, VideoType: "all", TagCategory: "影视"},
-		{Key: "Movie", Label: "电影", APIType: "pgc", PGCSeason: 2, VideoType: "all", TagCategory: ""},
-		{Key: "TV", Label: "电视剧", APIType: "pgc", PGCSeason: 5, VideoType: "all", TagCategory: ""},
-		{Key: "Variety", Label: "综艺", APIType: "pgc", PGCSeason: 7, VideoType: "all", TagCategory: ""},
-		{Key: "Original", Label: "原创", APIType: "x", VideoRID: 0, VideoType: "origin", TagCategory: ""},
-		{Key: "Rookie", Label: "新人", APIType: "x", VideoRID: 0, VideoType: "rookie", TagCategory: ""},
-	}
-}
-
-func resolveRankTypeAlias(input string) (rankTypeAlias, bool) {
-	for _, alias := range rankTypeAliases() {
-		if strings.EqualFold(alias.Key, input) || alias.Label == input {
-			return alias, true
-		}
-	}
-	return rankTypeAlias{}, false
-}
-
-func trendingZones() []trendZone {
+func trendTagZones() []trendZone {
 	return []trendZone{
-		{rid: 1, category: "动画"},
 		{rid: 13, category: "番剧"},
 		{rid: 167, category: "国创"},
-		{rid: 3, category: "音乐"},
-		{rid: 4, category: "游戏"},
-		{rid: 5, category: "娱乐"},
-		{rid: 36, category: "知识"},
-		{rid: 119, category: "鬼畜"},
-		{rid: 129, category: "舞蹈"},
-		{rid: 155, category: "时尚"},
-		{rid: 160, category: "生活"},
-		{rid: 181, category: "影视"},
-		{rid: 188, category: "科技"},
-		{rid: 211, category: "美食"},
-		{rid: 217, category: "动物圈"},
-		{rid: 223, category: "汽车"},
-		{rid: 234, category: "运动"},
+		{rid: 177, category: "纪录片"},
+		{rid: 23, category: "电影"},
+		{rid: 11, category: "电视剧"},
+		{rid: 71, category: "综艺"},
+		{rid: 1001, category: "影视"},
+		{rid: 1002, category: "娱乐"},
+		{rid: 1003, category: "音乐"},
+		{rid: 1004, category: "舞蹈"},
+		{rid: 1005, category: "动画"},
+		{rid: 1006, category: "绘画"},
+		{rid: 1007, category: "鬼畜"},
+		{rid: 1008, category: "游戏"},
+		{rid: 1009, category: "资讯"},
+		{rid: 1010, category: "知识"},
+		{rid: 1011, category: "人工智能"},
+		{rid: 1012, category: "科技数码"},
+		{rid: 1013, category: "汽车"},
+		{rid: 1014, category: "时尚美妆"},
+		{rid: 1015, category: "家装房产"},
+		{rid: 1016, category: "户外潮流"},
+		{rid: 1017, category: "健身"},
+		{rid: 1018, category: "体育运动"},
+		{rid: 1019, category: "手工"},
+		{rid: 1020, category: "美食"},
+		{rid: 1021, category: "小剧场"},
+		{rid: 1022, category: "旅游出行"},
+		{rid: 1023, category: "三农"},
+		{rid: 1024, category: "动物"},
+		{rid: 1025, category: "亲子"},
+		{rid: 1026, category: "健康"},
+		{rid: 1027, category: "情感"},
+		{rid: 1029, category: "vlog"},
+		{rid: 1030, category: "生活兴趣"},
+		{rid: 1031, category: "生活经验"},
 	}
 }
 
 func resolveTrendZone(category string) (trendZone, bool) {
-	for _, zone := range trendingZones() {
-		if zone.category == category {
-			return zone, true
-		}
-	}
-
-	if alias, ok := resolveRankTypeAlias(category); ok {
-		resolvedCategory := alias.TagCategory
-		if resolvedCategory == "" {
-			resolvedCategory = alias.Label
-		}
-
-		for _, zone := range trendingZones() {
-			if zone.category == resolvedCategory {
-				return zone, true
-			}
-		}
-
+	rid, err := strconv.Atoi(category)
+	if err != nil {
 		return trendZone{}, false
 	}
-
-	rid, err := strconv.Atoi(category)
-	if err == nil {
-		for _, zone := range trendingZones() {
-			if zone.rid == int32(rid) {
-				return zone, true
-			}
+	for _, zone := range trendTagZones() {
+		if zone.rid == int32(rid) {
+			return zone, true
 		}
-		return trendZone{rid: int32(rid), category: fmt.Sprintf("分区%d", rid)}, true
 	}
 
 	return trendZone{}, false
@@ -208,7 +153,11 @@ func resolveTrendZone(category string) (trendZone, bool) {
 
 func (c *Client) getTrendingTagsFromZones(ctx context.Context, zones []trendZone, limit int) ([]TrendingTag, error) {
 	if limit <= 0 {
-		limit = 50
+		if len(zones) <= 1 {
+			limit = 30
+		} else {
+			limit = len(zones) * 3
+		}
 	}
 	if len(zones) == 0 {
 		return nil, fmt.Errorf("get trending tags failed: empty zones")
@@ -354,50 +303,7 @@ func (c *Client) getTrendingTagsFromZones(ctx context.Context, zones []trendZone
 		result = result[:limit]
 	}
 
-	return c.enrichTrendingTagsWithInfo(ctx, result, 5), nil
-}
-
-func (c *Client) enrichTrendingTagsWithInfo(ctx context.Context, tags []TrendingTag, maxConcurrency int) []TrendingTag {
-	if len(tags) == 0 {
-		return tags
-	}
-
-	enriched := make([]TrendingTag, len(tags))
-	copy(enriched, tags)
-	for i := range enriched {
-		if ctx != nil {
-			select {
-			case <-ctx.Done():
-				return enriched
-			default:
-			}
-		}
-
-		if i > 0 {
-			if ctx == nil {
-				time.Sleep(tagInfoMinInterval)
-			} else {
-				timer := time.NewTimer(tagInfoMinInterval)
-				select {
-				case <-ctx.Done():
-					timer.Stop()
-					return enriched
-				case <-timer.C:
-				}
-			}
-		}
-
-		info, err := c.inner.GetTagInfo(enriched[i].Name)
-		if err != nil || info == nil {
-			continue
-		}
-
-		enriched[i].TagID = info.TagID
-		enriched[i].HotValue = info.Hot
-		enriched[i].UseCount = info.Count.Use
-		enriched[i].FollowCount = info.Count.Atten
-	}
-	return enriched
+	return result, nil
 }
 
 func (c *Client) GetTagRanking(ctx context.Context, tagName string, page, pageSize int) (*TagRanking, error) {
@@ -495,69 +401,42 @@ func (c *Client) GetCategoryRanking(ctx context.Context, categoryName string, li
 	if err := c.ensureAvailable(); err != nil {
 		return nil, err
 	}
-	rankType := "all"
-	tid := 0
-	if alias, ok := resolveRankTypeAlias(categoryName); ok {
-		if strings.EqualFold(alias.APIType, "pgc") && alias.PGCSeason > 0 {
-			list, err := c.inner.GetPGCRanking(alias.PGCSeason, 3)
-			if err != nil {
-				return nil, fmt.Errorf("get video ranking failed: %w", err)
-			}
-
-			out := &VideoRanking{Videos: make([]VideoInfo, 0, len(list)), Tid: int(alias.PGCSeason)}
-			for _, v := range list {
-				out.Videos = append(out.Videos, VideoInfo{
-					Title:    v.Title,
-					View:     int(v.Stat.View),
-					Danmaku:  int(v.Stat.Danmaku),
-					Favorite: int(v.Stat.Follow),
-					Pic:      v.Cover,
-				})
-			}
-			if limit > 0 && len(out.Videos) > limit {
-				out.Videos = out.Videos[:limit]
-			}
-			return out, nil
+	tid64, err := strconv.ParseInt(categoryName, 10, 32)
+	if categoryName == "" {
+		tid64 = 0
+	} else if err != nil {
+		return nil, fmt.Errorf("unsupported category: %s", categoryName)
+	}
+	tid := int32(tid64)
+	pgcSeasonByTID := map[int32]int32{13: 1, 167: 4, 177: 3, 23: 2, 11: 5, 71: 7}
+	if seasonType, ok := pgcSeasonByTID[tid]; ok {
+		list, err := c.inner.GetPGCRanking(seasonType, 3)
+		if err != nil {
+			return nil, fmt.Errorf("get video ranking failed: %w", err)
 		}
 
-		tid = int(alias.VideoRID)
-		rankType = alias.VideoType
-	} else {
-		categoryTIDs := map[string]int{
-			"番剧":  13,
-			"国创":  167,
-			"游戏":  4,
-			"生活":  160,
-			"娱乐":  5,
-			"音乐":  3,
-			"舞蹈":  129,
-			"动画":  1,
-			"科技":  188,
-			"数码":  95,
-			"汽车":  223,
-			"时尚":  155,
-			"美食":  211,
-			"鬼畜":  119,
-			"动物圈": 217,
-			"运动":  234,
-			"影视":  181,
-			"知识":  36,
-			"纪录片": 177,
-			"电影":  23,
-			"电视剧": 11,
-			"综艺":  204,
+		out := &VideoRanking{Videos: make([]VideoInfo, 0, len(list)), Tid: int(tid)}
+		for _, v := range list {
+			out.Videos = append(out.Videos, VideoInfo{
+				Title:    v.Title,
+				View:     int(v.Stat.View),
+				Danmaku:  int(v.Stat.Danmaku),
+				Favorite: int(v.Stat.Follow),
+				Pic:      v.Cover,
+			})
 		}
-		if v, ok := categoryTIDs[categoryName]; ok {
-			tid = v
+		if limit > 0 && len(out.Videos) > limit {
+			out.Videos = out.Videos[:limit]
 		}
+		return out, nil
 	}
 
-	rank, err := c.inner.GetRankingWithType(int32(tid), rankType)
+	rank, err := c.inner.GetRankingWithType(tid, "all")
 	if err != nil {
 		return nil, fmt.Errorf("get video ranking failed: %w", err)
 	}
 
-	out := &VideoRanking{Videos: make([]VideoInfo, 0, len(rank)), Tid: tid}
+	out := &VideoRanking{Videos: make([]VideoInfo, 0, len(rank)), Tid: int(tid)}
 	for _, v := range rank {
 		out.Videos = append(out.Videos, VideoInfo{
 			BVID:     v.BVID,
