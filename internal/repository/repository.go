@@ -374,6 +374,37 @@ func (r *LLMChatLogRepository) ListByConversationOldestFirst(ctx context.Context
 	return logs, query.Find(&logs).Error
 }
 
+func (r *LLMChatLogRepository) List(ctx context.Context, inputType, conversationKey, logType string, page, pageSize int) ([]model.LLMChatLog, int64, error) {
+	var logs []model.LLMChatLog
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&model.LLMChatLog{})
+	if inputType != "" {
+		query = query.Where("input_type = ?", inputType)
+	}
+	if conversationKey != "" {
+		query = query.Where("conversation_key LIKE ?", "%"+conversationKey+"%")
+	}
+	if logType != "" {
+		query = query.Where("log_type = ?", logType)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	offset := (page - 1) * pageSize
+	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&logs).Error; err != nil {
+		return nil, 0, err
+	}
+	return logs, total, nil
+}
+
 // GetStats 获取统计数据
 func (r *LLMChatLogRepository) GetStats(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
 	stats := make(map[string]interface{})

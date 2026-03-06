@@ -1,0 +1,162 @@
+{{ define "content" }}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900">大模型对话日志</h2>
+            <p class="mt-1 text-sm text-gray-500">集中查看评论、私信和摘要压缩的调用记录。</p>
+        </div>
+        <button onclick="loadLogs()" class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:border-pink-300 hover:text-pink-500 transition">刷新</button>
+    </div>
+
+    <div class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div>
+                <label class="mb-2 block text-sm text-gray-500">渠道</label>
+                <select id="filter-input-type" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                    <option value="">全部</option>
+                    <option value="comment">评论</option>
+                    <option value="message">私信</option>
+                </select>
+            </div>
+            <div>
+                <label class="mb-2 block text-sm text-gray-500">类型</label>
+                <select id="filter-log-type" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                    <option value="">全部</option>
+                    <option value="draft">草稿生成</option>
+                    <option value="summary">摘要压缩</option>
+                </select>
+            </div>
+            <div>
+                <label class="mb-2 block text-sm text-gray-500">会话键</label>
+                <input id="filter-conversation-key" type="text" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm" placeholder="message:123 / comment:BV...">
+            </div>
+            <div class="flex items-end">
+                <button onclick="applyFilters()" class="w-full rounded-xl bg-gray-900 px-4 py-2 text-sm text-white hover:bg-black transition">查询</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="log-summary" class="text-sm text-gray-500"></div>
+    <div id="log-list" class="space-y-4"></div>
+    <div id="pagination" class="flex gap-2"></div>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script>
+let currentPage = 1;
+const pageSize = 20;
+
+function formatDateTime(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString('zh-CN');
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function prettyJSON(value) {
+    try {
+        return JSON.stringify(JSON.parse(value), null, 2);
+    } catch (_) {
+        return value || '';
+    }
+}
+
+function applyFilters() {
+    currentPage = 1;
+    loadLogs();
+}
+
+async function loadLogs() {
+    const query = new URLSearchParams({
+        page: String(currentPage),
+        page_size: String(pageSize)
+    });
+    const inputType = document.getElementById('filter-input-type').value;
+    const logType = document.getElementById('filter-log-type').value;
+    const conversationKey = document.getElementById('filter-conversation-key').value.trim();
+    if (inputType) query.set('input_type', inputType);
+    if (logType) query.set('log_type', logType);
+    if (conversationKey) query.set('conversation_key', conversationKey);
+
+    const data = await api(`/admin/api/llm/logs?${query.toString()}`);
+    renderLogs(data.logs || [], data.total || 0);
+    renderPagination(data.total || 0);
+}
+
+function renderLogs(logs, total) {
+    document.getElementById('log-summary').textContent = `共 ${total} 条日志`;
+    const container = document.getElementById('log-list');
+    if (!logs.length) {
+        container.innerHTML = `<div class="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center text-gray-400">暂无日志</div>`;
+        return;
+    }
+
+    container.innerHTML = logs.map(item => `
+        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">${escapeHtml(item.log_type || 'draft')}</span>
+                <span class="rounded-full bg-pink-50 px-2.5 py-1 text-pink-600">${escapeHtml(item.input_type || '-')}</span>
+                <span class="text-gray-500">${escapeHtml(item.provider || '-')} / ${escapeHtml(item.model || '-')}</span>
+                <span class="text-gray-400">${escapeHtml(formatDateTime(item.created_at))}</span>
+            </div>
+            <div class="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-2">
+                <div>会话: ${escapeHtml(item.conversation_key || '-')}</div>
+                <div>Token: ${item.prompt_tokens || 0} / ${item.output_tokens || 0} / ${item.total_tokens || 0}</div>
+                <div>耗时: ${item.duration || 0} ms</div>
+                <div>标题: ${escapeHtml(item.conversation_title || '-')}</div>
+            </div>
+            <details class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <summary class="cursor-pointer text-sm font-medium text-gray-700">查看详情</summary>
+                <div class="mt-4 space-y-4">
+                    <div>
+                        <div class="mb-1 text-xs font-semibold text-gray-500">System Prompt</div>
+                        <pre class="whitespace-pre-wrap break-words rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-700">${escapeHtml(item.system_prompt || '')}</pre>
+                    </div>
+                    <div>
+                        <div class="mb-1 text-xs font-semibold text-gray-500">Request Messages</div>
+                        <pre class="whitespace-pre-wrap break-words rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-700">${escapeHtml(prettyJSON(item.request_messages || ''))}</pre>
+                    </div>
+                    <div>
+                        <div class="mb-1 text-xs font-semibold text-gray-500">Output</div>
+                        <pre class="whitespace-pre-wrap break-words rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-700">${escapeHtml(item.output_content || '')}</pre>
+                    </div>
+                </div>
+            </details>
+        </div>
+    `).join('');
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const container = document.getElementById('pagination');
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    let html = '';
+    for (let i = 1; i <= totalPages && i <= 8; i++) {
+        html += `<button onclick="goToPage(${i})" class="h-9 min-w-[36px] rounded-full px-3 text-sm ${i === currentPage ? 'bg-pink-500 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:border-pink-300 hover:text-pink-500'}">${i}</button>`;
+    }
+    container.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadLogs();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadLogs().catch(err => showToast(err.message, 'error'));
+});
+</script>
+{{ end }}

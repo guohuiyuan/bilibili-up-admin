@@ -40,6 +40,10 @@ func (h *PageHandler) Trends(c *gin.Context) {
 	c.HTML(http.StatusOK, "trend/ranking.html", gin.H{"title": "热度分析"})
 }
 
+func (h *PageHandler) LLMLogs(c *gin.Context) {
+	c.HTML(http.StatusOK, "llm/logs.html", gin.H{"title": "大模型对话日志"})
+}
+
 func (h *PageHandler) Settings(c *gin.Context) {
 	c.HTML(http.StatusOK, "settings/app.html", gin.H{"title": "系统设置"})
 }

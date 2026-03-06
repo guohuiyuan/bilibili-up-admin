@@ -552,6 +552,7 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 			authz.GET("/messages", h.Page.Messages)
 			authz.GET("/interaction", h.Page.Interaction)
 			authz.GET("/trends", h.Page.Trends)
+			authz.GET("/llm-logs", h.Page.LLMLogs)
 			authz.GET("/settings", h.Page.Settings)
 			authz.GET("/settings/bilibili", h.Page.Bilibili)
 			authz.GET("/account/password", h.Page.Password)
@@ -614,6 +615,7 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 				api.POST("/llm/default", h.LLM.SetDefault)
 				api.GET("/llm/test/:provider", h.LLM.Test)
 				api.GET("/llm/stats", h.LLM.Stats)
+				api.GET("/llm/logs", h.LLM.Logs)
 
 				// 新增的 大模型 CRUD 独立路由
 				api.GET("/settings/llm/channels", h.Settings.GetLLMChannels)

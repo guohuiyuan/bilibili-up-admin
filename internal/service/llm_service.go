@@ -15,6 +15,13 @@ type LLMService struct {
 	llmLogRepo *repository.LLMChatLogRepository
 }
 
+type LLMLogListResult struct {
+	Logs     []model.LLMChatLog `json:"logs"`
+	Total    int64              `json:"total"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"page_size"`
+}
+
 func NewLLMService(runtime *appruntime.Store, llmLogRepo *repository.LLMChatLogRepository) *LLMService {
 	return &LLMService{
 		runtime:    runtime,
@@ -81,6 +88,19 @@ func (s *LLMService) GetStats(ctx context.Context, days int) (map[string]interfa
 	end := time.Now()
 	start := end.AddDate(0, 0, -days)
 	return s.llmLogRepo.GetStats(ctx, start, end)
+}
+
+func (s *LLMService) ListLogs(ctx context.Context, inputType, conversationKey, logType string, page, pageSize int) (*LLMLogListResult, error) {
+	logs, total, err := s.llmLogRepo.List(ctx, inputType, conversationKey, logType, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	return &LLMLogListResult{
+		Logs:     logs,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
 }
 
 func (s *LLMService) TestProvider(ctx context.Context, provider string) (bool, string) {

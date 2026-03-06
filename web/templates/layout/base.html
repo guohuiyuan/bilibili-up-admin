@@ -11,9 +11,8 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
-        /* B站粉主题色激活状态 */
         .sidebar-link.active {
-            background-color: rgba(251, 114, 153, 0.1); /* #FB7299 带有透明度 */
+            background-color: rgba(251, 114, 153, 0.1);
             border-left-color: #FB7299;
             color: #FB7299;
         }
@@ -59,6 +58,9 @@
                 </a>
                 <a href="/admin/trends" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "热度分析" }}active{{ end }}">
                     <i class="ri-fire-line"></i><span class="ml-3">热度</span>
+                </a>
+                <a href="/admin/llm-logs" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "大模型对话日志" }}active{{ end }}">
+                    <i class="ri-terminal-window-line"></i><span class="ml-3">AI 日志</span>
                 </a>
                 <a href="/admin/settings" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "系统设置" }}active{{ end }}">
                     <i class="ri-settings-3-line"></i><span class="ml-3">系统设置</span>
