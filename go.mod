@@ -11,6 +11,7 @@ require (
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/spf13/viper v1.18.2
 	go.uber.org/zap v1.26.0
+	golang.org/x/crypto v0.43.0
 	google.golang.org/genai v1.48.0
 	gorm.io/gorm v1.31.1
 )
@@ -71,7 +72,6 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
 	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
