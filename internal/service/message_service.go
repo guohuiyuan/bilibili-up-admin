@@ -321,17 +321,23 @@ func (s *MessageService) AIReply(ctx context.Context, messageID int64) (string, 
 	duration := time.Since(startTime).Milliseconds()
 
 	// 记录日志
+	conversationMeta := llmConversationForMessage(message)
 	log := &model.LLMChatLog{
-		Provider:      provider.Name(),
-		InputType:     "message",
-		InputID:       messageID,
-		InputContent:  message.Content,
-		OutputContent: resp.Content,
-		PromptTokens:  resp.PromptTokens,
-		OutputTokens:  resp.TokensUsed,
-		TotalTokens:   resp.TotalTokens,
-		Success:       true,
-		Duration:      duration,
+		Provider:          provider.Name(),
+		Model:             resp.Model,
+		InputType:         "message",
+		InputID:           messageID,
+		ConversationKey:   conversationMeta.Key,
+		ConversationTitle: conversationMeta.Title,
+		InputContent:      message.Content,
+		SystemPrompt:      systemPrompt,
+		RequestMessages:   marshalLLMMessages(messages),
+		OutputContent:     resp.Content,
+		PromptTokens:      resp.PromptTokens,
+		OutputTokens:      resp.TokensUsed,
+		TotalTokens:       resp.TotalTokens,
+		Success:           true,
+		Duration:          duration,
 	}
 	s.llmLogRepo.Create(ctx, log)
 

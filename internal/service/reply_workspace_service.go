@@ -64,6 +64,7 @@ type ReplyWorkspaceData struct {
 	Draft     *model.ReplyDraft     `json:"draft"`
 	Templates []model.ReplyTemplate `json:"templates"`
 	Examples  []model.ReplyExample  `json:"examples"`
+	Logs      []model.LLMChatLog    `json:"logs"`
 }
 
 type GenerateReplyDraftRequest struct {
@@ -132,12 +133,18 @@ func (s *ReplyWorkspaceService) GetWorkspace(ctx context.Context, channel string
 	if err != nil {
 		return nil, err
 	}
+	conversationMeta := s.conversationMeta(channel, target)
+	logs, err := s.llmLogRepo.ListByConversation(ctx, conversationMeta.Key, 8)
+	if err != nil {
+		return nil, err
+	}
 
 	return &ReplyWorkspaceData{
 		Target:    target,
 		Draft:     draft,
 		Templates: templates,
 		Examples:  examples,
+		Logs:      logs,
 	}, nil
 }
 
@@ -196,18 +203,23 @@ func (s *ReplyWorkspaceService) GenerateDraft(ctx context.Context, req GenerateR
 	}
 
 	if s.llmLogRepo != nil {
+		conversationMeta := s.conversationMeta(req.Channel, target)
 		_ = s.llmLogRepo.Create(ctx, &model.LLMChatLog{
-			Provider:      provider.Name(),
-			Model:         resp.Model,
-			InputType:     req.Channel,
-			InputID:       req.TargetID,
-			InputContent:  target.InputContent,
-			OutputContent: resp.Content,
-			PromptTokens:  resp.PromptTokens,
-			OutputTokens:  resp.TokensUsed,
-			TotalTokens:   resp.TotalTokens,
-			Success:       true,
-			Duration:      duration,
+			Provider:          provider.Name(),
+			Model:             resp.Model,
+			InputType:         req.Channel,
+			InputID:           req.TargetID,
+			ConversationKey:   conversationMeta.Key,
+			ConversationTitle: conversationMeta.Title,
+			InputContent:      target.InputContent,
+			SystemPrompt:      systemPrompt,
+			RequestMessages:   marshalLLMMessages([]llm.Message{{Role: "user", Content: userPrompt}}),
+			OutputContent:     resp.Content,
+			PromptTokens:      resp.PromptTokens,
+			OutputTokens:      resp.TokensUsed,
+			TotalTokens:       resp.TotalTokens,
+			Success:           true,
+			Duration:          duration,
 		})
 	}
 
@@ -459,6 +471,27 @@ func (s *ReplyWorkspaceService) defaultExampleTitle(target *ReplyWorkspaceTarget
 		return fmt.Sprintf("私信示例-%s", target.AuthorName)
 	}
 	return fmt.Sprintf("评论示例-%s", target.AuthorName)
+}
+
+func (s *ReplyWorkspaceService) conversationMeta(channel string, target *ReplyWorkspaceTarget) llmConversationMeta {
+	switch channel {
+	case ReplyChannelComment:
+		return llmConversationMeta{
+			Key:   fmt.Sprintf("comment:%s", target.Title),
+			Title: target.Title,
+		}
+	case ReplyChannelMessage:
+		conversationID := target.ConversationID
+		if conversationID == 0 {
+			conversationID = target.TargetID
+		}
+		return llmConversationMeta{
+			Key:   fmt.Sprintf("message:%d", conversationID),
+			Title: target.Title,
+		}
+	default:
+		return llmConversationMeta{}
+	}
 }
 
 func singleLine(v string) string {

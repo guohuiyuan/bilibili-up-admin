@@ -10,6 +10,7 @@ class ReplyWorkspaceModal {
             draft: null,
             templates: [],
             examples: [],
+            logs: [],
             selectedTemplateContent: ""
         };
     }
@@ -24,6 +25,7 @@ class ReplyWorkspaceModal {
             this.state.draft = data.draft || null;
             this.state.templates = data.templates || [];
             this.state.examples = data.examples || [];
+            this.state.logs = data.logs || [];
             this.render();
             if (opts.autoGenerate && !this.getDraftContent().trim()) {
                 await this.generateDraft();
@@ -43,6 +45,10 @@ class ReplyWorkspaceModal {
         this.text("reply-workspace-source", "");
         this.node("reply-workspace-templates").innerHTML = '<div class="text-sm text-gray-400">Loading templates...</div>';
         this.node("reply-workspace-examples").innerHTML = '<div class="text-sm text-gray-400">Loading examples...</div>';
+        const logs = this.node("reply-workspace-logs");
+        if (logs) {
+            logs.innerHTML = '<div class="text-sm text-gray-400">Loading requests...</div>';
+        }
         this.textarea().value = "";
     }
 
@@ -56,6 +62,7 @@ class ReplyWorkspaceModal {
         this.input("reply-workspace-example-title").value = `${target.author_name || "User"}-${this.channel === "message" ? "DM" : "Comment"} Example`;
         this.renderTemplates();
         this.renderExamples();
+        this.renderLogs();
     }
 
     renderTemplates() {
@@ -90,6 +97,36 @@ class ReplyWorkspaceModal {
                 <div class="mt-2 text-xs text-gray-500">User: ${this.escape(item.user_input)}</div>
                 <div class="mt-2 text-sm text-gray-700 whitespace-pre-wrap break-words">Reply: ${this.escape(item.reply_content)}</div>
             </div>
+        `).join("");
+    }
+
+    renderLogs() {
+        const container = this.node("reply-workspace-logs");
+        if (!container) return;
+        if (!this.state.logs.length) {
+            container.innerHTML = '<div class="text-sm text-gray-400">No LLM requests in this conversation yet.</div>';
+            return;
+        }
+        container.innerHTML = this.state.logs.map(item => `
+            <details class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <summary class="cursor-pointer text-sm font-medium text-slate-700">
+                    ${this.escape(item.provider || "LLM")} / ${this.escape(item.model || "-")} / ${this.escape(item.created_at || "")}
+                </summary>
+                <div class="mt-3 space-y-3 text-xs text-slate-600">
+                    <div>
+                        <div class="font-semibold text-slate-700">System Prompt</div>
+                        <pre class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-3 border border-slate-200">${this.escape(item.system_prompt || "")}</pre>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-slate-700">Request Messages</div>
+                        <pre class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-3 border border-slate-200">${this.escape(item.request_messages || "")}</pre>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-slate-700">Reply</div>
+                        <pre class="mt-1 whitespace-pre-wrap break-words rounded-xl bg-white p-3 border border-slate-200">${this.escape(item.output_content || "")}</pre>
+                    </div>
+                </div>
+            </details>
         `).join("");
     }
 

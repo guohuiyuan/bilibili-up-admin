@@ -97,18 +97,22 @@ func (TagRanking) TableName() string { return "tag_rankings" }
 
 type LLMChatLog struct {
 	BaseModel
-	Provider      string `gorm:"column:provider;size:50;index" json:"provider"`
-	Model         string `gorm:"column:model;size:100" json:"model"`
-	InputType     string `gorm:"column:input_type;size:20;index" json:"input_type"` // comment/message
-	InputID       int64  `gorm:"column:input_id;index" json:"input_id"`
-	InputContent  string `gorm:"column:input_content;type:text" json:"input_content"`
-	OutputContent string `gorm:"column:output_content;type:text" json:"output_content"`
-	PromptTokens  int    `gorm:"column:prompt_tokens" json:"prompt_tokens"`
-	OutputTokens  int    `gorm:"column:output_tokens" json:"output_tokens"`
-	TotalTokens   int    `gorm:"column:total_tokens" json:"total_tokens"`
-	Success       bool   `gorm:"column:success;default:true" json:"success"`
-	ErrorMessage  string `gorm:"column:error_message;type:text" json:"error_message"`
-	Duration      int64  `gorm:"column:duration" json:"duration"`
+	Provider          string `gorm:"column:provider;size:50;index" json:"provider"`
+	Model             string `gorm:"column:model;size:100" json:"model"`
+	InputType         string `gorm:"column:input_type;size:20;index" json:"input_type"` // comment/message
+	InputID           int64  `gorm:"column:input_id;index" json:"input_id"`
+	ConversationKey   string `gorm:"column:conversation_key;size:160;index" json:"conversation_key"`
+	ConversationTitle string `gorm:"column:conversation_title;size:160" json:"conversation_title"`
+	InputContent      string `gorm:"column:input_content;type:text" json:"input_content"`
+	SystemPrompt      string `gorm:"column:system_prompt;type:text" json:"system_prompt"`
+	RequestMessages   string `gorm:"column:request_messages;type:text" json:"request_messages"`
+	OutputContent     string `gorm:"column:output_content;type:text" json:"output_content"`
+	PromptTokens      int    `gorm:"column:prompt_tokens" json:"prompt_tokens"`
+	OutputTokens      int    `gorm:"column:output_tokens" json:"output_tokens"`
+	TotalTokens       int    `gorm:"column:total_tokens" json:"total_tokens"`
+	Success           bool   `gorm:"column:success;default:true" json:"success"`
+	ErrorMessage      string `gorm:"column:error_message;type:text" json:"error_message"`
+	Duration          int64  `gorm:"column:duration" json:"duration"`
 }
 
 func (LLMChatLog) TableName() string { return "llm_chat_logs" }
