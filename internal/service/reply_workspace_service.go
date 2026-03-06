@@ -446,6 +446,11 @@ func (s *ReplyWorkspaceService) buildUserPrompt(target *ReplyWorkspaceTarget, te
 		if target.VideoBVID != "" {
 			b.WriteString(fmt.Sprintf("Video BVID: %s\n", target.VideoBVID))
 		}
+		if target.VideoDesc != "" {
+			b.WriteString("Video description:\n")
+			b.WriteString(target.VideoDesc)
+			b.WriteString("\n")
+		}
 	}
 	b.WriteString("Current user message:\n")
 	b.WriteString(strings.TrimSpace(target.InputContent))
