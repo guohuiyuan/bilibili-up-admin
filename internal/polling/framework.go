@@ -11,6 +11,8 @@ import (
 
 var ErrSkipTask = errors.New("skip task")
 
+const SnapshotSettingKey = "observability.polling_snapshot"
+
 type Task struct {
 	Name       string
 	Interval   time.Duration
@@ -49,6 +51,8 @@ type taskStats struct {
 	TaskSnapshot
 }
 
+type SnapshotPersister func(ctx context.Context, snapshot Snapshot) error
+
 type Manager struct {
 	mu      sync.RWMutex
 	tasks   []Task
@@ -58,7 +62,8 @@ type Manager struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	logf func(format string, args ...any)
+	logf            func(format string, args ...any)
+	persistSnapshot SnapshotPersister
 }
 
 func NewManager() *Manager {
@@ -77,6 +82,20 @@ func (m *Manager) SetLogger(logf func(format string, args ...any)) {
 	m.logf = logf
 }
 
+func (m *Manager) SetSnapshotPersister(persist SnapshotPersister) {
+	if persist == nil {
+		return
+	}
+
+	m.mu.Lock()
+	m.persistSnapshot = persist
+	snapshot := m.snapshotLocked(time.Now())
+	logf := m.logf
+	m.mu.Unlock()
+
+	m.publishSnapshot(snapshot, persist, logf)
+}
+
 func (m *Manager) Register(task Task) error {
 	if task.Name == "" {
 		return fmt.Errorf("task name is required")
@@ -89,8 +108,8 @@ func (m *Manager) Register(task Task) error {
 	}
 
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if m.started {
+		m.mu.Unlock()
 		return fmt.Errorf("manager already started")
 	}
 	m.tasks = append(m.tasks, task)
@@ -100,6 +119,12 @@ func (m *Manager) Register(task Task) error {
 		TimeoutSecond:  int64(task.Timeout / time.Second),
 		RunOnStart:     task.RunOnStart,
 	}}
+	snapshot := m.snapshotLocked(time.Now())
+	persist := m.persistSnapshot
+	logf := m.logf
+	m.mu.Unlock()
+
+	m.publishSnapshot(snapshot, persist, logf)
 	return nil
 }
 
@@ -115,7 +140,11 @@ func (m *Manager) Start(parent context.Context) error {
 	m.cancel = cancel
 	m.started = true
 	logf := m.logf
+	persist := m.persistSnapshot
+	snapshot := m.snapshotLocked(time.Now())
 	m.mu.Unlock()
+
+	m.publishSnapshot(snapshot, persist, logf)
 
 	for _, task := range tasks {
 		t := task
@@ -159,7 +188,11 @@ func (m *Manager) Stop(ctx context.Context) error {
 	m.started = false
 	m.cancel = nil
 	logf := m.logf
+	persist := m.persistSnapshot
+	snapshot := m.snapshotLocked(time.Now())
 	m.mu.Unlock()
+
+	m.publishSnapshot(snapshot, persist, logf)
 
 	if cancel != nil {
 		cancel()
@@ -212,13 +245,13 @@ func (m *Manager) runTask(parent context.Context, task Task) {
 	m.mu.RLock()
 	logf := m.logf
 	m.mu.RUnlock()
+	elapsed := time.Since(start)
+	m.markTaskEnd(task.Name, runErr, elapsed)
 
 	if logf == nil {
 		return
 	}
 
-	elapsed := time.Since(start)
-	m.markTaskEnd(task.Name, runErr, elapsed)
 	switch {
 	case runErr == nil:
 		logf("polling task success: %s (%s)", task.Name, elapsed)
@@ -232,10 +265,14 @@ func (m *Manager) runTask(parent context.Context, task Task) {
 func (m *Manager) Snapshot() Snapshot {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	return m.snapshotLocked(time.Now())
+}
+
+func (m *Manager) snapshotLocked(generatedAt time.Time) Snapshot {
 	out := Snapshot{
 		Started:     m.started,
 		TaskCount:   len(m.tasks),
-		GeneratedAt: time.Now(),
+		GeneratedAt: generatedAt,
 		Tasks:       make([]TaskSnapshot, 0, len(m.tasks)),
 	}
 	for _, task := range m.tasks {
@@ -257,31 +294,43 @@ func (m *Manager) Snapshot() Snapshot {
 
 func (m *Manager) setNextRun(name string, next time.Time) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	stats, ok := m.stats[name]
 	if !ok || stats == nil {
+		m.mu.Unlock()
 		return
 	}
 	stats.NextRunAt = &next
+	snapshot := m.snapshotLocked(time.Now())
+	persist := m.persistSnapshot
+	logf := m.logf
+	m.mu.Unlock()
+
+	m.publishSnapshot(snapshot, persist, logf)
 }
 
 func (m *Manager) markTaskStart(name string, startedAt time.Time) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	stats, ok := m.stats[name]
 	if !ok || stats == nil {
+		m.mu.Unlock()
 		return
 	}
 	stats.Running = true
 	stats.LastStartedAt = &startedAt
 	stats.LastError = ""
+	snapshot := m.snapshotLocked(time.Now())
+	persist := m.persistSnapshot
+	logf := m.logf
+	m.mu.Unlock()
+
+	m.publishSnapshot(snapshot, persist, logf)
 }
 
 func (m *Manager) markTaskEnd(name string, runErr error, elapsed time.Duration) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	stats, ok := m.stats[name]
 	if !ok || stats == nil {
+		m.mu.Unlock()
 		return
 	}
 	finishedAt := time.Now()
@@ -291,13 +340,26 @@ func (m *Manager) markTaskEnd(name string, runErr error, elapsed time.Duration) 
 	if runErr == nil {
 		stats.SuccessCount++
 		stats.LastError = ""
-		return
-	}
-	if errors.Is(runErr, ErrSkipTask) {
+	} else if errors.Is(runErr, ErrSkipTask) {
 		stats.SkipCount++
 		stats.LastError = ""
+	} else {
+		stats.FailureCount++
+		stats.LastError = runErr.Error()
+	}
+	snapshot := m.snapshotLocked(time.Now())
+	persist := m.persistSnapshot
+	logf := m.logf
+	m.mu.Unlock()
+
+	m.publishSnapshot(snapshot, persist, logf)
+}
+
+func (m *Manager) publishSnapshot(snapshot Snapshot, persist SnapshotPersister, logf func(format string, args ...any)) {
+	if persist == nil {
 		return
 	}
-	stats.FailureCount++
-	stats.LastError = runErr.Error()
+	if err := persist(context.Background(), snapshot); err != nil && logf != nil {
+		logf("polling snapshot persist failed: %v", err)
+	}
 }

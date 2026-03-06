@@ -66,8 +66,8 @@ func main() {
 	if err := services.Auth.EnsureDefaultAdmin(context.Background()); err != nil {
 		log.Fatalf("init default admin failed: %v", err)
 	}
-	pollingManager := initPolling(runtimeStore, services)
-	handlers := initHandlers(services, settingsSvc, runtimeStore, pollingManager)
+	pollingManager := initPolling(runtimeStore, services, repos.Setting)
+	handlers := initHandlers(services, repos.Setting, settingsSvc, runtimeStore)
 	router := initRouter(handlers, config.GlobalConfig.Server.Mode)
 
 	addr := fmt.Sprintf(":%d", config.GlobalConfig.Server.Port)
@@ -204,8 +204,13 @@ func configureSQLiteConcurrency(db *gorm.DB, driver string) error {
 	return nil
 }
 
-func initPolling(runtime *appruntime.Store, services *Services) *polling.Manager {
+func initPolling(runtime *appruntime.Store, services *Services, settingRepo *repository.SettingRepository) *polling.Manager {
 	mgr := polling.NewManager()
+	if settingRepo != nil {
+		mgr.SetSnapshotPersister(func(ctx context.Context, snapshot polling.Snapshot) error {
+			return settingRepo.SetJSON(ctx, polling.SnapshotSettingKey, snapshot)
+		})
+	}
 
 	checkReady := func(_ context.Context) error {
 		if runtime == nil || runtime.BilibiliClient() == nil {
@@ -480,7 +485,7 @@ type Handlers struct {
 	Auth          *handler.AuthHandler
 }
 
-func initHandlers(services *Services, settings *service.AppSettingsService, runtime *appruntime.Store, pollingManager *polling.Manager) *Handlers {
+func initHandlers(services *Services, settingRepo *repository.SettingRepository, settings *service.AppSettingsService, runtime *appruntime.Store) *Handlers {
 	return &Handlers{
 		Page:          handler.NewPageHandler(),
 		Comment:       handler.NewCommentHandler(services.Comment),
@@ -489,7 +494,7 @@ func initHandlers(services *Services, settings *service.AppSettingsService, runt
 		Trend:         handler.NewTrendHandler(services.Trend),
 		LLM:           handler.NewLLMHandler(services.LLM),
 		Settings:      handler.NewSettingsHandler(settings, runtime),
-		Observability: handler.NewObservabilityHandler(pollingManager),
+		Observability: handler.NewObservabilityHandler(settingRepo),
 		Auth:          handler.NewAuthHandler(services.Auth),
 	}
 }
