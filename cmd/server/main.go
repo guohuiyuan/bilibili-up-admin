@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http" // 新增导入
 	"os"
@@ -18,6 +19,7 @@ import (
 	"bilibili-up-admin/internal/repository"
 	appruntime "bilibili-up-admin/internal/runtime"
 	"bilibili-up-admin/internal/service"
+	webassets "bilibili-up-admin/web"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
@@ -376,15 +378,16 @@ func (r templateRenderer) Instance(name string, data any) render.Render {
 	}
 }
 
-func buildHTMLRenderer(root string) (render.HTMLRender, error) {
-	basePath := filepath.Join(root, "layout", "base.html")
-	baseContent, err := os.ReadFile(basePath)
+func buildHTMLRenderer(templateFS fs.FS) (render.HTMLRender, error) {
+	const basePath = "layout/base.html"
+
+	baseContent, err := fs.ReadFile(templateFS, basePath)
 	if err != nil {
 		return nil, fmt.Errorf("read base template failed: %w", err)
 	}
 
 	renderer := templateRenderer{templates: make(map[string]*template.Template)}
-	err = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+	err = fs.WalkDir(templateFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -392,18 +395,12 @@ func buildHTMLRenderer(root string) (render.HTMLRender, error) {
 			return nil
 		}
 
-		relPath, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		relPath = filepath.ToSlash(relPath)
-
-		pageContent, err := os.ReadFile(path)
+		pageContent, err := fs.ReadFile(templateFS, path)
 		if err != nil {
 			return err
 		}
 
-		tmpl := template.New(relPath)
+		tmpl := template.New(path)
 		if _, err := tmpl.Parse(`{{ template "layout/base.html" . }}`); err != nil {
 			return err
 		}
@@ -414,14 +411,14 @@ func buildHTMLRenderer(root string) (render.HTMLRender, error) {
 			return err
 		}
 
-		renderer.templates[relPath] = tmpl
+		renderer.templates[path] = tmpl
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	if len(renderer.templates) == 0 {
-		return nil, fmt.Errorf("no page templates found under %s", root)
+		return nil, fmt.Errorf("no page templates found in embedded filesystem")
 	}
 	return renderer, nil
 }
@@ -520,10 +517,21 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 		panic(fmt.Errorf("set trusted proxies failed: %w", err))
 	}
 
-	htmlRenderer, err := buildHTMLRenderer("web/templates")
+	templateFS, err := fs.Sub(webassets.FS, "templates")
+	if err != nil {
+		panic(fmt.Errorf("load embedded templates failed: %w", err))
+	}
+
+	htmlRenderer, err := buildHTMLRenderer(templateFS)
 	if err != nil {
 		panic(fmt.Errorf("build html renderer failed: %w", err))
 	}
+
+	staticFS, err := fs.Sub(webassets.FS, "static")
+	if err != nil {
+		panic(fmt.Errorf("load embedded static assets failed: %w", err))
+	}
+
 	router.HTMLRender = htmlRenderer
 	router.Use(corsMiddleware())
 
@@ -535,7 +543,7 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 	// 统一前缀路由组
 	admin := router.Group("/admin")
 	{
-		admin.Static("/static", "web/static")
+		admin.StaticFS("/static", http.FS(staticFS))
 
 		admin.GET("/login", h.Page.Login)
 
