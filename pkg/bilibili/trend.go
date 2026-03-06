@@ -89,9 +89,6 @@ func (c *Client) GetTrendingTagsByCategory(ctx context.Context, category string,
 
 	zone, ok := resolveTrendZone(category)
 	if !ok {
-		if _, hasAlias := resolveRankTypeAlias(category); hasAlias {
-			return c.GetTrendingTags(ctx, limit)
-		}
 		return nil, fmt.Errorf("unsupported category: %s", category)
 	}
 
@@ -106,38 +103,40 @@ type trendZone struct {
 type rankTypeAlias struct {
 	Key         string
 	Label       string
+	APIType     string
 	VideoRID    int32
+	PGCSeason   int32
 	VideoType   string
 	TagCategory string
 }
 
 func rankTypeAliases() []rankTypeAlias {
 	return []rankTypeAlias{
-		{Key: "All", Label: "全部", VideoRID: 0, VideoType: "all", TagCategory: ""},
-		{Key: "Bangumi", Label: "番剧", VideoRID: 13, VideoType: "all", TagCategory: ""},
-		{Key: "GuochuangAnime", Label: "国产动画", VideoRID: 153, VideoType: "all", TagCategory: "国创"},
-		{Key: "Guochuang", Label: "国创相关", VideoRID: 168, VideoType: "all", TagCategory: "国创"},
-		{Key: "Documentary", Label: "纪录片", VideoRID: 177, VideoType: "all", TagCategory: "影视"},
-		{Key: "Douga", Label: "动画", VideoRID: 1, VideoType: "all", TagCategory: "动画"},
-		{Key: "Music", Label: "音乐", VideoRID: 3, VideoType: "all", TagCategory: "音乐"},
-		{Key: "Dance", Label: "舞蹈", VideoRID: 129, VideoType: "all", TagCategory: "舞蹈"},
-		{Key: "Game", Label: "游戏", VideoRID: 4, VideoType: "all", TagCategory: "游戏"},
-		{Key: "Knowledge", Label: "知识", VideoRID: 36, VideoType: "all", TagCategory: "知识"},
-		{Key: "Technology", Label: "科技数码", VideoRID: 188, VideoType: "all", TagCategory: "科技"},
-		{Key: "Sports", Label: "运动", VideoRID: 234, VideoType: "all", TagCategory: "运动"},
-		{Key: "Car", Label: "汽车", VideoRID: 223, VideoType: "all", TagCategory: "汽车"},
-		{Key: "Life", Label: "生活", VideoRID: 160, VideoType: "all", TagCategory: "生活"},
-		{Key: "Food", Label: "美食", VideoRID: 211, VideoType: "all", TagCategory: "美食"},
-		{Key: "Animal", Label: "动物圈", VideoRID: 217, VideoType: "all", TagCategory: "动物圈"},
-		{Key: "Kichiku", Label: "鬼畜", VideoRID: 119, VideoType: "all", TagCategory: "鬼畜"},
-		{Key: "Fashion", Label: "时尚美妆", VideoRID: 155, VideoType: "all", TagCategory: "时尚"},
-		{Key: "Ent", Label: "娱乐", VideoRID: 5, VideoType: "all", TagCategory: "娱乐"},
-		{Key: "Cinephile", Label: "影视", VideoRID: 181, VideoType: "all", TagCategory: "影视"},
-		{Key: "Movie", Label: "电影", VideoRID: 23, VideoType: "all", TagCategory: ""},
-		{Key: "TV", Label: "电视剧", VideoRID: 11, VideoType: "all", TagCategory: ""},
-		{Key: "Variety", Label: "综艺", VideoRID: 204, VideoType: "all", TagCategory: ""},
-		{Key: "Original", Label: "原创", VideoRID: 0, VideoType: "origin", TagCategory: ""},
-		{Key: "Rookie", Label: "新人", VideoRID: 0, VideoType: "rookie", TagCategory: ""},
+		{Key: "All", Label: "全部", APIType: "x", VideoRID: 0, VideoType: "all", TagCategory: ""},
+		{Key: "Bangumi", Label: "番剧", APIType: "pgc", PGCSeason: 1, VideoType: "all", TagCategory: ""},
+		{Key: "GuochuangAnime", Label: "国产动画", APIType: "pgc", PGCSeason: 4, VideoType: "all", TagCategory: "国创"},
+		{Key: "Guochuang", Label: "国创相关", APIType: "x", VideoRID: 168, VideoType: "all", TagCategory: "国创"},
+		{Key: "Documentary", Label: "纪录片", APIType: "pgc", PGCSeason: 3, VideoType: "all", TagCategory: "影视"},
+		{Key: "Douga", Label: "动画", APIType: "x", VideoRID: 1, VideoType: "all", TagCategory: "动画"},
+		{Key: "Music", Label: "音乐", APIType: "x", VideoRID: 3, VideoType: "all", TagCategory: "音乐"},
+		{Key: "Dance", Label: "舞蹈", APIType: "x", VideoRID: 129, VideoType: "all", TagCategory: "舞蹈"},
+		{Key: "Game", Label: "游戏", APIType: "x", VideoRID: 4, VideoType: "all", TagCategory: "游戏"},
+		{Key: "Knowledge", Label: "知识", APIType: "x", VideoRID: 36, VideoType: "all", TagCategory: "知识"},
+		{Key: "Technology", Label: "科技数码", APIType: "x", VideoRID: 188, VideoType: "all", TagCategory: "科技"},
+		{Key: "Sports", Label: "运动", APIType: "x", VideoRID: 234, VideoType: "all", TagCategory: "运动"},
+		{Key: "Car", Label: "汽车", APIType: "x", VideoRID: 223, VideoType: "all", TagCategory: "汽车"},
+		{Key: "Life", Label: "生活", APIType: "x", VideoRID: 160, VideoType: "all", TagCategory: "生活"},
+		{Key: "Food", Label: "美食", APIType: "x", VideoRID: 211, VideoType: "all", TagCategory: "美食"},
+		{Key: "Animal", Label: "动物圈", APIType: "x", VideoRID: 217, VideoType: "all", TagCategory: "动物圈"},
+		{Key: "Kichiku", Label: "鬼畜", APIType: "x", VideoRID: 119, VideoType: "all", TagCategory: "鬼畜"},
+		{Key: "Fashion", Label: "时尚美妆", APIType: "x", VideoRID: 155, VideoType: "all", TagCategory: "时尚"},
+		{Key: "Ent", Label: "娱乐", APIType: "x", VideoRID: 5, VideoType: "all", TagCategory: "娱乐"},
+		{Key: "Cinephile", Label: "影视", APIType: "x", VideoRID: 181, VideoType: "all", TagCategory: "影视"},
+		{Key: "Movie", Label: "电影", APIType: "pgc", PGCSeason: 2, VideoType: "all", TagCategory: ""},
+		{Key: "TV", Label: "电视剧", APIType: "pgc", PGCSeason: 5, VideoType: "all", TagCategory: ""},
+		{Key: "Variety", Label: "综艺", APIType: "pgc", PGCSeason: 7, VideoType: "all", TagCategory: ""},
+		{Key: "Original", Label: "原创", APIType: "x", VideoRID: 0, VideoType: "origin", TagCategory: ""},
+		{Key: "Rookie", Label: "新人", APIType: "x", VideoRID: 0, VideoType: "rookie", TagCategory: ""},
 	}
 }
 
@@ -173,17 +172,25 @@ func trendingZones() []trendZone {
 }
 
 func resolveTrendZone(category string) (trendZone, bool) {
-	if alias, ok := resolveRankTypeAlias(category); ok {
-		if alias.TagCategory == "" {
-			return trendZone{}, false
-		}
-		category = alias.TagCategory
-	}
-
 	for _, zone := range trendingZones() {
 		if zone.category == category {
 			return zone, true
 		}
+	}
+
+	if alias, ok := resolveRankTypeAlias(category); ok {
+		resolvedCategory := alias.TagCategory
+		if resolvedCategory == "" {
+			resolvedCategory = alias.Label
+		}
+
+		for _, zone := range trendingZones() {
+			if zone.category == resolvedCategory {
+				return zone, true
+			}
+		}
+
+		return trendZone{}, false
 	}
 
 	rid, err := strconv.Atoi(category)
@@ -491,6 +498,28 @@ func (c *Client) GetCategoryRanking(ctx context.Context, categoryName string, li
 	rankType := "all"
 	tid := 0
 	if alias, ok := resolveRankTypeAlias(categoryName); ok {
+		if strings.EqualFold(alias.APIType, "pgc") && alias.PGCSeason > 0 {
+			list, err := c.inner.GetPGCRanking(alias.PGCSeason, 3)
+			if err != nil {
+				return nil, fmt.Errorf("get video ranking failed: %w", err)
+			}
+
+			out := &VideoRanking{Videos: make([]VideoInfo, 0, len(list)), Tid: int(alias.PGCSeason)}
+			for _, v := range list {
+				out.Videos = append(out.Videos, VideoInfo{
+					Title:    v.Title,
+					View:     int(v.Stat.View),
+					Danmaku:  int(v.Stat.Danmaku),
+					Favorite: int(v.Stat.Follow),
+					Pic:      v.Cover,
+				})
+			}
+			if limit > 0 && len(out.Videos) > limit {
+				out.Videos = out.Videos[:limit]
+			}
+			return out, nil
+		}
+
 		tid = int(alias.VideoRID)
 		rankType = alias.VideoType
 	} else {

@@ -29,6 +29,34 @@ type TrendService struct {
 	latestTags []model.TagRanking
 }
 
+var trendCategoryAliasToStoredCategory = map[string]string{
+	"All":            "",
+	"Bangumi":        "番剧",
+	"GuochuangAnime": "国创",
+	"Guochuang":      "国创",
+	"Documentary":    "影视",
+	"Douga":          "动画",
+	"Music":          "音乐",
+	"Dance":          "舞蹈",
+	"Game":           "游戏",
+	"Knowledge":      "知识",
+	"Technology":     "科技",
+	"Sports":         "运动",
+	"Car":            "汽车",
+	"Life":           "生活",
+	"Food":           "美食",
+	"Animal":         "动物圈",
+	"Kichiku":        "鬼畜",
+	"Fashion":        "时尚",
+	"Ent":            "娱乐",
+	"Cinephile":      "影视",
+	"Movie":          "影视",
+	"TV":             "影视",
+	"Variety":        "影视",
+	"Original":       "",
+	"Rookie":         "",
+}
+
 // NewTrendService 创建热度服务
 func NewTrendService(
 	runtime *appruntime.Store,
@@ -56,6 +84,7 @@ type TagRankingResult struct {
 
 // GetTrendingTags 获取热门标签
 func (s *TrendService) GetTrendingTags(ctx context.Context, category string, limit int) ([]bilibili.TrendingTag, error) {
+	category = normalizeTrendCategory(category)
 	client, err := s.biliClient()
 	if err != nil {
 		return nil, err
@@ -65,6 +94,7 @@ func (s *TrendService) GetTrendingTags(ctx context.Context, category string, lim
 
 // GetTrendingTagsSmart 优先读取缓存，不存在或过期时回源并刷新
 func (s *TrendService) GetTrendingTagsSmart(ctx context.Context, category string, limit int, ttl time.Duration) ([]bilibili.TrendingTag, error) {
+	category = normalizeTrendCategory(category)
 	rankings, _, err := s.EnsureLatestTags(ctx, category, limit, ttl)
 	if err != nil {
 		return nil, err
@@ -72,11 +102,31 @@ func (s *TrendService) GetTrendingTagsSmart(ctx context.Context, category string
 	return toTrendingTags(rankings), nil
 }
 
-// GetTrendingTagsFromDB 仅从数据库读取最新标签，不触发远程请求
+// GetTrendingTagsFromDB 优先读取缓存和数据库，必要时自动刷新
 func (s *TrendService) GetTrendingTagsFromDB(ctx context.Context, category string, limit int) ([]bilibili.TrendingTag, error) {
-	_ = ctx
+	category = normalizeTrendCategory(category)
 	rankings := s.getLatestTagsFromMemory(category, limit)
+	if len(rankings) > 0 {
+		return toTrendingTags(rankings), nil
+	}
+
+	rankings, err := s.repo.GetLatestByCategory(ctx, category, limit)
+	if err == nil && len(rankings) > 0 {
+		return toTrendingTags(rankings), nil
+	}
+
+	rankings, _, err = s.EnsureLatestTags(ctx, category, limit, DefaultTrendCacheTTL)
+	if err != nil {
+		return nil, err
+	}
 	return toTrendingTags(rankings), nil
+}
+
+func normalizeTrendCategory(category string) string {
+	if normalized, ok := trendCategoryAliasToStoredCategory[category]; ok {
+		return normalized
+	}
+	return category
 }
 
 func (s *TrendService) setLatestTagsToMemory(rankings []model.TagRanking) {
