@@ -244,7 +244,7 @@ func initPolling(runtime *appruntime.Store, services *Services, settingRepo *rep
 
 	_ = mgr.Register(polling.Task{
 		Name:       "video-comments-sync",
-		Interval:   5 * time.Minute,
+		Interval:   1 * time.Minute,
 		Timeout:    90 * time.Second,
 		RunOnStart: true,
 		PreHandle:  checkReady,

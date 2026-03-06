@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -184,6 +185,20 @@ func (s *CommentService) SyncRecentVideoComments(ctx context.Context, videoCount
 	return result, nil
 }
 
+func (s *CommentService) syncCommentAfterReply(ctx context.Context, videoBVID string) {
+	videoBVID = strings.TrimSpace(videoBVID)
+	if videoBVID == "" {
+		return
+	}
+
+	syncCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	if _, err := s.SyncFromVideo(syncCtx, videoBVID, 1, 50); err != nil {
+		log.Printf("[comment.reply] immediate_sync_failed bvid=%s err=%v", videoBVID, err)
+	}
+}
+
 // AIReply 使用AI生成回复
 func (s *CommentService) AIReply(ctx context.Context, commentID int64) (string, error) {
 	// 获取评论
@@ -263,6 +278,7 @@ func (s *CommentService) AIReply(ctx context.Context, commentID int64) (string, 
 	// 更新评论记录
 	comment.IsAIReply = true
 	s.repo.Update(ctx, comment)
+	s.syncCommentAfterReply(ctx, comment.VideoBVID)
 
 	return resp.Content, nil
 }
@@ -285,7 +301,12 @@ func (s *CommentService) ManualReply(ctx context.Context, commentID int64, conte
 	}
 
 	// 更新状态
-	return s.repo.UpdateReplyStatus(ctx, commentID, 1, content)
+	if err := s.repo.UpdateReplyStatus(ctx, commentID, 1, content); err != nil {
+		return err
+	}
+
+	s.syncCommentAfterReply(ctx, comment.VideoBVID)
+	return nil
 }
 
 // Ignore 忽略评论

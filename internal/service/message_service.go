@@ -282,6 +282,15 @@ func isDuplicateMessageError(err error) bool {
 	return strings.Contains(msg, "unique") || strings.Contains(msg, "duplicate")
 }
 
+func (s *MessageService) syncMessagesAfterReply(ctx context.Context) {
+	syncCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	if _, err := s.SyncMessages(syncCtx, 1, 20); err != nil {
+		log.Printf("[message.reply] immediate_sync_failed err=%v", err)
+	}
+}
+
 // AIReply 使用AI生成回复
 func (s *MessageService) AIReply(ctx context.Context, messageID int64) (string, error) {
 	message, err := s.repo.GetByMessageID(ctx, messageID)
@@ -357,6 +366,7 @@ func (s *MessageService) AIReply(ctx context.Context, messageID int64) (string, 
 		return "", fmt.Errorf("update message status failed: %w", err)
 	}
 
+	s.syncMessagesAfterReply(ctx)
 	return resp.Content, nil
 }
 
@@ -374,6 +384,7 @@ func (s *MessageService) ManualReply(ctx context.Context, messageID int64, sende
 
 	// 更新状态
 	if err := s.repo.UpdateReplyStatus(ctx, messageID, 1, content, false); err == nil {
+		s.syncMessagesAfterReply(ctx)
 		return nil
 	}
 
@@ -384,7 +395,7 @@ func (s *MessageService) ManualReply(ctx context.Context, messageID int64, sende
 	if senderID == 0 {
 		conversationName = "会话对象"
 	}
-	return s.repo.Create(ctx, &model.Message{
+	if err := s.repo.Create(ctx, &model.Message{
 		MessageID:        messageID,
 		SenderID:         selfUID,
 		SenderName:       selfName,
@@ -395,7 +406,12 @@ func (s *MessageService) ManualReply(ctx context.Context, messageID int64, sende
 		ReplyStatus:      1,
 		ReplyContent:     content,
 		MessageTime:      &now,
-	})
+	}); err != nil {
+		return err
+	}
+
+	s.syncMessagesAfterReply(ctx)
+	return nil
 }
 
 // Ignore 忽略私信
