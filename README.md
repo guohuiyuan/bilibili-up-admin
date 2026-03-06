@@ -1,262 +1,469 @@
-# B站UP主运营管理平台
+# B站 UP 主运营管理平台
 
-一个功能完善的B站UP主运营辅助工具，支持AI智能回复评论私信、粉丝互动管理、热度分析等功能。
+一个基于 Go 的后台管理系统，用来把 B 站日常运营动作统一到一个管理台里：评论与私信回复、粉丝互动、热度观察、LLM 调用记录与运行配置都在同一套 `/admin` 后台完成。
 
-## 🌟 功能特性
+这份 README 按当前代码结构说明项目，而不是按历史功能列表描述。
 
-### 1. 评论管理
-- 同步视频评论
-- AI智能回复（支持多种大模型）
-- 手动回复
-- 批量AI回复
-- 评论状态管理
+## 项目定位
 
-### 2. 私信管理
-- 同步私信消息
-- AI智能回复
-- 手动回复
-- 未读消息统计
+这个项目不是一个公开站点，而是一个带登录鉴权的运营后台。
 
-### 3. 互动管理
-- 视频点赞
-- 视频投币
-- 三连操作
-- 批量互动
-- 粉丝视频互动
+核心目标有三类：
 
-### 4. 热度分析
+- 聚合 B 站运营动作：评论、私信、互动、热度数据
+- 把 B 站客户端和 LLM 能力封装成稳定服务层
+- 通过轮询任务把同步、互动、自动回复这些动作持续化运行
+
+默认访问入口：`/admin/login`
+
+## 当前架构
+
+整体分层是标准的单体后台结构：
+
+```text
+浏览器
+  -> /admin 页面与 /admin/api 接口
+Gin Router
+  -> handler
+  -> service
+  -> repository
+  -> SQLite / 运行时配置
+          \
+           -> bilibili client
+           -> llm providers
+```
+
+运行时启动链路：
+
+1. 读取 `config/config.yaml`，如果文件不存在则回退到内嵌默认配置。
+2. 初始化数据库，默认使用 SQLite，并自动迁移业务表。
+3. 从设置表加载应用配置，动态构造 B 站客户端和 LLM 管理器。
+4. 初始化仓储、服务、处理器和 Gin 路由。
+5. 启动轮询任务：评论同步、私信同步、粉丝互动、关注私信自动回复等。
+6. 提供 `/admin` 页面和 `/admin/api` 接口。
+
+## 模块划分
+
+### 1. 入口层
+
+- `cmd/server/main.go`
+
+职责：
+
+- 配置加载
+- 数据库初始化与自动迁移
+- 运行时依赖装配
+- 轮询任务注册与启动
+- 路由注册
+
+### 2. 配置层
+
+- `config/config.go`
+- `config/config.yaml`
+
+特点：
+
+- 默认配置内嵌进二进制
+- 支持环境变量覆盖，前缀为 `BILI_`
+- 默认数据目录是 `data`
+- 默认数据库驱动是 SQLite
+
+### 3. HTTP 层
+
+- `internal/handler/`
+
+主要处理器：
+
+- `auth.go`: 登录、登出、当前用户、改密
+- `page.go`: 后台页面渲染入口
+- `dashboard.go`: 首页概览数据
+- `comment.go`: 评论列表、同步、回复、忽略
+- `message.go`: 私信列表、同步、回复、忽略、未读数
+- `interaction.go`: 视频互动、粉丝互动、互动统计
+- `trend.go`: 热门标签、标签详情、视频排行、趋势统计
+- `llm.go`: LLM 对话、提供者列表、日志、统计、测试
+- `reply_workspace.go`: 评论/私信共享回复编辑器接口
+- `settings.go`: 应用设置、B 站配置、LLM 提供者配置
+- `observability.go`: 轮询状态与运行观测接口
+
+### 4. 服务层
+
+- `internal/service/`
+
+当前主要服务：
+
+- `dashboard_service.go`: 首页概览统计
+- `comment_service.go`: 评论同步、状态管理、回复
+- `message_service.go`: 私信同步、手动/AI 回复、关注私信自动回复
+- `interaction_service.go`: 点赞、投币、收藏、三连和粉丝视频互动
+- `trend_service.go`: 热门标签、排行与历史趋势
+- `reply_workspace_service.go`: 评论/私信共享 AI 回复工作区
+- `llm_service.go`: LLM 统一调用与日志能力
+- `app_settings_service.go`: 应用运行配置持久化与加载
+- `auth_service.go`: 管理员认证与会话
+
+服务层是项目的核心。handler 只做 HTTP 绑定和返回，业务判断基本都在这里。
+
+### 5. 数据访问层
+
+- `internal/repository/repository.go`
+
+目前仓储集中在一个文件里，覆盖以下模型：
+
+- 评论
+- 私信
+- 互动记录
 - 热门标签排行
-- 视频排行榜
-- 标签搜索
-- 分区排行
+- LLM 日志
+- 应用设置
+- LLM 提供者
+- 管理员用户与会话
+- 粉丝自动回复记录
+- 回复模板 / 示例 / 草稿
 
-### 5. 大模型支持
-- OpenAI (GPT-4, GPT-3.5)
-- Claude
-- DeepSeek
-- 通义千问 (Qwen)
-- Moonshot (Kimi)
-- 智谱AI (GLM)
-- Ollama (本地部署)
+### 6. 模型层
 
-## 📦 技术栈
+- `internal/model/model.go`
 
-- **后端**: Go 1.22+, Gin, GORM
-- **前端**: Go Template, Tailwind CSS
-- **数据库**: MySQL
-- **缓存**: Redis (可选)
-- **B站API**: [biligo](https://github.com/guohuiyuan/biligo)
+数据库表在启动时通过 `AutoMigrate` 自动维护，当前会迁移这些核心模型：
 
-## 🚀 快速开始
+- `User`
+- `AdminUser`
+- `AdminSession`
+- `FanAutoReplyRecord`
+- `Comment`
+- `Message`
+- `Interaction`
+- `TagRanking`
+- `LLMChatLog`
+- `Setting`
+- `Task`
+- `LLMProvider`
+- `ReplyTemplate`
+- `ReplyExample`
+- `ReplyDraft`
 
-### 1. 环境要求
+### 7. 运行时与轮询
 
-- Go 1.22+
-- MySQL 5.7+
-- Redis (可选)
+- `internal/runtime/`
+- `internal/polling/`
 
-### 2. 安装依赖
+运行时 `Store` 负责持有当前有效的：
+
+- B 站客户端
+- LLM 管理器
+
+轮询任务由 `main.go` 启动时注册，当前包括：
+
+- `trend-taginfo-sync`: 热门标签热度同步
+- `video-comments-sync`: 最近视频评论同步
+- `private-messages-sync`: 私信同步
+- `fans-weekly-interact`: 粉丝近期视频自动互动
+- `fans-follow-auto-reply`: 新关注用户私信自动回复
+
+### 8. 前端层
+
+- `web/templates/`
+- `web/static/`
+- `web/embed.go`
+
+特点：
+
+- 前端页面使用 Go template 渲染
+- 静态资源与模板通过 `embed.FS` 打包进二进制
+- 统一后台前缀是 `/admin`
+- 页面与 API 同域部署，不依赖独立前端工程
+
+模板目录按页面域拆分：
+
+- `auth/`: 登录、改密
+- `comment/`: 评论工作台
+- `message/`: 私信工作台
+- `like/`: 互动管理
+- `trend/`: 热度分析
+- `llm/`: LLM 日志与能力页
+- `settings/`: 系统设置与 B 站登录配置
+- `layout/`: 基础布局
+
+### 9. 外部能力封装
+
+- `pkg/bilibili/`: 对 biligo 的项目内封装
+- `pkg/llm/`: 多模型统一接口与 provider 实现
+
+当前 Go 模块依赖里已经接入的 LLM 方向包括：
+
+- OpenAI
+- Anthropic
+- Gemini
+- Ollama
+- 兼容 OpenAI 协议的其它模型服务
+
+## 路由结构
+
+所有页面和接口都放在 `/admin` 下：
+
+- 页面入口：`/admin/*`
+- 接口入口：`/admin/api/*`
+- 静态资源：`/admin/static/*`
+
+根路径 `/` 会直接重定向到 `/admin/login`。
+
+鉴权策略：
+
+- `/admin/login` 和 `/admin/api/auth/login` 是匿名可访问的
+- 其它 `/admin` 页面和接口都需要管理员登录
+- 首次启动会自动创建默认管理员，并强制首次改密
+
+## 当前核心业务能力
+
+### 评论工作台
+
+- 拉取最近视频评论并入库
+- 评论列表、状态筛选、忽略处理
+- AI 生成回复与手动回复
+- 共享回复编辑栏与 LLM 调用日志联动
+
+### 私信工作台
+
+- 拉取会话与聊天记录并入库
+- 按会话组织消息流
+- AI 回复、手动回复、忽略
+- 未读消息统计
+- 关注后自动私信回复
+
+### 互动管理
+
+- 点赞、投币、收藏、三连
+- 粉丝列表与粉丝投稿选择
+- 批量互动和自动互动任务
+
+### 热度分析
+
+- 热门标签列表
+- 标签详情视频列表
+- 视频排行
+- 历史与最新榜单接口
+
+### LLM 能力与日志
+
+- 统一 provider 管理
+- 默认模型切换
+- 对话测试
+- 调用日志和统计
+
+### 设置与认证
+
+- 管理员登录、登出、改密
+- B 站 Cookie 保存与二维码登录
+- LLM 提供者的增删改查
+- 应用运行设置保存
+
+## 目录结构
+
+```text
+bilibili-up-admin/
+├── cmd/server/                 # 应用入口与依赖装配
+├── config/                     # 内嵌默认配置与加载逻辑
+├── internal/
+│   ├── handler/                # HTTP 处理层
+│   ├── model/                  # GORM 模型
+│   ├── polling/                # 后台轮询任务框架
+│   ├── repository/             # 数据访问层
+│   ├── runtime/                # 运行时依赖容器
+│   └── service/                # 业务服务层
+├── web/
+│   ├── templates/              # Go 模板页面
+│   ├── static/                 # JS/CSS/图片等资源
+│   └── embed.go                # 嵌入模板与静态资源
+├── data/                       # 默认运行数据目录
+├── go.mod
+└── README.md
+```
+
+## 本地运行
+
+### 环境要求
+
+- Go 1.24+
+
+项目默认使用 SQLite，不需要额外安装 MySQL 或 Redis 才能启动。
+
+### 安装依赖
 
 ```bash
-cd bilibili-up-admin
 go mod tidy
 ```
 
-### 3. 配置文件
-
-默认配置会在编译时内嵌进程序；如果你需要在运行时覆盖配置，再准备外部配置文件：
+### 启动
 
 ```bash
-cp config/config.yaml config/config.local.yaml
-```
-
-容器或服务器运行时，如果存在 `config/config.yaml`，程序会优先读取它；不存在时会回退到二进制内嵌的默认配置。
-
-如果要修改默认值，请在构建前编辑 `config/config.yaml`。配置示例：
-
-```yaml
-# 数据库配置
-database:
-  host: localhost
-  port: 3306
-  username: root
-  password: your_password
-  dbname: bili_admin
-
-# B站账号配置
-bilibili:
-  sess_data: "your_sess_data"
-  bili_jct: "your_bili_jct"
-  user_id: your_user_id
-
-# 大模型配置
-llm:
-  provider: "deepseek"
-  api_key: "your_api_key"
-  model: "deepseek-chat"
-```
-
-### 4. 获取B站登录凭证
-
-1. 登录B站网页版
-2. 打开浏览器开发者工具 (F12)
-3. 进入 Application/存储 -> Cookies -> https://www.bilibili.com
-4. 复制以下值：
-   - `SESSDATA` → `sess_data`
-   - `bili_jct` → `bili_jct`
-   - `DedeUserID` → `user_id`
-
-### 5. 初始化数据库
-
-```bash
-# 创建数据库
-mysql -u root -p -e "CREATE DATABASE bili_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-
-# 运行迁移（首次运行会自动创建表）
 go run cmd/server/main.go
 ```
 
-### 6. 启动服务
+启动后访问：
+
+- `http://localhost:8080/admin/login`
+
+首次登录默认账号：
+
+- 用户名：`admin`
+- 密码：`admin123456`
+
+首次登录后会被强制要求修改密码。
+
+### 构建
 
 ```bash
-# 开发模式
-go run cmd/server/main.go
-
-# 或编译后运行
 go build -o bili-admin cmd/server/main.go
-./bili-admin
 ```
 
-访问 http://localhost:8080 即可使用。
+## 默认配置行为
 
-## 📁 项目结构
-
-```
-bilibili-up-admin/
-├── cmd/
-│   └── server/
-│       └── main.go              # 程序入口
-├── internal/
-│   ├── handler/                 # HTTP处理器
-│   │   ├── comment.go
-│   │   ├── message.go
-│   │   ├── interaction.go
-│   │   ├── trend.go
-│   │   ├── llm.go
-│   │   └── page.go
-│   ├── service/                 # 业务逻辑层
-│   │   ├── comment_service.go
-│   │   ├── message_service.go
-│   │   ├── interaction_service.go
-│   │   ├── trend_service.go
-│   │   └── llm_service.go
-│   ├── repository/              # 数据访问层
-│   │   └── repository.go
-│   ├── model/                   # 数据模型
-│   │   └── model.go
-│   └── middleware/              # 中间件
-├── pkg/
-│   ├── bilibili/                # Bilibili SDK封装
-│   │   ├── client.go
-│   │   ├── comment.go
-│   │   ├── message.go
-│   │   ├── video.go
-│   │   └── trend.go
-│   ├── llm/                     # 大模型适配器
-│   │   ├── provider.go          # 接口定义
-│   │   ├── factory.go           # 工厂模式
-│   │   ├── openai.go            # OpenAI实现
-│   │   └── providers.go         # 其他实现
-│   └── queue/                   # 任务队列
-├── web/
-│   ├── templates/               # HTML模板
-│   │   ├── layout/
-│   │   ├── comment/
-│   │   ├── message/
-│   │   ├── like/
-│   │   └── trend/
-│   └── static/                  # 静态资源
-│       ├── css/
-│       └── js/
-├── config/
-│   ├── config.yaml              # 配置文件
-│   └── config.go                # 配置加载
-├── migrations/                  # 数据库迁移
-├── go.mod
-└── go.sum
-```
-
-## 🔌 API 接口
-
-### 评论相关
-
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | /api/comments | 获取评论列表 |
-| POST | /api/comments/sync | 同步评论 |
-| POST | /api/comments/:id/ai-reply | AI回复 |
-| POST | /api/comments/:id/reply | 手动回复 |
-| POST | /api/comments/:id/ignore | 忽略评论 |
-| POST | /api/comments/batch-ai-reply | 批量AI回复 |
-
-### 私信相关
-
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | /api/messages | 获取私信列表 |
-| POST | /api/messages/sync | 同步私信 |
-| GET | /api/messages/unread | 未读数量 |
-| POST | /api/messages/:id/ai-reply | AI回复 |
-| POST | /api/messages/:id/reply | 手动回复 |
-
-### 互动相关
-
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | /api/videos/:id/like | 点赞视频 |
-| POST | /api/videos/:id/coin | 投币视频 |
-| POST | /api/videos/:id/triple | 三连 |
-| POST | /api/videos/batch-interact | 批量互动 |
-| POST | /api/fans/interact | 粉丝互动 |
-
-### 热度相关
-
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | /api/trends/tags | 热门标签 |
-| GET | /api/trends/tags/:name | 标签详情 |
-| GET | /api/trends/videos | 视频排行 |
-| GET | /api/trends/search | 标签搜索 |
-| POST | /api/trends/sync | 同步数据 |
-
-### 大模型相关
-
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | /api/llm/chat | 对话 |
-| GET | /api/llm/providers | 提供者列表 |
-| POST | /api/llm/default | 设置默认 |
-| GET | /api/llm/test/:provider | 测试连接 |
-
-## 🤖 大模型配置
-
-### DeepSeek (推荐)
+默认配置来自 `config/config.yaml`，当前默认值很简单：
 
 ```yaml
-llm:
-  provider: "deepseek"
-  api_key: "sk-xxx"
-  model: "deepseek-chat"
+data_dir: data
+
+server:
+  port: 8080
+  mode: debug
+
+database:
+  driver: sqlite
+  path: bilibili-up-admin.db
 ```
 
-### OpenAI
+实际生效后的 SQLite 文件路径会被归一到数据目录下，也就是默认：
 
-```yaml
-llm:
-  provider: "openai"
-  api_key: "sk-xxx"
-  model: "gpt-4o-mini"
-```
+- `data/bilibili-up-admin.db`
+
+如果运行目录下存在外部 `config/config.yaml`，程序会优先读外部文件；否则读内嵌配置。
+
+## 需要补充的运行配置
+
+程序能启动，不代表业务就能工作。要真正使用评论、私信、互动和 AI 回复，需要在后台设置页补齐：
+
+- B 站登录 Cookie / 二维码登录信息
+- LLM provider 与默认模型
+- 应用级交互策略配置
+
+这些配置加载后会在运行时构造：
+
+- B 站客户端
+- LLM 管理器
+
+## 关键接口分组
+
+这里只列当前最重要的 API 分组，不展开每个参数。
+
+### 认证
+
+- `POST /admin/api/auth/login`
+- `POST /admin/api/auth/logout`
+- `GET /admin/api/auth/me`
+- `POST /admin/api/auth/change-password`
+
+### 评论
+
+- `GET /admin/api/comments`
+- `POST /admin/api/comments/sync`
+- `GET /admin/api/comments/my-videos`
+- `POST /admin/api/comments/:id/ai-reply`
+- `POST /admin/api/comments/:id/reply`
+- `POST /admin/api/comments/:id/ignore`
+
+### 私信
+
+- `GET /admin/api/messages`
+- `POST /admin/api/messages/sync`
+- `GET /admin/api/messages/unread`
+- `POST /admin/api/messages/:id/ai-reply`
+- `POST /admin/api/messages/:id/reply`
+- `POST /admin/api/messages/:id/ignore`
+
+### 共享回复工作区
+
+- `GET /admin/api/reply-workspace`
+- `POST /admin/api/reply-workspace/draft/generate`
+- `POST /admin/api/reply-workspace/draft/send`
+- `GET /admin/api/reply-workspace/templates`
+
+### 互动
+
+- `GET /admin/api/interactions`
+- `GET /admin/api/interactions/stats`
+- `GET /admin/api/fans/list`
+- `GET /admin/api/fans/:id/videos`
+- `POST /admin/api/videos/:id/like`
+- `POST /admin/api/videos/:id/coin`
+- `POST /admin/api/videos/:id/favorite`
+- `POST /admin/api/videos/:id/triple`
+- `POST /admin/api/videos/batch-interact`
+- `POST /admin/api/fans/interact`
+
+### 热度
+
+- `GET /admin/api/trends/tags`
+- `GET /admin/api/trends/tags/:name`
+- `GET /admin/api/trends/videos`
+- `GET /admin/api/trends/historical`
+- `GET /admin/api/trends/latest`
+- `GET /admin/api/trends/search`
+- `POST /admin/api/trends/sync`
+- `GET /admin/api/trends/stats`
+
+### LLM
+
+- `POST /admin/api/llm/chat`
+- `GET /admin/api/llm/providers`
+- `POST /admin/api/llm/default`
+- `GET /admin/api/llm/test/:provider`
+- `GET /admin/api/llm/stats`
+- `GET /admin/api/llm/logs`
+
+### 设置
+
+- `GET /admin/api/settings/app`
+- `PUT /admin/api/settings/app`
+- `GET /admin/api/settings/bilibili`
+- `PUT /admin/api/settings/bilibili/cookie`
+- `POST /admin/api/settings/bilibili/qrcode`
+- `GET /admin/api/settings/bilibili/qrcode/poll`
+- `GET /admin/api/settings/llm/providers`
+- `POST /admin/api/settings/llm/providers`
+- `PUT /admin/api/settings/llm/providers/:name`
+- `DELETE /admin/api/settings/llm/providers/:name`
+
+## 开发说明
+
+### 为什么前端没有单独工程
+
+因为当前架构就是一个后端主导的管理台：
+
+- 模板由 Go 渲染
+- 页面和接口一体部署
+- 静态资源跟随二进制发布
+
+这让部署非常简单，代价是前端工程化边界没有独立 SPA 那么强。
+
+### 为什么运行配置不直接写死在文件里
+
+因为这个项目在启动后会把设置持久化到数据库，并基于设置动态重建：
+
+- B 站客户端
+- LLM provider 管理器
+
+所以 `config/config.yaml` 更偏向基础启动配置，而不是完整业务配置中心。
+
+### 当前架构上的一个明显特点
+
+`repository.go` 目前是集中式仓储文件，适合快速迭代；如果后续业务继续扩展，按领域拆分仓储文件会更容易维护。
+
+## 适合的后续演进方向
+
+1. 把 repository 从单文件拆成按领域分文件。
+2. 为 polling、settings、reply workspace 增加更完整的集成测试。
+3. 继续收缩 reply template / example / draft 的历史兼容逻辑，和现有浮动编辑栏保持一致。
 
 ### 通义千问
 
@@ -330,7 +537,7 @@ case ProviderNewProvider:
 
 ## 📄 License
 
-MIT License
+GNU Affero General Public License v3.0
 
 ## 🙏 致谢
 
