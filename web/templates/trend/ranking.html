@@ -56,23 +56,7 @@
             <h2 class="mt-3 text-3xl font-bold text-gray-900">热度分析</h2>
             <p class="mt-2 text-sm text-gray-500">查看热门标签和视频排行，页面风格与互动、AI 日志保持一致。</p>
         </div>
-    </div>
-
-    <div class="panel-toolbar rounded-3xl p-5 mb-5">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-end">
-            <div class="flex-1">
-                <label class="mb-2 block text-xs font-medium tracking-wide text-gray-400">标签搜索</label>
-                <div class="flex items-center rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 focus-within:border-pink-300 focus-within:bg-white transition">
-                    <i class="ri-search-line mr-2 text-pink-500"></i>
-                    <input type="text" id="search-keyword" placeholder="输入标签关键词"
-                           class="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder-gray-400">
-                </div>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="searchTag()" class="rounded-full bg-gray-900 px-5 py-2 text-sm text-white hover:bg-black transition">搜索标签</button>
-                <button onclick="loadTrendingTags(); loadVideoRanking();" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:border-pink-300 hover:text-pink-500 transition">刷新</button>
-            </div>
-        </div>
+        <button onclick="loadTrendingTags(); loadVideoRanking();" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:border-pink-300 hover:text-pink-500 transition">刷新</button>
     </div>
 
     <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
@@ -318,15 +302,20 @@ async function showTagDetail(tagName) {
         const data = await api(`/admin/api/trends/tags/${encodeURIComponent(tagName)}?page=1&page_size=10`);
         const container = document.getElementById('tag-videos');
         const videos = data.top_videos || [];
-        container.innerHTML = videos.map(video => `
+        container.innerHTML = videos.map(video => {
+            const jumpUrl = video.bvid
+                ? `https://www.bilibili.com/video/${video.bvid}`
+                : (video.avid ? `https://www.bilibili.com/video/av${video.avid}` : '#');
+            return `
             <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <div class="text-sm font-medium text-gray-900">${video.title || '-'}</div>
+                <a href="${jumpUrl}" target="_blank" rel="noopener noreferrer" class="text-sm font-medium text-gray-900 hover:text-pink-500">${video.title || '-'}</a>
                 <div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
                     <span>${video.owner || '-'}</span>
                     <span><i class="ri-play-line mr-1"></i>${formatNumber(video.view)}</span>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     } catch (error) {
         showToast(error.message, 'error');
     }
@@ -336,27 +325,7 @@ function closeTagDetail() {
     document.getElementById('tag-detail').classList.add('hidden');
 }
 
-async function searchTag() {
-    const keyword = document.getElementById('search-keyword').value.trim();
-    if (!keyword) {
-        loadTrendingTags();
-        return;
-    }
-    try {
-        const data = await api(`/admin/api/trends/search?keyword=${encodeURIComponent(keyword)}&page=1&page_size=20`);
-        renderTags(data.tags || []);
-    } catch (error) {
-        showToast(error.message, 'error');
-    }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('search-keyword').addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            searchTag();
-        }
-    });
     loadTrendingTags();
     loadVideoRanking();
     setInterval(() => {

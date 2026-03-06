@@ -23,7 +23,8 @@ func (h *ReplyWorkspaceHandler) Workspace(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid target id"})
 		return
 	}
-	data, err := h.svc.GetWorkspace(c.Request.Context(), c.Query("channel"), targetID)
+	conversationID, _ := strconv.ParseInt(c.Query("conversation_id"), 10, 64)
+	data, err := h.svc.GetWorkspace(c.Request.Context(), c.Query("channel"), targetID, conversationID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -124,7 +124,7 @@
                     <p class="mt-1 text-xs text-gray-400">选中投稿后即可直接执行点赞、投币、收藏和三连。</p>
                 </div>
                 <div id="selected-video-box" class="rounded-3xl border border-dashed border-pink-200 bg-pink-50/60 p-4 text-sm text-gray-500">请选择一个投稿</div>
-                <div class="mt-4 grid grid-cols-2 gap-3">
+                <div class="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
                     <button onclick="actLike()" class="rounded-2xl border border-pink-200 bg-pink-50 px-4 py-3 text-sm font-medium text-pink-700">点赞</button>
                     <button onclick="actCoin()" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">投币</button>
                     <button onclick="actFavorite()" class="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 text-sm font-medium text-fuchsia-700">收藏</button>
@@ -140,31 +140,31 @@
                     </div>
                     <button onclick="refreshSelectedVideoEngagement()" class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">立即同步</button>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-3">
                         <div class="text-xs text-gray-400">视频点赞</div>
-                        <div id="eng-like" class="mt-2 text-xl font-semibold text-gray-900">-</div>
+                        <div id="eng-like" class="mt-1.5 text-lg font-semibold text-gray-900">-</div>
                     </div>
-                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-3">
                         <div class="text-xs text-gray-400">视频投币</div>
-                        <div id="eng-coin" class="mt-2 text-xl font-semibold text-gray-900">-</div>
+                        <div id="eng-coin" class="mt-1.5 text-lg font-semibold text-gray-900">-</div>
                     </div>
-                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-3">
                         <div class="text-xs text-gray-400">视频收藏</div>
-                        <div id="eng-fav" class="mt-2 text-xl font-semibold text-gray-900">-</div>
+                        <div id="eng-fav" class="mt-1.5 text-lg font-semibold text-gray-900">-</div>
                     </div>
-                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-3">
                         <div class="text-xs text-gray-400">UP 主硬币</div>
-                        <div id="up-coin" class="mt-2 text-xl font-semibold text-gray-900">-</div>
+                        <div id="up-coin" class="mt-1.5 text-lg font-semibold text-gray-900">-</div>
                     </div>
                 </div>
-                <div class="mt-4 rounded-3xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
-                    <div class="flex flex-wrap gap-x-6 gap-y-2">
+                <div class="mt-3 rounded-3xl border border-gray-200 bg-white p-3 text-sm text-gray-600">
+                    <div class="flex flex-wrap gap-x-5 gap-y-2">
                         <div>我的点赞：<span id="my-like" class="font-medium text-gray-900">-</span></div>
                         <div>我的投币：<span id="my-coin" class="font-medium text-gray-900">-</span></div>
                         <div>我的收藏：<span id="my-fav" class="font-medium text-gray-900">-</span></div>
                     </div>
-                    <div class="mt-3 text-xs text-gray-400">最近同步：<span id="sync-time">-</span></div>
+                    <div class="mt-2 text-xs text-gray-400">最近同步：<span id="sync-time">-</span></div>
                 </div>
             </div>
         </section>

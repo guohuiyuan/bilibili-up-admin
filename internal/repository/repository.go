@@ -141,6 +141,22 @@ func (r *MessageRepository) GetByMessageID(ctx context.Context, messageID int64)
 	return &message, nil
 }
 
+// FindReplyTarget 根据会话标识回退查找最近一条可回复私信。
+func (r *MessageRepository) FindReplyTarget(ctx context.Context, conversationID int64) (*model.Message, error) {
+	var message model.Message
+	err := r.db.WithContext(ctx).
+		Where("is_from_self = ?", false).
+		Where("conversation_uid = ? OR sender_uid = ?", conversationID, conversationID).
+		Order("CASE WHEN reply_status = 0 THEN 0 ELSE 1 END").
+		Order("message_time DESC").
+		Order("id DESC").
+		First(&message).Error
+	if err != nil {
+		return nil, err
+	}
+	return &message, nil
+}
+
 // List 获取私信列表
 func (r *MessageRepository) List(ctx context.Context, senderID int64, replyStatus int, page, pageSize int) ([]model.Message, int64, error) {
 	var messages []model.Message

@@ -79,6 +79,7 @@ type ReplyWorkspaceData struct {
 type GenerateReplyDraftRequest struct {
 	Channel          string `json:"channel"`
 	TargetID         int64  `json:"target_id"`
+	ConversationID   int64  `json:"conversation_id"`
 	TemplateID       uint   `json:"template_id"`
 	TemplateContent  string `json:"template_content"`
 	ExtraInstruction string `json:"extra_instruction"`
@@ -87,6 +88,7 @@ type GenerateReplyDraftRequest struct {
 type SaveReplyDraftRequest struct {
 	Channel          string `json:"channel"`
 	TargetID         int64  `json:"target_id"`
+	ConversationID   int64  `json:"conversation_id"`
 	Content          string `json:"content"`
 	SourceType       string `json:"source_type"`
 	TemplateContent  string `json:"template_content"`
@@ -96,6 +98,7 @@ type SaveReplyDraftRequest struct {
 type SendReplyDraftRequest struct {
 	Channel          string `json:"channel"`
 	TargetID         int64  `json:"target_id"`
+	ConversationID   int64  `json:"conversation_id"`
 	Content          string `json:"content"`
 	SourceType       string `json:"source_type"`
 	TemplateContent  string `json:"template_content"`
@@ -119,8 +122,8 @@ func (s *ReplyWorkspaceService) llmProvider() (llm.Provider, error) {
 	return s.runtime.LLMManager().Default()
 }
 
-func (s *ReplyWorkspaceService) GetWorkspace(ctx context.Context, channel string, targetID int64) (*ReplyWorkspaceData, error) {
-	target, err := s.getTarget(ctx, channel, targetID)
+func (s *ReplyWorkspaceService) GetWorkspace(ctx context.Context, channel string, targetID, conversationID int64) (*ReplyWorkspaceData, error) {
+	target, err := s.getTarget(ctx, channel, targetID, conversationID)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +156,7 @@ func (s *ReplyWorkspaceService) GetWorkspace(ctx context.Context, channel string
 }
 
 func (s *ReplyWorkspaceService) GenerateDraft(ctx context.Context, req GenerateReplyDraftRequest) (*model.ReplyDraft, error) {
-	target, err := s.getTarget(ctx, req.Channel, req.TargetID)
+	target, err := s.getTarget(ctx, req.Channel, req.TargetID, req.ConversationID)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +252,7 @@ func (s *ReplyWorkspaceService) SaveDraft(ctx context.Context, req SaveReplyDraf
 }
 
 func (s *ReplyWorkspaceService) SendDraft(ctx context.Context, req SendReplyDraftRequest) error {
-	target, err := s.getTarget(ctx, req.Channel, req.TargetID)
+	target, err := s.getTarget(ctx, req.Channel, req.TargetID, req.ConversationID)
 	if err != nil {
 		return err
 	}
@@ -283,14 +286,14 @@ func (s *ReplyWorkspaceService) SendDraft(ctx context.Context, req SendReplyDraf
 		comment.ReplyContent = content
 		_ = s.commentRepo.Update(ctx, comment)
 	case ReplyChannelMessage:
-		message, err := s.messageRepo.GetByMessageID(ctx, req.TargetID)
+		message, err := s.resolveMessageTarget(ctx, req.TargetID, req.ConversationID)
 		if err != nil {
 			return fmt.Errorf("get message failed: %w", err)
 		}
 		if err := client.SendMessage(ctx, message.SenderID, content); err != nil {
 			return fmt.Errorf("send message failed: %w", err)
 		}
-		if err := s.messageRepo.UpdateReplyStatus(ctx, req.TargetID, 1, content, strings.TrimSpace(req.SourceType) == "ai"); err != nil {
+		if err := s.messageRepo.UpdateReplyStatus(ctx, message.MessageID, 1, content, strings.TrimSpace(req.SourceType) == "ai"); err != nil {
 			return fmt.Errorf("update message status failed: %w", err)
 		}
 	default:
@@ -337,7 +340,7 @@ func (s *ReplyWorkspaceService) DeleteTemplate(ctx context.Context, id uint) err
 	return s.templateRepo.Delete(ctx, id)
 }
 
-func (s *ReplyWorkspaceService) getTarget(ctx context.Context, channel string, targetID int64) (*ReplyWorkspaceTarget, error) {
+func (s *ReplyWorkspaceService) getTarget(ctx context.Context, channel string, targetID, conversationID int64) (*ReplyWorkspaceTarget, error) {
 	switch channel {
 	case ReplyChannelComment:
 		comment, err := s.commentRepo.GetByCommentID(ctx, targetID)
@@ -371,13 +374,13 @@ func (s *ReplyWorkspaceService) getTarget(ctx context.Context, channel string, t
 			ReplyContent: comment.ReplyContent,
 		}, nil
 	case ReplyChannelMessage:
-		message, err := s.messageRepo.GetByMessageID(ctx, targetID)
+		message, err := s.resolveMessageTarget(ctx, targetID, conversationID)
 		if err != nil {
 			return nil, fmt.Errorf("get message failed: %w", err)
 		}
 		return &ReplyWorkspaceTarget{
 			Channel:        channel,
-			TargetID:       targetID,
+			TargetID:       message.MessageID,
 			Title:          defaultString(strings.TrimSpace(message.ConversationName), "private-message"),
 			InputContent:   message.Content,
 			AuthorName:     defaultString(strings.TrimSpace(message.SenderName), "viewer"),
@@ -392,55 +395,75 @@ func (s *ReplyWorkspaceService) getTarget(ctx context.Context, channel string, t
 
 func (s *ReplyWorkspaceService) buildSystemPrompt(channel string) string {
 	if channel == ReplyChannelMessage {
-		return "You are the creator's DM assistant. Reply in concise, natural Chinese. Keep it direct, useful, and ready to send. Do not explain your reasoning."
+		return "你是创作者的私信回复助手。请直接用自然、简洁的中文生成可发送的回复，优先解决对方问题；如果信息不足，只补一个简短追问。不要解释推理过程。"
 	}
-	return "You are the creator's comment assistant. Reply in natural Chinese that matches Bilibili comment tone. Keep it concise, friendly, and ready to post. Do not explain your reasoning."
+	return "你是创作者的评论回复助手。请用符合 B 站语境的自然中文生成可直接发布的回复，保持简洁、友好、不油腻。不要解释推理过程。"
 }
 
 func (s *ReplyWorkspaceService) buildUserPrompt(target *ReplyWorkspaceTarget, templateText, extraInstruction string, examples []model.ReplyExample) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Channel: %s\n", target.Channel))
-	b.WriteString(fmt.Sprintf("User: %s\n", target.AuthorName))
+	b.WriteString(fmt.Sprintf("渠道：%s\n", target.Channel))
+	b.WriteString(fmt.Sprintf("用户：%s\n", target.AuthorName))
 	if target.Channel == ReplyChannelComment {
+		b.WriteString(fmt.Sprintf("评论用户昵称：%s\n", target.AuthorName))
 		if target.VideoTitle != "" {
-			b.WriteString(fmt.Sprintf("Video title: %s\n", target.VideoTitle))
+			b.WriteString(fmt.Sprintf("视频标题：%s\n", target.VideoTitle))
 		}
 		if target.VideoBVID != "" {
-			b.WriteString(fmt.Sprintf("Video BVID: %s\n", target.VideoBVID))
+			b.WriteString(fmt.Sprintf("视频 BVID：%s\n", target.VideoBVID))
 		}
 		if target.VideoDesc != "" {
-			b.WriteString("Video description:\n")
+			b.WriteString("视频简介：\n")
 			b.WriteString(target.VideoDesc)
 			b.WriteString("\n")
 		}
 	}
-	b.WriteString("Current user message:\n")
+	b.WriteString("当前用户消息：\n")
 	b.WriteString(strings.TrimSpace(target.InputContent))
 	b.WriteString("\n")
 	if templateText != "" {
-		b.WriteString("\nReference template:\n")
+		b.WriteString("\n可参考模板：\n")
 		b.WriteString(templateText)
 		b.WriteString("\n")
 	}
 	if len(examples) > 0 {
-		b.WriteString("\nGood examples:\n")
+		b.WriteString("\n高质量示例：\n")
 		for i, item := range examples {
-			b.WriteString(fmt.Sprintf("%d. User: %s\n", i+1, singleLine(item.UserInput)))
-			b.WriteString(fmt.Sprintf("   Reply: %s\n", singleLine(item.ReplyContent)))
+			b.WriteString(fmt.Sprintf("%d. 用户：%s\n", i+1, singleLine(item.UserInput)))
+			b.WriteString(fmt.Sprintf("   回复：%s\n", singleLine(item.ReplyContent)))
 		}
 	}
 	if extraInstruction != "" {
-		b.WriteString("\nExtra instructions:\n")
+		b.WriteString("\n补充要求：\n")
 		b.WriteString(extraInstruction)
 		b.WriteString("\n")
 	}
 	if target.Channel == ReplyChannelMessage {
-		b.WriteString("\nConstraints: 30-120 Chinese characters. Solve the user's issue first. If information is missing, ask a short follow-up question.\n")
+		b.WriteString("\n要求：30 到 120 个中文字符，先解决对方问题；如果缺信息，只补一个简短追问。\n")
 	} else {
-		b.WriteString("\nConstraints: 20-80 Chinese characters. Stay natural, warm, and not greasy.\n")
+		b.WriteString("\n要求：20 到 80 个中文字符，自然、友好、不油腻。\n")
 	}
-	b.WriteString("Return only the final reply text.")
+	b.WriteString("只输出最终回复正文，不要加解释。")
 	return b.String()
+}
+
+func (s *ReplyWorkspaceService) resolveMessageTarget(ctx context.Context, targetID, conversationID int64) (*model.Message, error) {
+	if targetID > 0 {
+		message, err := s.messageRepo.GetByMessageID(ctx, targetID)
+		if err == nil {
+			return message, nil
+		}
+	}
+	if conversationID > 0 {
+		message, err := s.messageRepo.FindReplyTarget(ctx, conversationID)
+		if err == nil {
+			return message, nil
+		}
+	}
+	if targetID > 0 {
+		return nil, fmt.Errorf("message %d not found", targetID)
+	}
+	return nil, fmt.Errorf("message target not found")
 }
 
 func (s *ReplyWorkspaceService) buildConversationMessages(
@@ -462,7 +485,7 @@ func (s *ReplyWorkspaceService) buildConversationMessages(
 	if summary != "" {
 		messages = append(messages, llm.Message{
 			Role:    "user",
-			Content: "Conversation summary:\n" + summary,
+			Content: "历史摘要：\n" + summary,
 		})
 	}
 	if target.Channel == ReplyChannelComment && len(turns) == 0 {
@@ -477,7 +500,7 @@ func (s *ReplyWorkspaceService) buildConversationMessages(
 		if text := strings.TrimSpace(item.InputContent); text != "" {
 			messages = append(messages, llm.Message{
 				Role:    "user",
-				Content: "Previous user message:\n" + text,
+				Content: "上一轮用户消息：\n" + text,
 			})
 		}
 		if text := strings.TrimSpace(item.OutputContent); text != "" {
@@ -531,7 +554,7 @@ func (s *ReplyWorkspaceService) ensureConversationSummary(
 	start := time.Now()
 	resp, err := provider.ChatWithSystem(
 		ctx,
-		"Compress prior conversation into a compact Chinese summary. Preserve user intent, factual context, commitments already made, and unresolved questions.",
+		"请把较早的对话压缩成精炼中文摘要，保留用户诉求、关键事实、已经承诺过的事情，以及尚未解决的问题。",
 		[]llm.Message{{Role: "user", Content: prompt}},
 	)
 	if err != nil {
@@ -553,7 +576,7 @@ func (s *ReplyWorkspaceService) ensureConversationSummary(
 			ConversationKey:   conversationMeta.Key,
 			ConversationTitle: conversationMeta.Title,
 			InputContent:      target.InputContent,
-			SystemPrompt:      "conversation-summary",
+			SystemPrompt:      "对话摘要压缩",
 			RequestMessages:   marshalLLMMessages([]llm.Message{{Role: "user", Content: prompt}}),
 			OutputContent:     newSummary,
 			PromptTokens:      resp.PromptTokens,
@@ -598,27 +621,27 @@ func needsConversationSummary(turns []model.LLMChatLog) bool {
 func buildConversationSummaryPrompt(target *ReplyWorkspaceTarget, previousSummary string, turns []model.LLMChatLog) string {
 	var b strings.Builder
 	if previousSummary != "" {
-		b.WriteString("Existing summary:\n")
+		b.WriteString("已有摘要：\n")
 		b.WriteString(previousSummary)
 		b.WriteString("\n\n")
 	}
-	b.WriteString(fmt.Sprintf("Channel: %s\n", target.Channel))
+	b.WriteString(fmt.Sprintf("渠道：%s\n", target.Channel))
 	if target.Channel == ReplyChannelComment {
 		if target.VideoTitle != "" {
-			b.WriteString(fmt.Sprintf("Video title: %s\n", target.VideoTitle))
+			b.WriteString(fmt.Sprintf("视频标题：%s\n", target.VideoTitle))
 		}
 		if target.VideoDesc != "" {
-			b.WriteString("Video description:\n")
+			b.WriteString("视频简介：\n")
 			b.WriteString(target.VideoDesc)
 			b.WriteString("\n")
 		}
 	}
-	b.WriteString("Older turns to compress:\n")
+	b.WriteString("需要压缩的较早轮次：\n")
 	for i, item := range turns {
-		b.WriteString(fmt.Sprintf("%d. User: %s\n", i+1, singleLine(item.InputContent)))
-		b.WriteString(fmt.Sprintf("   Reply: %s\n", singleLine(item.OutputContent)))
+		b.WriteString(fmt.Sprintf("%d. 用户：%s\n", i+1, singleLine(item.InputContent)))
+		b.WriteString(fmt.Sprintf("   回复：%s\n", singleLine(item.OutputContent)))
 	}
-	b.WriteString("Write a compact Chinese summary for future reply generation.")
+	b.WriteString("请写出一段供后续回复生成使用的精炼中文摘要。")
 	return b.String()
 }
 
@@ -630,15 +653,15 @@ func (s *ReplyWorkspaceService) buildVideoContext(target *ReplyWorkspaceTarget) 
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("This is a brand new comment conversation. Use the video context first.\n")
+	b.WriteString("这是一条全新的评论对话，请优先参考视频上下文。\n")
 	if target.VideoTitle != "" {
-		b.WriteString("Video title: " + target.VideoTitle + "\n")
+		b.WriteString("视频标题：" + target.VideoTitle + "\n")
 	}
 	if target.VideoBVID != "" {
-		b.WriteString("BVID: " + target.VideoBVID + "\n")
+		b.WriteString("BVID：" + target.VideoBVID + "\n")
 	}
 	if target.VideoDesc != "" {
-		b.WriteString("Video description:\n")
+		b.WriteString("视频简介：\n")
 		b.WriteString(target.VideoDesc)
 		b.WriteString("\n")
 	}
@@ -669,15 +692,15 @@ func defaultTemplates(channel string) []model.ReplyTemplate {
 	switch channel {
 	case ReplyChannelMessage:
 		return []model.ReplyTemplate{
-			{Channel: channel, Title: "Polite ack", Scene: "General DM", Content: "I saw your message. Thanks for reaching out. If you can share a bit more detail, I can answer more precisely."},
-			{Channel: channel, Title: "Business intake", Scene: "Business", Content: "Thanks for reaching out. Please send the brand, brief, budget range, timeline, and expected deliverables first."},
-			{Channel: channel, Title: "Delayed handling", Scene: "Delay", Content: "I saw this message. I cannot handle it fully right now, but I will follow up as soon as I can."},
+			{Channel: channel, Title: "礼貌确认", Scene: "通用私信", Content: "我看到你的消息了，感谢联系我。如果你愿意再补充一点细节，我可以回复得更准确。"},
+			{Channel: channel, Title: "商务收集", Scene: "商务合作", Content: "感谢联系。可以先发一下品牌、合作需求、预算范围、时间安排和预期交付内容，我这边再统一看。"},
+			{Channel: channel, Title: "延后处理", Scene: "暂缓回复", Content: "我已经看到这条消息了，当前没法马上完整处理，稍后我会继续跟进回复你。"},
 		}
 	case ReplyChannelComment:
 		return []model.ReplyTemplate{
-			{Channel: channel, Title: "Thanks", Scene: "General", Content: "Thanks for watching and leaving a comment. I appreciate it."},
-			{Channel: channel, Title: "Answer question", Scene: "Question", Content: "Good catch. The short answer is this is how I handled it. If needed I can make a dedicated follow-up."},
-			{Channel: channel, Title: "Take feedback", Scene: "Feedback", Content: "Got it. This feedback is useful. I will keep improving the next version."},
+			{Channel: channel, Title: "感谢支持", Scene: "通用评论", Content: "谢谢你来看视频还专门留言，真的很有帮助。"},
+			{Channel: channel, Title: "回答问题", Scene: "问题解答", Content: "你提到的这个点很关键，我这里的处理方式就是这样；如果你需要，我后面可以单独补一期详细说明。"},
+			{Channel: channel, Title: "接收反馈", Scene: "反馈建议", Content: "收到，这个反馈很有价值，我后面会继续优化。"},
 		}
 	default:
 		return nil
@@ -686,12 +709,12 @@ func defaultTemplates(channel string) []model.ReplyTemplate {
 
 func (s *ReplyWorkspaceService) defaultExampleTitle(target *ReplyWorkspaceTarget) string {
 	if target == nil {
-		return "example"
+		return "示例回复"
 	}
 	if target.Channel == ReplyChannelMessage {
-		return fmt.Sprintf("dm-example-%s", target.AuthorName)
+		return fmt.Sprintf("私信示例-%s", target.AuthorName)
 	}
-	return fmt.Sprintf("comment-example-%s", target.AuthorName)
+	return fmt.Sprintf("评论示例-%s", target.AuthorName)
 }
 
 func (s *ReplyWorkspaceService) conversationMeta(channel string, target *ReplyWorkspaceTarget) llmConversationMeta {
