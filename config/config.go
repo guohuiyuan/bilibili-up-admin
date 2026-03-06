@@ -1,11 +1,17 @@
 package config
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
 )
+
+//go:embed config.yaml
+var embeddedConfigYAML []byte
 
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
@@ -45,19 +51,19 @@ func (c *DatabaseConfig) DSN() string {
 var GlobalConfig *Config
 
 func Load(configPath string) error {
-	viper.SetConfigFile(configPath)
-	viper.SetEnvPrefix("BILI")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.AutomaticEnv()
+	v := viper.New()
+	v.SetEnvPrefix("BILI")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
 
-	setDefaults()
+	setDefaults(v)
 
-	if err := viper.ReadInConfig(); err != nil {
-		return fmt.Errorf("read config failed: %w", err)
+	if err := loadConfigSource(v, configPath); err != nil {
+		return err
 	}
 
 	var cfg Config
-	if err := viper.Unmarshal(&cfg); err != nil {
+	if err := v.Unmarshal(&cfg); err != nil {
 		return fmt.Errorf("unmarshal config failed: %w", err)
 	}
 
@@ -66,16 +72,34 @@ func Load(configPath string) error {
 	return nil
 }
 
-func setDefaults() {
-	viper.SetDefault("server.port", 8080)
-	viper.SetDefault("server.mode", "debug")
-	viper.SetDefault("server.trusted_proxies", []string{"127.0.0.1", "::1"})
-	viper.SetDefault("data_dir", "data")
-	viper.SetDefault("database.driver", "sqlite")
-	viper.SetDefault("database.path", "bilibili-up-admin.db")
-	viper.SetDefault("database.host", "localhost")
-	viper.SetDefault("database.port", 3306)
-	viper.SetDefault("database.charset", "utf8mb4")
+func loadConfigSource(v *viper.Viper, configPath string) error {
+	if configPath != "" {
+		v.SetConfigFile(configPath)
+		if err := v.ReadInConfig(); err == nil {
+			return nil
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("read config failed: %w", err)
+		}
+	}
+
+	v.SetConfigType("yaml")
+	if err := v.ReadConfig(bytes.NewReader(embeddedConfigYAML)); err != nil {
+		return fmt.Errorf("read embedded config failed: %w", err)
+	}
+
+	return nil
+}
+
+func setDefaults(v *viper.Viper) {
+	v.SetDefault("server.port", 8080)
+	v.SetDefault("server.mode", "debug")
+	v.SetDefault("server.trusted_proxies", []string{"127.0.0.1", "::1"})
+	v.SetDefault("data_dir", "data")
+	v.SetDefault("database.driver", "sqlite")
+	v.SetDefault("database.path", "bilibili-up-admin.db")
+	v.SetDefault("database.host", "localhost")
+	v.SetDefault("database.port", 3306)
+	v.SetDefault("database.charset", "utf8mb4")
 }
 
 func normalizePaths(cfg *Config) {

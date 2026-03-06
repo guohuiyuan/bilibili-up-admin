@@ -64,13 +64,15 @@ go mod tidy
 
 ### 3. 配置文件
 
-复制配置文件并修改：
+默认配置会在编译时内嵌进程序；如果你需要在运行时覆盖配置，再准备外部配置文件：
 
 ```bash
 cp config/config.yaml config/config.local.yaml
 ```
 
-编辑 `config/config.yaml`，配置以下关键信息：
+容器或服务器运行时，如果存在 `config/config.yaml`，程序会优先读取它；不存在时会回退到二进制内嵌的默认配置。
+
+如果要修改默认值，请在构建前编辑 `config/config.yaml`。配置示例：
 
 ```yaml
 # 数据库配置
