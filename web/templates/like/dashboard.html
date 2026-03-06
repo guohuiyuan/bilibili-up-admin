@@ -220,6 +220,9 @@ let selectedFan = null;
 let selectedVideo = null;
 let favoriteMediaID = 0;
 let engagementPollTimer = null;
+let fanListLoading = false;
+let lastFanFetchAt = 0;
+const fanFetchCooldownMs = 1200;
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -558,11 +561,24 @@ async function loadInteractionDefaults() {
 }
 
 async function loadFansPage() {
+    if (fanListLoading) {
+        return;
+    }
+    const waitMs = Math.max(0, fanFetchCooldownMs - (Date.now() - lastFanFetchAt));
+    if (waitMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+    }
+    fanListLoading = true;
     renderFanPickerLoading();
-    const data = await api(`/admin/api/fans/list?page=${fanPage}&page_size=${fanPageSize}`);
-    fanItems = data.items || [];
-    fanHasMore = !!data.has_more;
-    renderFanPicker();
+    try {
+        const data = await api(`/admin/api/fans/list?page=${fanPage}&page_size=${fanPageSize}`);
+        fanItems = data.items || [];
+        fanHasMore = !!data.has_more;
+        renderFanPicker();
+    } finally {
+        fanListLoading = false;
+        lastFanFetchAt = Date.now();
+    }
 }
 
 function renderFanPickerLoading() {
@@ -593,13 +609,13 @@ function renderVideoPickerLoading() {
 }
 
 function prevFanPage() {
-    if (fanPage <= 1) return;
+    if (fanListLoading || fanPage <= 1) return;
     fanPage -= 1;
     loadFansPage().catch(err => showToast(err.message, 'error'));
 }
 
 function nextFanPage() {
-    if (!fanHasMore) return;
+    if (fanListLoading || !fanHasMore) return;
     fanPage += 1;
     loadFansPage().catch(err => showToast(err.message, 'error'));
 }

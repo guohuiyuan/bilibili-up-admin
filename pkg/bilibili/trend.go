@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 )
+
+const fansListRequestInterval = 1200 * time.Millisecond
 
 type TagRanking struct {
 	TagName    string      `json:"tag_name"`
@@ -571,6 +574,9 @@ func (c *Client) ListFans(ctx context.Context, page, pageSize int) ([]FanProfile
 	if pageSize <= 0 {
 		pageSize = 20
 	}
+	if err := waitRequestInterval(ctx, fansListRequestInterval); err != nil {
+		return nil, err
+	}
 	fans, err := c.inner.GetFans(int32(page), int32(pageSize))
 	if err != nil {
 		return nil, fmt.Errorf("get fans failed: %w", err)
@@ -580,6 +586,21 @@ func (c *Client) ListFans(ctx context.Context, page, pageSize int) ([]FanProfile
 		out = append(out, FanProfile{UserID: f.Mid, UserName: f.Uname, UserFace: f.Face, FollowTime: f.MTime})
 	}
 	return out, nil
+}
+
+func waitRequestInterval(ctx context.Context, interval time.Duration) error {
+	if interval <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (c *Client) ListUserVideos(ctx context.Context, mid int64, page, pageSize int) ([]VideoInfo, error) {

@@ -463,6 +463,11 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 	replyDigest := hex.EncodeToString(digest[:])
 
 	for page := 1; page <= 3; page++ {
+		if page > 1 {
+			if err := sleepWithContext(ctx, interval); err != nil {
+				return nil, err
+			}
+		}
 		fans, err := client.ListFans(ctx, page, rules.FanPageSize)
 		if err != nil {
 			return nil, err
@@ -531,11 +536,28 @@ func (s *MessageService) AutoReplyNewFollowers(ctx context.Context, rules Intera
 			summary.Replied++
 			log.Printf("[fans.auto_reply] replied uid=%d uname=%q", fan.UserID, fan.UserName)
 			_ = s.fanReplyRepo.Update(ctx, record)
-			time.Sleep(interval)
+			if err := sleepWithContext(ctx, interval); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	log.Printf("[fans.auto_reply] done scanned=%d new=%d replied=%d failed=%d seeded=%d", summary.ScannedFans, summary.NewFans, summary.Replied, summary.Failed, summary.Seeded)
 
 	return summary, nil
+}
+
+func sleepWithContext(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

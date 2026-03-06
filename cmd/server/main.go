@@ -296,7 +296,7 @@ func initPolling(runtime *appruntime.Store, services *Services, settingRepo *rep
 
 	_ = mgr.Register(polling.Task{
 		Name:       "fans-follow-auto-reply",
-		Interval:   2 * time.Minute,
+		Interval:   5 * time.Minute,
 		Timeout:    90 * time.Second,
 		RunOnStart: true,
 		PreHandle:  checkReady,
