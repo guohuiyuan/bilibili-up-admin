@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"bilibili-up-admin/internal/model"
 	"bilibili-up-admin/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -124,4 +125,62 @@ func (h *MessageHandler) UnreadCount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"unread_count": count})
+}
+
+// ListAutoRules 获取自动回复规则列表
+func (h *MessageHandler) ListAutoRules(c *gin.Context) {
+	rules, err := h.svc.ListAutoRules(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"rules": rules})
+}
+
+// CreateAutoRule 创建自动回复规则
+func (h *MessageHandler) CreateAutoRule(c *gin.Context) {
+	var rule model.MessageAutoRule
+	if err := c.ShouldBindJSON(&rule); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.svc.CreateAutoRule(c.Request.Context(), &rule); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, rule)
+}
+
+// UpdateAutoRule 更新自动回复规则
+func (h *MessageHandler) UpdateAutoRule(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var rule model.MessageAutoRule
+	if err := c.ShouldBindJSON(&rule); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	rule.ID = uint(id)
+	if err := h.svc.UpdateAutoRule(c.Request.Context(), &rule); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, rule)
+}
+
+// DeleteAutoRule 删除自动回复规则
+func (h *MessageHandler) DeleteAutoRule(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.svc.DeleteAutoRule(c.Request.Context(), uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
 }

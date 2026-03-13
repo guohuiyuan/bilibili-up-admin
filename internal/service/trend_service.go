@@ -16,8 +16,8 @@ import (
 const DefaultTrendCacheTTL = 6 * time.Hour
 
 const (
-	TagInfoPollMaxPerRun = 8
-	TagInfoPollInterval  = 2 * time.Second
+	TagInfoPollMaxPerRun = 20
+	TagInfoPollInterval  = 800 * time.Millisecond
 )
 
 // TrendService 热度服务
@@ -175,22 +175,41 @@ func (s *TrendService) GetVideoRanking(ctx context.Context, category string, lim
 	return client.GetCategoryRanking(ctx, category, limit)
 }
 
-// SaveTagRankings 保存标签排行
+// SaveTagRankings 保存标签排行（各分区内按热度降序分配 rank，保证排名稳定）
 func (s *TrendService) SaveTagRankings(ctx context.Context, tags []bilibili.TrendingTag) error {
 	now := time.Now()
-	rankings := make([]model.TagRanking, 0, len(tags))
 
-	for i, tag := range tags {
-		rankings = append(rankings, model.TagRanking{
-			TagName:     tag.Name,
-			TagID:       tag.TagID,
-			HotValue:    tag.HotValue,
-			UseCount:    tag.UseCount,
-			FollowCount: tag.FollowCount,
-			Rank:        i + 1,
-			Category:    tag.Category,
-			RecordDate:  now,
+	// 按分区分组，各自按热度降序排列后分配 rank
+	type catGroup struct{ tags []bilibili.TrendingTag }
+	groups := make(map[string]*catGroup)
+	catOrder := make([]string, 0)
+	for _, tag := range tags {
+		if _, ok := groups[tag.Category]; !ok {
+			groups[tag.Category] = &catGroup{}
+			catOrder = append(catOrder, tag.Category)
+		}
+		groups[tag.Category].tags = append(groups[tag.Category].tags, tag)
+	}
+	for _, g := range groups {
+		sort.SliceStable(g.tags, func(i, j int) bool {
+			return g.tags[i].HotValue > g.tags[j].HotValue
 		})
+	}
+
+	rankings := make([]model.TagRanking, 0, len(tags))
+	for _, cat := range catOrder {
+		for i, tag := range groups[cat].tags {
+			rankings = append(rankings, model.TagRanking{
+				TagName:     tag.Name,
+				TagID:       tag.TagID,
+				HotValue:    tag.HotValue,
+				UseCount:    tag.UseCount,
+				FollowCount: tag.FollowCount,
+				Rank:        i + 1,
+				Category:    cat,
+				RecordDate:  now,
+			})
+		}
 	}
 
 	return s.repo.BatchCreate(ctx, rankings)

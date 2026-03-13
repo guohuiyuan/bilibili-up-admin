@@ -248,3 +248,19 @@ type ReplyDraft struct {
 }
 
 func (ReplyDraft) TableName() string { return "reply_drafts" }
+
+// MessageAutoRule 私信自动回复规则
+// match_type: "exact" 固定匹配, "regex" 正则匹配, "contains" 包含匹配
+type MessageAutoRule struct {
+	BaseModel
+	Name       string     `gorm:"column:name;size:120;not null" json:"name"`
+	MatchType  string     `gorm:"column:match_type;size:20;not null;default:exact" json:"match_type"`
+	Pattern    string     `gorm:"column:pattern;type:text;not null" json:"pattern"`
+	Reply      string     `gorm:"column:reply;type:text;not null" json:"reply"`
+	Enabled    bool       `gorm:"column:enabled;default:true;index" json:"enabled"`
+	Priority   int        `gorm:"column:priority;default:0;index" json:"priority"`
+	MatchCount int        `gorm:"column:match_count;default:0" json:"match_count"`
+	LastMatchAt *time.Time `gorm:"column:last_match_at" json:"last_match_at"`
+}
+
+func (MessageAutoRule) TableName() string { return "message_auto_rules" }

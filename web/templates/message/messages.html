@@ -133,9 +133,14 @@
             <h2 class="mt-2 text-3xl font-bold text-gray-900">私信箱</h2>
             <p class="mt-1 text-sm text-gray-500">点击待回复消息或按钮即可打开编辑栏，AI 回复会先自动填入内容。</p>
         </div>
-        <button onclick="loadMessages()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">
-            <i class="ri-refresh-line mr-1"></i>刷新消息
-        </button>
+        <div class="flex items-center gap-2">
+            <button onclick="openAutoRulesModal()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">
+                <i class="ri-robot-line mr-1"></i>自动回复规则
+            </button>
+            <button onclick="loadMessages()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">
+                <i class="ri-refresh-line mr-1"></i>刷新消息
+            </button>
+        </div>
     </div>
 
     <div class="thread-toolbar rounded-3xl p-4 mb-4">
@@ -188,6 +193,54 @@
                 <div class="flex items-center gap-3">
                     <button onclick="prevConversationPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">上一页</button>
                     <button onclick="nextConversationPage()" class="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 hover:border-pink-300 hover:text-pink-500 transition">下一页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 自动回复规则 Modal -->
+<div id="auto-rules-modal" class="fixed inset-0 z-40 hidden overflow-y-auto bg-black/45 px-4 py-8">
+    <div class="mx-auto flex min-h-full max-w-2xl items-center justify-center">
+        <div class="picker-panel flex max-h-[90vh] min-h-0 w-full flex-col overflow-hidden rounded-[28px]">
+            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                <div>
+                    <div class="text-lg font-semibold text-gray-900">私信自动回复规则</div>
+                    <div class="mt-1 text-sm text-gray-400">按优先级从高到低匹配，命中第一条即回复。支持固定匹配、包含匹配、正则匹配。</div>
+                </div>
+                <button type="button" onclick="Modal.hide('auto-rules-modal')" class="text-gray-400 hover:text-pink-500 transition"><i class="ri-close-line text-2xl"></i></button>
+            </div>
+            <div class="compact-scrollbar min-h-0 flex-1 overflow-y-auto p-5 space-y-3" id="auto-rules-list"></div>
+            <div class="border-t border-gray-100 bg-white px-6 py-4">
+                <div class="text-sm font-semibold text-gray-700 mb-3">新增规则</div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">规则名称</label>
+                        <input id="new-rule-name" type="text" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200" placeholder="例：商务合作">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">匹配类型</label>
+                        <select id="new-rule-type" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200">
+                            <option value="exact">固定匹配（完全相等）</option>
+                            <option value="contains">包含匹配（含关键词）</option>
+                            <option value="regex">正则匹配</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">匹配内容 / 正则</label>
+                        <input id="new-rule-pattern" type="text" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200" placeholder="输入关键词或正则表达式">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">优先级（数字越大越先匹配）</label>
+                        <input id="new-rule-priority" type="number" value="0" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs text-gray-500 mb-1">回复内容</label>
+                        <textarea id="new-rule-reply" rows="3" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-pink-200" placeholder="自动发送的回复文字"></textarea>
+                    </div>
+                </div>
+                <div class="mt-3 flex justify-end">
+                    <button onclick="submitNewAutoRule()" class="rounded-full bg-pink-500 px-5 py-2 text-sm text-white hover:bg-pink-600 transition">添加规则</button>
                 </div>
             </div>
         </div>
@@ -585,6 +638,105 @@ async function ignore(messageId) {
 
 function aiReply(messageId, conversationId) {
     openMessageReply(messageId, conversationId, true);
+}
+
+// --- 自动回复规则 ---
+let autoRules = [];
+
+async function openAutoRulesModal() {
+    Modal.show('auto-rules-modal');
+    await loadAutoRules();
+}
+
+async function loadAutoRules() {
+    try {
+        const data = await api('/admin/api/messages/auto-rules');
+        autoRules = data.rules || [];
+        renderAutoRules();
+    } catch (err) {
+        showToast('加载规则失败: ' + err.message, 'error');
+    }
+}
+
+function matchTypeLabel(t) {
+    return t === 'exact' ? '固定' : t === 'contains' ? '包含' : t === 'regex' ? '正则' : t;
+}
+
+function renderAutoRules() {
+    const container = document.getElementById('auto-rules-list');
+    if (!autoRules.length) {
+        container.innerHTML = '<div class="py-8 text-center text-gray-400">暂无规则，在下方添加第一条</div>';
+        return;
+    }
+    container.innerHTML = autoRules.map(rule => `
+        <div class="rounded-2xl border ${rule.enabled ? 'border-pink-100 bg-pink-50/30' : 'border-gray-100 bg-gray-50'} p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2 text-sm">
+                        <span class="font-semibold text-gray-900">${escapeHtml(rule.name || '未命名')}</span>
+                        <span class="rounded-full border px-2 py-0.5 text-xs ${rule.enabled ? 'border-pink-100 bg-pink-50 text-pink-600' : 'border-gray-200 bg-gray-100 text-gray-500'}">${rule.enabled ? '启用' : '禁用'}</span>
+                        <span class="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs text-blue-600">${matchTypeLabel(rule.match_type)}</span>
+                        <span class="text-xs text-gray-400">优先级 ${rule.priority} · 命中 ${rule.match_count} 次</span>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500">匹配: <code class="rounded bg-gray-100 px-1">${escapeHtml(rule.pattern)}</code></div>
+                    <div class="mt-1 text-xs text-gray-500">回复: ${escapeHtml(rule.reply)}</div>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                    <button onclick="toggleAutoRule(${rule.id}, ${!rule.enabled})" class="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 hover:border-pink-200 hover:text-pink-500 transition">${rule.enabled ? '禁用' : '启用'}</button>
+                    <button onclick="deleteAutoRule(${rule.id})" class="rounded-full border border-red-100 bg-white px-3 py-1 text-xs text-red-500 hover:bg-red-50 transition">删除</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function submitNewAutoRule() {
+    const name = document.getElementById('new-rule-name').value.trim();
+    const matchType = document.getElementById('new-rule-type').value;
+    const pattern = document.getElementById('new-rule-pattern').value.trim();
+    const reply = document.getElementById('new-rule-reply').value.trim();
+    const priority = parseInt(document.getElementById('new-rule-priority').value || '0', 10);
+    if (!pattern) { showToast('请输入匹配内容', 'warning'); return; }
+    if (!reply) { showToast('请输入回复内容', 'warning'); return; }
+    try {
+        await api('/admin/api/messages/auto-rules', {
+            method: 'POST',
+            body: { name: name || pattern, match_type: matchType, pattern, reply, priority, enabled: true }
+        });
+        showToast('规则已添加', 'success');
+        document.getElementById('new-rule-name').value = '';
+        document.getElementById('new-rule-pattern').value = '';
+        document.getElementById('new-rule-reply').value = '';
+        document.getElementById('new-rule-priority').value = '0';
+        await loadAutoRules();
+    } catch (err) {
+        showToast('添加失败: ' + err.message, 'error');
+    }
+}
+
+async function toggleAutoRule(id, enabled) {
+    const rule = autoRules.find(r => r.id === id);
+    if (!rule) return;
+    try {
+        await api(`/admin/api/messages/auto-rules/${id}`, {
+            method: 'PUT',
+            body: { ...rule, enabled }
+        });
+        await loadAutoRules();
+    } catch (err) {
+        showToast('操作失败: ' + err.message, 'error');
+    }
+}
+
+async function deleteAutoRule(id) {
+    if (!confirm('确定删除这条自动回复规则？')) return;
+    try {
+        await api(`/admin/api/messages/auto-rules/${id}`, { method: 'DELETE' });
+        showToast('已删除', 'success');
+        await loadAutoRules();
+    } catch (err) {
+        showToast('删除失败: ' + err.message, 'error');
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

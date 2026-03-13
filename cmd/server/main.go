@@ -172,6 +172,7 @@ func initDatabase() (*gorm.DB, error) {
 		&model.ReplyTemplate{},
 		&model.ReplyExample{},
 		&model.ReplyDraft{},
+		&model.MessageAutoRule{},
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate failed: %w", err)
 	}
@@ -424,36 +425,38 @@ func buildHTMLRenderer(templateFS fs.FS) (render.HTMLRender, error) {
 }
 
 type Repositories struct {
-	Comment       *repository.CommentRepository
-	Message       *repository.MessageRepository
-	Interaction   *repository.InteractionRepository
-	TagRanking    *repository.TagRankingRepository
-	LLMChatLog    *repository.LLMChatLogRepository
-	Setting       *repository.SettingRepository
-	LLMProvider   *repository.LLMProviderRepository
-	AdminUser     *repository.AdminUserRepository
-	AdminSession  *repository.AdminSessionRepository
-	FanAutoReply  *repository.FanAutoReplyRecordRepository
-	ReplyTemplate *repository.ReplyTemplateRepository
-	ReplyExample  *repository.ReplyExampleRepository
-	ReplyDraft    *repository.ReplyDraftRepository
+	Comment         *repository.CommentRepository
+	Message         *repository.MessageRepository
+	Interaction     *repository.InteractionRepository
+	TagRanking      *repository.TagRankingRepository
+	LLMChatLog      *repository.LLMChatLogRepository
+	Setting         *repository.SettingRepository
+	LLMProvider     *repository.LLMProviderRepository
+	AdminUser       *repository.AdminUserRepository
+	AdminSession    *repository.AdminSessionRepository
+	FanAutoReply    *repository.FanAutoReplyRecordRepository
+	ReplyTemplate   *repository.ReplyTemplateRepository
+	ReplyExample    *repository.ReplyExampleRepository
+	ReplyDraft      *repository.ReplyDraftRepository
+	MsgAutoRule     *repository.MessageAutoRuleRepository
 }
 
 func initRepositories(db *gorm.DB) *Repositories {
 	return &Repositories{
-		Comment:       repository.NewCommentRepository(db),
-		Message:       repository.NewMessageRepository(db),
-		Interaction:   repository.NewInteractionRepository(db),
-		TagRanking:    repository.NewTagRankingRepository(db),
-		LLMChatLog:    repository.NewLLMChatLogRepository(db),
-		Setting:       repository.NewSettingRepository(db),
-		LLMProvider:   repository.NewLLMProviderRepository(db),
-		AdminUser:     repository.NewAdminUserRepository(db),
-		AdminSession:  repository.NewAdminSessionRepository(db),
-		FanAutoReply:  repository.NewFanAutoReplyRecordRepository(db),
-		ReplyTemplate: repository.NewReplyTemplateRepository(db),
-		ReplyExample:  repository.NewReplyExampleRepository(db),
-		ReplyDraft:    repository.NewReplyDraftRepository(db),
+		Comment:         repository.NewCommentRepository(db),
+		Message:         repository.NewMessageRepository(db),
+		Interaction:     repository.NewInteractionRepository(db),
+		TagRanking:      repository.NewTagRankingRepository(db),
+		LLMChatLog:      repository.NewLLMChatLogRepository(db),
+		Setting:         repository.NewSettingRepository(db),
+		LLMProvider:     repository.NewLLMProviderRepository(db),
+		AdminUser:       repository.NewAdminUserRepository(db),
+		AdminSession:    repository.NewAdminSessionRepository(db),
+		FanAutoReply:    repository.NewFanAutoReplyRecordRepository(db),
+		ReplyTemplate:   repository.NewReplyTemplateRepository(db),
+		ReplyExample:    repository.NewReplyExampleRepository(db),
+		ReplyDraft:      repository.NewReplyDraftRepository(db),
+		MsgAutoRule:     repository.NewMessageAutoRuleRepository(db),
 	}
 }
 
@@ -473,7 +476,7 @@ func initServices(runtime *appruntime.Store, settings *service.AppSettingsServic
 	return &Services{
 		Dashboard:      service.NewDashboardService(repos.Comment, repos.Message, repos.Interaction),
 		Comment:        service.NewCommentService(runtime, repos.Comment, repos.LLMChatLog),
-		Message:        service.NewMessageService(runtime, repos.Message, repos.LLMChatLog, repos.FanAutoReply),
+		Message:        service.NewMessageService(runtime, repos.Message, repos.LLMChatLog, repos.FanAutoReply, repos.MsgAutoRule),
 		Interaction:    service.NewInteractionService(runtime, repos.Interaction),
 		Trend:          service.NewTrendService(runtime, repos.TagRanking),
 		LLM:            service.NewLLMService(runtime, repos.LLMChatLog),
@@ -592,6 +595,10 @@ func initRouter(h *Handlers, mode string) *gin.Engine {
 				api.POST("/messages/:id/ai-reply", h.Message.AIReply)
 				api.POST("/messages/:id/reply", h.Message.ManualReply)
 				api.POST("/messages/:id/ignore", h.Message.Ignore)
+				api.GET("/messages/auto-rules", h.Message.ListAutoRules)
+				api.POST("/messages/auto-rules", h.Message.CreateAutoRule)
+				api.PUT("/messages/auto-rules/:id", h.Message.UpdateAutoRule)
+				api.DELETE("/messages/auto-rules/:id", h.Message.DeleteAutoRule)
 
 				api.GET("/reply-workspace", h.ReplyWorkspace.Workspace)
 				api.POST("/reply-workspace/draft/generate", h.ReplyWorkspace.GenerateDraft)

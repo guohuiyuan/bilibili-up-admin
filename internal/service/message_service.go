@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ type MessageService struct {
 	repo         *repository.MessageRepository
 	llmLogRepo   *repository.LLMChatLogRepository
 	fanReplyRepo *repository.FanAutoReplyRecordRepository
+	autoRuleRepo *repository.MessageAutoRuleRepository
 }
 
 // NewMessageService 创建私信服务
@@ -30,12 +32,14 @@ func NewMessageService(
 	repo *repository.MessageRepository,
 	llmLogRepo *repository.LLMChatLogRepository,
 	fanReplyRepo *repository.FanAutoReplyRecordRepository,
+	autoRuleRepo *repository.MessageAutoRuleRepository,
 ) *MessageService {
 	return &MessageService{
 		runtime:      runtime,
 		repo:         repo,
 		llmLogRepo:   llmLogRepo,
 		fanReplyRepo: fanReplyRepo,
+		autoRuleRepo: autoRuleRepo,
 	}
 }
 
@@ -581,4 +585,99 @@ func sleepWithContext(ctx context.Context, delay time.Duration) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+// --- 私信自动回复规则 CRUD ---
+
+func (s *MessageService) ListAutoRules(ctx context.Context) ([]model.MessageAutoRule, error) {
+	if s.autoRuleRepo == nil {
+		return nil, fmt.Errorf("auto rule repo not available")
+	}
+	return s.autoRuleRepo.List(ctx)
+}
+
+func (s *MessageService) CreateAutoRule(ctx context.Context, rule *model.MessageAutoRule) error {
+	if s.autoRuleRepo == nil {
+		return fmt.Errorf("auto rule repo not available")
+	}
+	if rule.MatchType == "" {
+		rule.MatchType = "exact"
+	}
+	if rule.MatchType == "regex" {
+		if _, err := regexp.Compile(rule.Pattern); err != nil {
+			return fmt.Errorf("invalid regex pattern: %w", err)
+		}
+	}
+	return s.autoRuleRepo.Create(ctx, rule)
+}
+
+func (s *MessageService) UpdateAutoRule(ctx context.Context, rule *model.MessageAutoRule) error {
+	if s.autoRuleRepo == nil {
+		return fmt.Errorf("auto rule repo not available")
+	}
+	if rule.MatchType == "regex" {
+		if _, err := regexp.Compile(rule.Pattern); err != nil {
+			return fmt.Errorf("invalid regex pattern: %w", err)
+		}
+	}
+	return s.autoRuleRepo.Update(ctx, rule)
+}
+
+func (s *MessageService) DeleteAutoRule(ctx context.Context, id uint) error {
+	if s.autoRuleRepo == nil {
+		return fmt.Errorf("auto rule repo not available")
+	}
+	return s.autoRuleRepo.Delete(ctx, id)
+}
+
+// MatchAutoRule 匹配消息内容，返回第一个命中的规则回复内容（无匹配返回 "", nil）
+func (s *MessageService) MatchAutoRule(ctx context.Context, content string) (string, uint, error) {
+	if s.autoRuleRepo == nil {
+		return "", 0, nil
+	}
+	rules, err := s.autoRuleRepo.ListEnabled(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+	for _, rule := range rules {
+		matched := false
+		switch rule.MatchType {
+		case "exact":
+			matched = strings.TrimSpace(content) == strings.TrimSpace(rule.Pattern)
+		case "contains":
+			matched = strings.Contains(content, rule.Pattern)
+		case "regex":
+			re, compErr := regexp.Compile(rule.Pattern)
+			if compErr == nil {
+				matched = re.MatchString(content)
+			}
+		}
+		if matched {
+			_ = s.autoRuleRepo.IncrMatchCount(ctx, rule.ID)
+			return rule.Reply, rule.ID, nil
+		}
+	}
+	return "", 0, nil
+}
+
+// AutoRuleReply 对一条新收到的消息尝试自动规则匹配并回复，返回是否命中
+func (s *MessageService) AutoRuleReply(ctx context.Context, message *model.Message) (bool, error) {
+	if message.IsFromSelf || message.ReplyStatus != 0 {
+		return false, nil
+	}
+	reply, ruleID, err := s.MatchAutoRule(ctx, message.Content)
+	if err != nil || reply == "" {
+		return false, err
+	}
+	client, err := s.biliClient()
+	if err != nil {
+		return false, err
+	}
+	if err := client.SendMessage(ctx, message.SenderID, reply); err != nil {
+		log.Printf("[auto_rule] send failed msg_id=%d rule_id=%d err=%v", message.MessageID, ruleID, err)
+		return false, err
+	}
+	_ = s.repo.UpdateReplyStatus(ctx, message.MessageID, 1, reply, false)
+	log.Printf("[auto_rule] replied msg_id=%d rule_id=%d sender=%d", message.MessageID, ruleID, message.SenderID)
+	return true, nil
 }

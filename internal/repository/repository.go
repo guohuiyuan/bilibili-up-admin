@@ -841,3 +841,44 @@ func (r *LLMProviderRepository) Save(ctx context.Context, provider *model.LLMPro
 func (r *LLMProviderRepository) Delete(ctx context.Context, name string) error {
 	return r.db.WithContext(ctx).Where("name = ?", name).Delete(&model.LLMProvider{}).Error
 }
+
+// MessageAutoRuleRepository 私信自动回复规则仓库
+type MessageAutoRuleRepository struct {
+	db *gorm.DB
+}
+
+func NewMessageAutoRuleRepository(db *gorm.DB) *MessageAutoRuleRepository {
+	return &MessageAutoRuleRepository{db: db}
+}
+
+func (r *MessageAutoRuleRepository) List(ctx context.Context) ([]model.MessageAutoRule, error) {
+	var list []model.MessageAutoRule
+	err := r.db.WithContext(ctx).Order("priority DESC").Order("id ASC").Find(&list).Error
+	return list, err
+}
+
+func (r *MessageAutoRuleRepository) ListEnabled(ctx context.Context) ([]model.MessageAutoRule, error) {
+	var list []model.MessageAutoRule
+	err := r.db.WithContext(ctx).Where("enabled = ?", true).Order("priority DESC").Order("id ASC").Find(&list).Error
+	return list, err
+}
+
+func (r *MessageAutoRuleRepository) Create(ctx context.Context, rule *model.MessageAutoRule) error {
+	return r.db.WithContext(ctx).Create(rule).Error
+}
+
+func (r *MessageAutoRuleRepository) Update(ctx context.Context, rule *model.MessageAutoRule) error {
+	return r.db.WithContext(ctx).Save(rule).Error
+}
+
+func (r *MessageAutoRuleRepository) Delete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&model.MessageAutoRule{}, id).Error
+}
+
+func (r *MessageAutoRuleRepository) IncrMatchCount(ctx context.Context, id uint) error {
+	now := time.Now()
+	return r.db.WithContext(ctx).Model(&model.MessageAutoRule{}).Where("id = ?", id).Updates(map[string]any{
+		"match_count":   gorm.Expr("match_count + 1"),
+		"last_match_at": &now,
+	}).Error
+}

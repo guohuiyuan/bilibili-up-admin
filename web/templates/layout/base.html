@@ -43,24 +43,33 @@
                     </div>
                 </div>
             </div>
-            <nav class="py-4">
-                <a href="/admin/" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "B站UP主运营管理平台" }}active{{ end }}">
+            <nav class="py-2">
+                <div class="sidebar-group-title">主要功能</div>
+                <a href="/admin/" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent {{ if eq .title "B站UP主运营管理平台" }}active{{ end }}">
                     <i class="ri-home-5-line"></i><span class="ml-3">首页</span>
                 </a>
-                <a href="/admin/comments" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "评论管理" }}active{{ end }}">
-                    <i class="ri-chat-3-line"></i><span class="ml-3">评论</span>
+                <a href="/admin/comments" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent {{ if eq .title "评论管理" }}active{{ end }}">
+                    <i class="ri-chat-3-line"></i><span class="ml-3">评论管理</span>
                 </a>
-                <a href="/admin/messages" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "私信管理" }}active{{ end }}">
-                    <i class="ri-mail-line"></i><span class="ml-3">私信</span>
+                <a href="/admin/messages" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent {{ if eq .title "私信管理" }}active{{ end }}">
+                    <i class="ri-mail-line"></i><span class="ml-3">私信管理</span>
                 </a>
-                <a href="/admin/interaction" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "互动管理" }}active{{ end }}">
-                    <i class="ri-thumb-up-line"></i><span class="ml-3">互动</span>
+                <a href="/admin/interaction" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent {{ if eq .title "互动管理" }}active{{ end }}">
+                    <i class="ri-thumb-up-line"></i><span class="ml-3">互动管理</span>
                 </a>
-                <a href="/admin/trends" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "热度分析" }}active{{ end }}">
-                    <i class="ri-fire-line"></i><span class="ml-3">热度</span>
+                <div class="sidebar-group-title mt-2">数据分析</div>
+                <a href="/admin/trends" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent {{ if eq .title "热度分析" }}active{{ end }}">
+                    <i class="ri-fire-line"></i><span class="ml-3">热度分析</span>
                 </a>
-                <a href="/admin/llm-logs" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent hover:bg-gray-50 {{ if eq .title "大模型对话日志" }}active{{ end }}">
+                <a href="/admin/llm-logs" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent {{ if eq .title "大模型对话日志" }}active{{ end }}">
                     <i class="ri-terminal-window-line"></i><span class="ml-3">AI 日志</span>
+                </a>
+                <div class="sidebar-group-title mt-2">系统</div>
+                <a href="/admin/settings" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent {{ if eq .title "系统设置" }}active{{ end }}">
+                    <i class="ri-settings-3-line"></i><span class="ml-3">系统设置</span>
+                </a>
+                <a href="/admin/settings/bilibili" class="sidebar-link flex items-center px-6 py-3 border-l-4 border-transparent {{ if eq .title "B站配置" }}active{{ end }}">
+                    <i class="ri-tv-line"></i><span class="ml-3">B站配置</span>
                 </a>
             </nav>
         </aside>

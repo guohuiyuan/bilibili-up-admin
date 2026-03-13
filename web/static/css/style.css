@@ -1,64 +1,146 @@
 /* B站UP主运营助手 - 样式文件 */
 
-/* 基础样式 */
-* {
-    box-sizing: border-box;
+/* ---- CSS 变量（B站设计系统） ---- */
+:root {
+    --bili-pink: #FB7299;
+    --bili-pink-dark: #e8637f;
+    --bili-blue: #00a1d6;
+    --bili-bg: #f4f5f7;
+    --bili-card: #ffffff;
+    --bili-border: #e3e5e7;
+    --bili-text: #18191c;
+    --bili-text-sub: #61666d;
+    --bili-text-hint: #9499a0;
+    --bili-radius: 12px;
+    --bili-radius-lg: 20px;
+    --bili-shadow: 0 2px 12px rgba(24, 25, 28, 0.06);
+    --bili-shadow-hover: 0 6px 20px rgba(251, 114, 153, 0.14);
 }
+
+/* ---- 基础样式 ---- */
+* { box-sizing: border-box; }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    /* B站常用浅灰背景 */
-    background-color: #f4f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Roboto, Arial, sans-serif;
+    background-color: var(--bili-bg);
+    color: var(--bili-text);
 }
 
-/* 滚动条样式 (B站风格偏圆润) */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-
+/* ---- 滚动条（B站风格圆润） ---- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-    background: #e5e9ef;
-    border-radius: 4px;
+    background: #d4d6da;
+    border-radius: 999px;
 }
+::-webkit-scrollbar-thumb:hover { background: #b2b5bb; }
 
-::-webkit-scrollbar-thumb:hover {
-    background: #ccd0d7;
-}
-
-/* 卡片动画 */
+/* ---- 卡片 ---- */
 .card {
-    transition: all 0.3s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: var(--bili-radius-lg);
 }
-
 .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--bili-shadow-hover);
 }
 
-/* 渐变背景 - 替换为 B站粉为主 */
-/* B站官方粉色参考: #FB7299 */
+/* ---- 渐变 ---- */
 .gradient-primary {
-    background: linear-gradient(135deg, #FB7299 0%, #f43f5e 100%);
+    background: linear-gradient(135deg, #FB7299 0%, #f25c78 100%);
 }
-
 .gradient-blue {
-    background: linear-gradient(135deg, #00a1d6 0%, #0ea5e9 100%); /* B站常用辅助蓝 */
+    background: linear-gradient(135deg, #00a1d6 0%, #0eaaee 100%);
 }
-
 .gradient-teal {
-    background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%);
+    background: linear-gradient(135deg, #14b8a6 0%, #06d6c4 100%);
 }
-
 .gradient-purple {
-    background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+    background: linear-gradient(135deg, #8b5cf6 0%, #c026d3 100%);
 }
 
-/* 响应式侧边栏 */
+/* ---- 侧边栏 ---- */
+aside {
+    border-right: 1px solid var(--bili-border);
+    background: #fff;
+}
+
+.sidebar-link {
+    color: var(--bili-text-sub);
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    border-radius: 0;
+}
+.sidebar-link:hover:not(.active) {
+    background-color: #fef2f6;
+    color: var(--bili-pink);
+}
+.sidebar-link.active {
+    background-color: #fef2f6;
+    border-left-color: var(--bili-pink) !important;
+    color: var(--bili-pink);
+    font-weight: 600;
+}
+.sidebar-link i {
+    font-size: 1.1rem;
+    width: 1.25rem;
+    text-align: center;
+}
+
+/* ---- 侧边栏分组标题 ---- */
+.sidebar-group-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--bili-text-hint);
+    padding: 0.75rem 1.5rem 0.25rem;
+}
+
+/* ---- 全局按钮 ---- */
+.btn-bili-primary {
+    background: var(--bili-pink);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-bili-primary:hover {
+    background: var(--bili-pink-dark);
+    box-shadow: 0 4px 12px rgba(251, 114, 153, 0.35);
+}
+
+/* ---- Toast ---- */
+.bili-toast {
+    font-size: 0.875rem;
+    border-radius: 10px;
+    padding: 0.625rem 1rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+/* ---- 页面 shell 背景（各页面共用） ---- */
+.page-shell {
+    background:
+        radial-gradient(circle at top left, rgba(251, 114, 153, 0.09), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(0, 161, 214, 0.07), transparent 28%),
+        linear-gradient(180deg, #f8fafc 0%, #f3f6fb 100%);
+    min-height: 100%;
+}
+
+/* ---- 面板卡片通用 ---- */
+.bili-panel {
+    background: #fff;
+    border: 1px solid var(--bili-border);
+    border-radius: var(--bili-radius-lg);
+    box-shadow: var(--bili-shadow);
+}
+
+/* ---- 响应式侧边栏 ---- */
 @media (max-width: 768px) {
     aside {
         position: fixed;
@@ -68,12 +150,6 @@ body {
         z-index: 50;
         transition: left 0.3s ease;
     }
-
-    aside.open {
-        left: 0;
-    }
-
-    main {
-        margin-left: 0 !important;
-    }
+    aside.open { left: 0; }
+    main { margin-left: 0 !important; }
 }
