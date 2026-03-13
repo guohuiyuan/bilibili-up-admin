@@ -272,6 +272,14 @@ func (s *MessageService) SyncMessages(ctx context.Context, page, pageSize int) (
 				continue
 			}
 			result.Inserted++
+			// 新消息入库后尝试自动规则匹配回复
+			if !message.IsFromSelf {
+				if hit, autoErr := s.AutoRuleReply(ctx, message); autoErr != nil {
+					log.Printf("[message.sync] auto_rule_err msg_id=%d err=%v", m.ID, autoErr)
+				} else if hit {
+					log.Printf("[message.sync] auto_rule_hit msg_id=%d sender_uid=%d", m.ID, m.SenderID)
+				}
+			}
 		}
 	}
 
